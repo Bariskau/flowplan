@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicholasgasior/tauri-schema/refs/heads/main/tauri.conf.json.schema.json",
+  "productName": "FlowPlan",
+  "version": "1.0.0",
+  "identifier": "com.flowplan.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "FlowPlan",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "theme": "Dark"
+      }
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZDNUI3RkU2Q0VBN0Q5NzcKUldSMzJhZk81bjliL0FxenZ0WVNyRHJkRGdWS1lyWkZmNkluV21aYVZ4ZzNUaFlTc0FkcUYzYTAK",
+      "endpoints": [
+        "https://github.com/Bariskau/flowplan/releases/latest/download/latest.json"
+      ]
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": "v1Compatible",
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
