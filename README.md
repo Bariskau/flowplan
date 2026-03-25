@@ -45,58 +45,9 @@ npm run tauri:build
 
 Platform-specific bundles are written under `src-tauri/target/release/bundle/`.
 
-## Release Builds
+## Release
 
-### Local Ubuntu Release
-
-```bash
-npm install
-npm run release:ubuntu
-```
-
-Outputs:
-- `src-tauri/target/release/bundle/deb/`
-- `src-tauri/target/release/bundle/appimage/`
-
-### Local macOS Release
-
-```bash
-npm install
-npm run release:mac
-```
-
-Outputs:
-- `src-tauri/target/release/bundle/macos/`
-- `src-tauri/target/release/bundle/dmg/`
-
-Note: Tauri does not cross-compile macOS bundles from Ubuntu. Ubuntu packages must be built on Linux, and macOS bundles must be built on macOS.
-
-### GitHub Actions Release
-
-The workflow at [`.github/workflows/release.yml`](.github/workflows/release.yml) builds:
-- Ubuntu `deb` + `AppImage`
-- macOS `dmg` + `.app` for both Apple Silicon and Intel
-
-How to use it:
-1. Bump the version in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
-2. Commit the release changes.
-3. Push that commit to the `release` branch, or run the workflow manually from GitHub Actions.
-4. The workflow creates or updates a draft GitHub release named `FlowPlan v<version>` and uploads the built assets.
-
-### macOS Signing and Notarization
-
-The workflow supports unsigned/ad-hoc macOS builds by default so CI can still produce testable artifacts.
-
-For production macOS distribution, add these GitHub secrets:
-- `APPLE_CERTIFICATE`
-- `APPLE_CERTIFICATE_PASSWORD`
-- `APPLE_SIGNING_IDENTITY`
-
-For notarization, also provide either:
-- `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
-
-or:
-- `APPLE_API_ISSUER`, `APPLE_API_KEY`, `APPLE_API_KEY_BASE64`
+Push to the `release` branch or trigger the workflow manually from GitHub Actions. The CI builds Ubuntu (`deb` + `AppImage`) and macOS (`dmg` + `.app` for ARM and Intel), then creates a draft GitHub release with all assets.
 
 ## MCP Setup
 
