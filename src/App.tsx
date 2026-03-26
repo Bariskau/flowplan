@@ -549,13 +549,13 @@ export default function App() {
     return () => document.removeEventListener("wheel", globalHandler);
   }, []);
 
-  // Canvas wheel handler (scroll to pan, ctrl+scroll to zoom on macOS)
-  useEffect(() => {
-    const el = cr.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
+  // Canvas wheel handler — attach via ref callback so it works after mount
+  const wheelRef = useRef<((e: WheelEvent) => void) | null>(null);
+  if (!wheelRef.current) {
+    wheelRef.current = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = el.getBoundingClientRect();
+      const rect = cr.current?.getBoundingClientRect();
+      if (!rect) return;
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       if (e.ctrlKey || e.metaKey) {
@@ -569,9 +569,13 @@ export default function App() {
         setOff(o => ({ x: o.x - e.deltaX, y: o.y - e.deltaY }));
       }
     };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, []);
+  }
+  useEffect(() => {
+    const el = cr.current;
+    if (!el || !wheelRef.current) return;
+    el.addEventListener("wheel", wheelRef.current, { passive: false });
+    return () => { el.removeEventListener("wheel", wheelRef.current!, { passive: false } as any); };
+  });
 
   // Linux trackpad pinch-to-zoom (forwarded from GTK gesture via Rust)
   useEffect(() => {
