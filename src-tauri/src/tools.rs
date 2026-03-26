@@ -262,7 +262,16 @@ impl PlannerHandler {
             Some(plan) => {
                 let mut ids = Vec::new();
                 let mut next_order = plan.steps.len() as u32;
-                for entry in params.cards {
+                let has_existing_cards = !plan.steps.is_empty();
+                for (ci, entry) in params.cards.into_iter().enumerate() {
+                    let has_prior = has_existing_cards || ci > 0;
+                    if has_prior && entry.dependencies.is_empty() {
+                        let available: Vec<String> = plan.steps.iter().map(|c| format!("{} ({})", c.id, c.title)).chain(ids.iter().cloned()).collect();
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "DEPENDENCY_REQUIRED: Card '{}' needs at least one dependency. Available card IDs you can reference: [{}]. Set the 'dependencies' array with one or more of these IDs and retry.",
+                            entry.title, available.join(", ")
+                        ))]));
+                    }
                     let fc = entry
                         .file_changes
                         .map(build_file_changes)
