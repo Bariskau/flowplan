@@ -58,6 +58,7 @@ export interface HistoryEntry {
     action: string;
     description: string;
     cards: CardSummary[];
+    fullCards?: Card[];
 }
 
 export interface PlanHistory {

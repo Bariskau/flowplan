@@ -235,7 +235,7 @@ const SCard = memo(function SCard({ step, pos, sel, onSel, onDrag, fbc, fbt, vm,
   prev.pos?.y === next.pos?.y
 );
 
-function FeedbackItem({ fb, onDel }: { fb: Feedback; onDel: (id: string) => void }) {
+function FeedbackItem({ fb, onDel }: { fb: Feedback; onDel: ((id: string) => void) | null }) {
   const f = FB[fb.type];
   const [hover, setHover] = useState(false);
 
@@ -249,8 +249,8 @@ function FeedbackItem({ fb, onDel }: { fb: Feedback; onDel: (id: string) => void
           </div>
           <span style={{ fontSize: 9.5, fontWeight: 700, color: f.color, fontFamily: T.m, textTransform: "uppercase" as const, letterSpacing: "0.04em" }}>{f.label}</span>
         </div>
-        <button onClick={() => onDel(fb.id)}
-          style={{ background: hover ? "rgba(255,255,255,0.08)" : "none", border: "none", color: T.sec, cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: hover ? 1 : 0.2, transition: "all 0.15s", padding: "2px 5px", borderRadius: 4, lineHeight: 1 }}>{"\u2715"}</button>
+        {onDel && <button onClick={() => onDel(fb.id)}
+          style={{ background: hover ? "rgba(255,255,255,0.08)" : "none", border: "none", color: T.sec, cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: hover ? 1 : 0.2, transition: "all 0.15s", padding: "2px 5px", borderRadius: 4, lineHeight: 1 }}>{"\u2715"}</button>}
       </div>
       <div style={{ padding: "8px 12px 11px", fontSize: 12, color: T.text, lineHeight: 1.7, letterSpacing: "-0.01em" }}>
         {fb.text}
@@ -297,7 +297,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-function Detail({ step, fbs, onClose, onAdd, onDel, planTitle, planId, onFileClick, steps, onSelectCard }: any) {
+function Detail({ step, fbs, onClose, onAdd, onDel, planTitle, planId, onFileClick, steps, onSelectCard, readOnly }: any) {
   const [ft, setFt] = useState<"question" | "directive" | "issue">("question");
   const [txt, setTxt] = useState("");
   const r = useRef<HTMLTextAreaElement>(null);
@@ -311,19 +311,22 @@ function Detail({ step, fbs, onClose, onAdd, onDel, planTitle, planId, onFileCli
       {/* Header */}
       <div style={{ padding: "14px 16px", background: T.surface, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-          <span style={{ background: tc.bg, color: tc.c, fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 5, fontFamily: T.m, display: "inline-flex", alignItems: "center", gap: 4 }}>{tc.icon(tc.c, 9)} {tc.l}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ background: tc.bg, color: tc.c, fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 5, fontFamily: T.m, display: "inline-flex", alignItems: "center", gap: 4 }}>{tc.icon(tc.c, 9)} {tc.l}</span>
+            {readOnly && <span style={{ background: T.oD, color: T.orange, fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 5, fontFamily: T.m, display: "inline-flex", alignItems: "center", gap: 4 }}>{Ico.clock(T.orange, 9)} Old Version</span>}
+          </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.ter, cursor: "pointer", fontSize: 14, width: 22, height: 22, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.12s" }}
             onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = T.text; }}
             onMouseLeave={(e: any) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = T.ter; }}>{"\u2715"}</button>
         </div>
-        <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: T.text, lineHeight: 1.35, letterSpacing: "-0.01em" }}>{step.title}</h3>
-        <CopyRef planTitle={planTitle} planId={planId} cardTitle={step.title} cardId={step.id} size={8} />
+        <h3 data-selectable style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: T.text, lineHeight: 1.35, letterSpacing: "-0.01em" }}>{step.title}</h3>
+        {!readOnly && <CopyRef planTitle={planTitle} planId={planId} cardTitle={step.title} cardId={step.id} size={8} />}
       </div>
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
         {/* Description */}
-        <div style={{ padding: "14px 16px 12px" }}>
+        <div data-selectable style={{ padding: "14px 16px 12px" }}>
           <Md text={step.description} />
         </div>
 
@@ -357,9 +360,9 @@ function Detail({ step, fbs, onClose, onAdd, onDel, planTitle, planId, onFileCli
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>{step.dependencies.map((d: string) => {
             const depCard = (steps as Card[])?.find((s: Card) => s.id === d);
             const depTc = depCard ? (TC[depCard.type] || TC.research) : null;
-            return <div key={d} className="dep-row" onClick={() => onSelectCard(d)}
-              style={{ fontSize: 10.5, color: T.sec, background: T.surface, padding: "6px 10px", borderRadius: 6, fontFamily: T.f, wordBreak: "break-all" as const, lineHeight: 1.4, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, border: `1px solid ${T.border}`, transition: "all 0.12s" }}
-              onMouseEnter={(e: any) => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.raised; }}
+            return <div key={d} className="dep-row" onClick={() => { if (!readOnly) onSelectCard(d); }}
+              style={{ fontSize: 10.5, color: T.sec, background: T.surface, padding: "6px 10px", borderRadius: 6, fontFamily: T.f, wordBreak: "break-all" as const, lineHeight: 1.4, cursor: readOnly ? "default" : "pointer", display: "flex", alignItems: "center", gap: 7, border: `1px solid ${T.border}`, transition: "all 0.12s", opacity: readOnly ? 0.6 : 1 }}
+              onMouseEnter={(e: any) => { if (!readOnly) { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.raised; } }}
               onMouseLeave={(e: any) => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.surface; }}>
               {depTc && <span style={{ background: depTc.bg, color: depTc.c, fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3, fontFamily: T.m, flexShrink: 0 }}>{depTc.l}</span>}
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{depCard?.title || d}</span>
@@ -380,14 +383,15 @@ function Detail({ step, fbs, onClose, onAdd, onDel, planTitle, planId, onFileCli
 
           {sf.length === 0 && (
             <div style={{ textAlign: "center", padding: "20px 12px", color: T.ter, fontSize: 11, lineHeight: 1.7, background: T.surface, borderRadius: 8, border: `1px dashed ${T.border}` }}>
-              No feedback yet.<br/>Add a question, directive, or report an issue.
+              No feedback yet.{!readOnly && <><br/>Add a question, directive, or report an issue.</>}
             </div>
           )}
           {sf.map(fb => (
-            <FeedbackItem key={fb.id} fb={fb} onDel={onDel} />
+            <FeedbackItem key={fb.id} fb={fb} onDel={readOnly ? null : onDel} />
           ))}
 
-          {/* Add feedback */}
+          {/* Add feedback — hidden in readOnly */}
+          {!readOnly && (
           <div style={{ marginTop: sf.length > 0 ? 14 : 10, background: T.surface, borderRadius: 10, border: `1px solid ${T.border}`, overflow: "hidden" }}>
             <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
               {Object.entries(FB).map(([k, v]) => {
@@ -421,6 +425,7 @@ function Detail({ step, fbs, onClose, onAdd, onDel, planTitle, planId, onFileCli
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
@@ -502,29 +507,6 @@ function HistoryPanel({ entries, histIdx, onSelect, onClose, onClear }: {
           );
         })}
 
-        {diff && histIdx !== null && (
-          <div style={{ marginTop: 10, padding: "10px 10px", background: T.surface, borderRadius: 8, border: `1px solid ${T.border}` }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: T.ter, textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>Changes</div>
-            {diff.added.length === 0 && diff.removed.length === 0 && diff.modified.length === 0 && (
-              <div style={{ fontSize: 10, color: T.ter, fontStyle: "italic" }}>Initial snapshot</div>
-            )}
-            {diff.added.map(c => (
-              <div key={c.id} style={{ fontSize: 10, color: T.green, padding: "3px 0", display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ fontWeight: 700 }}>+</span> {c.title}
-              </div>
-            ))}
-            {diff.removed.map(c => (
-              <div key={c.id} style={{ fontSize: 10, color: T.red, padding: "3px 0", display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ fontWeight: 700 }}>{"\u2212"}</span> {c.title}
-              </div>
-            ))}
-            {diff.modified.map(c => (
-              <div key={c.after.id} style={{ fontSize: 10, color: T.orange, padding: "3px 0", display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ fontWeight: 700 }}>~</span> {c.after.title}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -551,12 +533,62 @@ export default function App() {
   const [histOpen, setHistOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histIdx, setHistIdx] = useState<number | null>(null);
+  const [oldCard, setOldCard] = useState<Card | null>(null);
 
   // Disable right-click context menu
   useEffect(() => {
     const prevent = (e: MouseEvent) => e.preventDefault();
     document.addEventListener("contextmenu", prevent);
     return () => document.removeEventListener("contextmenu", prevent);
+  }, []);
+
+  // Prevent webview zoom globally
+  useEffect(() => {
+    const globalHandler = (e: WheelEvent) => { if (e.ctrlKey || e.metaKey) e.preventDefault(); };
+    document.addEventListener("wheel", globalHandler, { passive: false });
+    return () => document.removeEventListener("wheel", globalHandler);
+  }, []);
+
+  // Canvas wheel handler (scroll to pan, ctrl+scroll to zoom on macOS)
+  useEffect(() => {
+    const el = cr.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      if (e.ctrlKey || e.metaKey) {
+        setZ(prev => {
+          const next = Math.max(0.1, Math.min(5, prev - e.deltaY * 0.003));
+          const ratio = next / prev;
+          setOff(o => ({ x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio }));
+          return next;
+        });
+      } else {
+        setOff(o => ({ x: o.x - e.deltaX, y: o.y - e.deltaY }));
+      }
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
+  // Linux trackpad pinch-to-zoom (forwarded from GTK gesture via Rust)
+  useEffect(() => {
+    (window as any).__fpPinchZoom = (deltaY: number) => {
+      const el = cr.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const mx = rect.width / 2;
+      const my = rect.height / 2;
+      setZ(prev => {
+        const next = Math.max(0.1, Math.min(5, prev - deltaY * 0.003));
+        const ratio = next / prev;
+        setOff(o => ({ x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio }));
+        return next;
+      });
+    };
+    return () => { delete (window as any).__fpPinchZoom; };
   }, []);
 
   useEffect(() => {
@@ -881,7 +913,7 @@ ${cards}
     return () => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); };
   }, [di, z, persistPositions]);
 
-  const ocd = useCallback((e: any) => { if (e.target === cr.current || e.target.tagName === "svg") { e.preventDefault(); setIp(true); setOff(cur => { setPs({ x: e.clientX - cur.x, y: e.clientY - cur.y }); return cur; }); setSId(null); } }, []);
+  const ocd = useCallback((e: any) => { if (e.target === cr.current || e.target.tagName === "svg") { e.preventDefault(); setIp(true); setOff(cur => { setPs({ x: e.clientX - cur.x, y: e.clientY - cur.y }); return cur; }); setSId(null); setHistOpen(false); setHistIdx(null); setOldCard(null); } }, []);
   useEffect(() => { if (!ip || !ps) return; const mv = (e: MouseEvent) => setOff({ x: e.clientX - ps.x, y: e.clientY - ps.y }); const up = () => setIp(false); window.addEventListener("mousemove", mv); window.addEventListener("mouseup", up); return () => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); }; }, [ip, ps]);
   const ow = useCallback((e: any) => {
     e.preventDefault();
@@ -889,12 +921,18 @@ ${cards}
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    setZ(prev => {
-      const next = Math.max(0.1, Math.min(5, prev - e.deltaY * 0.001));
-      const ratio = next / prev;
-      setOff(o => ({ x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio }));
-      return next;
-    });
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch-to-zoom (trackpad) or Ctrl+scroll
+      setZ(prev => {
+        const next = Math.max(0.1, Math.min(5, prev - e.deltaY * 0.003));
+        const ratio = next / prev;
+        setOff(o => ({ x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio }));
+        return next;
+      });
+    } else {
+      // Regular scroll → pan
+      setOff(o => ({ x: o.x - e.deltaX, y: o.y - e.deltaY }));
+    }
   }, []);
 
   const ap2 = Object.values(pos);
@@ -998,7 +1036,7 @@ ${cards}
               <CopyRef planTitle={plan.title} planId={plan.id} cardTitle="" cardId="" size={8} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button onClick={() => { setHistOpen(h => !h); setSId(null); setHistIdx(null); }} title="History"
+              <button onClick={() => { setHistOpen(h => !h); setSId(null); setHistIdx(null); setOldCard(null); }} title="History"
                 style={{ background: histOpen ? T.aD : T.raised, border: histOpen ? `1px solid ${T.accent}` : "none", cursor: "pointer", padding: "2px 7px", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.12s" }}
                 onMouseEnter={(e: any) => { if (!histOpen) e.currentTarget.style.background = "#333"; }}
                 onMouseLeave={(e: any) => { if (!histOpen) e.currentTarget.style.background = T.raised; }}>
@@ -1043,7 +1081,7 @@ ${cards}
             ) : steps.length === 0 ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: T.ter, fontSize: 12, flexDirection: "column", gap: 8 }}><div>Waiting for cards from Coding Agent...</div></div>
             ) : vm === "flow" ? (
-              <div ref={cr} onMouseDown={ocd} onWheel={ow} style={{ width: "100%", height: "100%", cursor: ip ? "grabbing" : "default" }}>
+              <div ref={cr} onMouseDown={ocd} style={{ width: "100%", height: "100%", cursor: ip ? "grabbing" : "default" }}>
                 <div style={{ transform: `translate(${Math.round(off.x)}px,${Math.round(off.y)}px) scale(${z})`, transformOrigin: "0 0", position: "relative", backfaceVisibility: "hidden" as const, WebkitFontSmoothing: "subpixel-antialiased" }}>
                   <svg style={{ position: "absolute", left: mnX, top: mnY, width: mxX - mnX, height: mxY - mnY, pointerEvents: "none", overflow: "visible" }}><g transform={`translate(${-mnX},${-mnY})`}><Conns steps={steps} pos={pos} /></g></svg>
                   {steps.map(s => <SCard key={s.id} step={s} pos={pos[s.id]} sel={sId === s.id} onSel={selectCard} onDrag={onDrag} fbc={fcm[s.id] || 0} fbt={ftm[s.id] || []} vm="flow" planTitle={plan?.title || ""} planId={plan?.id || ""} onFileClick={onFileClick} highlight={hlMap[s.id] || null} />)}
@@ -1071,6 +1109,28 @@ ${cards}
           </div>
         </div>
 
+        {/* Old card drawer — reuses Detail component */}
+        {histOpen && oldCard && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            right: 320,
+            width: 320,
+            height: "100vh",
+            background: T.bg,
+            borderLeft: `0.5px solid ${T.border}`,
+            zIndex: 51,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}>
+            <Detail step={oldCard} fbs={st.feedbacks} onClose={() => setOldCard(null)}
+              onAdd={async () => {}} onDel={async () => {}}
+              planTitle="Old Version" planId="" onFileClick={onFileClick}
+              steps={steps} onSelectCard={() => {}} readOnly />
+          </div>
+        )}
+
         {/* Drawer: fixed overlay — does not reflow canvas */}
         {(histOpen || (!histOpen && sId && ss)) && (
           <div style={{
@@ -1088,9 +1148,29 @@ ${cards}
           }}>
             {histOpen ? (
               <HistoryPanel entries={history} histIdx={histIdx}
-                onSelect={setHistIdx}
-                onClose={() => { setHistOpen(false); setHistIdx(null); }}
-                onClear={async () => { if (aId) { await api.clearHistory(aId); setHistory([]); setHistIdx(null); } }} />
+                onSelect={(idx) => {
+                  setHistIdx(idx);
+                  setOldCard(null);
+                  if (idx !== null && idx > 0) {
+                    const current = history[idx].cards;
+                    const prev = history[idx - 1];
+                    const prevCards = prev.cards;
+                    const prevFull = prev.fullCards || [];
+                    // Find first modified card
+                    for (const c of current) {
+                      const p = prevCards.find(pc => pc.id === c.id);
+                      if (p && (p.title !== c.title || p.type !== c.type || p.descriptionLen !== c.descriptionLen || p.filesCount !== c.filesCount || JSON.stringify(p.files) !== JSON.stringify(c.files) || JSON.stringify(p.dependencies) !== JSON.stringify(c.dependencies))) {
+                        const old = prevFull.find(fc => fc.id === c.id);
+                        if (old) setOldCard(old);
+                        // Scroll to card if it still exists
+                        if (steps.find(s => s.id === c.id)) focusCard(c.id);
+                        break;
+                      }
+                    }
+                  }
+                }}
+                onClose={() => { setHistOpen(false); setHistIdx(null); setOldCard(null); }}
+                onClear={async () => { if (aId) { await api.clearHistory(aId); setHistory([]); setHistIdx(null); setOldCard(null); } }} />
             ) : ss ? (
               <Detail step={ss} fbs={st.feedbacks} onClose={() => setSId(null)}
                 onAdd={async (c: string, t: string, x: string) => { try { await api.addFeedback(c, t as any, x); } catch {} }}
