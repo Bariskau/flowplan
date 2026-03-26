@@ -1,6 +1,6 @@
 {
   "name": "flowplan",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "tauri:build": "tauri build",
     "release:ubuntu": "tauri build --bundles deb,appimage",
     "release:mac": "tauri build --bundles app,dmg",
-    "setup": "npm install"
+    "setup": "npm install",
+    "bump": "bash scripts/bump-version.sh"
   },
   "dependencies": {
     "react": "^18.3.1",
