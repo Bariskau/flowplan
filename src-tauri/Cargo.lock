@@ -889,6 +889,9 @@ dependencies = [
  "axum",
  "chrono",
  "dirs",
+ "gio",
+ "gobject-sys",
+ "gtk",
  "http",
  "rmcp",
  "schemars 1.2.1",
@@ -900,6 +903,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tower-http",
+ "webkit2gtk",
 ]
 
 [[package]]

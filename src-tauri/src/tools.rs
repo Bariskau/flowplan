@@ -22,91 +22,59 @@ impl PlannerHandler {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct CreatePlanParams {
-    #[schemars(description = "Short title for the plan")]
+    #[schemars(description = "Plan title")]
     title: String,
-    #[schemars(description = "An emoji icon for the plan")]
+    #[schemars(description = "Emoji icon")]
     icon: String,
-    #[schemars(description = "A brief description of the plan")]
+    #[schemars(description = "Brief description")]
     description: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-struct AddCardParams {
-    #[schemars(description = "ID of the plan to add the card to (returned by create_plan)")]
-    plan_id: String,
-    #[schemars(description = "Card title")]
-    title: String,
-    #[schemars(
-        description = "Card description (supports markdown: **bold**, *italic*, `code`, ```code blocks```, - lists, [links](url))"
-    )]
-    description: String,
-    #[schemars(description = "Card type: research, planning, create, edit, or test")]
-    card_type: CardType,
-    #[schemars(description = "Repository or project path")]
-    repo: String,
-    #[schemars(description = "List of file paths relevant to this card")]
-    files: Vec<String>,
-    #[schemars(
-        description = "List of card IDs this card depends on (returned by previous add_card/add_cards calls)"
-    )]
-    dependencies: Vec<String>,
-    #[schemars(
-        description = "IMPORTANT: For every file in 'files', you SHOULD provide the proposed code changes here. Each entry: {path, content (unified diff, full content, or markdown with ```code blocks```), language? (auto-detected), changeType? ('create'|'edit'|'delete', default 'edit')}. Users can click files in the UI to see these changes."
-    )]
-    file_changes: Option<Vec<FileChangeEntry>>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct CardEntry {
     #[schemars(description = "Card title")]
     title: String,
-    #[schemars(
-        description = "Card description (supports markdown: **bold**, *italic*, `code`, ```code blocks```, - lists, [links](url))"
-    )]
+    #[schemars(description = "Card description (markdown supported)")]
     description: String,
-    #[schemars(description = "Card type: research, planning, create, edit, or test")]
+    #[schemars(description = "Type: research, planning, create, edit, or test")]
     card_type: CardType,
     #[schemars(description = "Repository or project path")]
     repo: String,
-    #[schemars(description = "List of file paths relevant to this card")]
+    #[schemars(description = "File paths relevant to this card")]
     files: Vec<String>,
     #[schemars(
-        description = "List of card IDs this card depends on. Use the IDs returned by previous add_card or add_cards calls."
+        description = "IDs of cards this depends on. REQUIRED except for the first card — without dependencies cards appear disconnected."
     )]
     dependencies: Vec<String>,
     #[schemars(
-        description = "IMPORTANT: For every file in 'files', you SHOULD provide the proposed code changes here. Each entry: {path, content (unified diff, full content, or markdown with ```code blocks```), language? (auto-detected), changeType? ('create'|'edit'|'delete', default 'edit')}. Users can click files in the UI to see these changes."
+        description = "Proposed code changes per file: [{path, content, language?, changeType?}]. Users preview these in the UI."
     )]
     file_changes: Option<Vec<FileChangeEntry>>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct AddCardsParams {
-    #[schemars(description = "ID of the plan to add cards to")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
-    #[schemars(description = "Array of card objects to add")]
+    #[schemars(description = "Cards to add (single or multiple). IDs returned in order so later cards can reference earlier ones as dependencies.")]
     cards: Vec<CardEntry>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct RemoveCardParams {
-    #[schemars(description = "ID of the plan")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
-    #[schemars(description = "ID of the card to remove")]
+    #[schemars(description = "Card ID to remove")]
     card_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct GetCardsParams {
-    #[schemars(description = "ID of the plan to get cards from")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
-    #[schemars(
-        description = "Number of cards to skip (default 0). Use with limit for pagination."
-    )]
+    #[schemars(description = "Skip N cards (default 0)")]
     offset: Option<usize>,
-    #[schemars(
-        description = "Max number of cards to return (default all). Use with offset for pagination when context is large."
-    )]
+    #[schemars(description = "Max cards to return (default all)")]
     limit: Option<usize>,
 }
 
@@ -115,13 +83,13 @@ struct ListPlansParams {}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct GetPlanParams {
-    #[schemars(description = "ID of the plan to retrieve")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct ClearPlanParams {
-    #[schemars(description = "ID of the plan to clear all cards from")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
 }
 
@@ -130,81 +98,59 @@ struct GetAllFeedbackParams {}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct AnswerFeedbackParams {
-    #[schemars(description = "ID of the feedback item to answer (from get_all_feedback results)")]
+    #[schemars(description = "Feedback ID")]
     feedback_id: String,
-    #[schemars(description = "Your answer to the user's question")]
+    #[schemars(description = "Your answer")]
     answer: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct AcknowledgeFeedbackParams {
-    #[schemars(description = "IDs of the feedback items to mark as read/acknowledged")]
+    #[schemars(description = "Feedback IDs to mark as read")]
     feedback_ids: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct UpdateCardParams {
-    #[schemars(description = "ID of the plan containing the card")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
-    #[schemars(description = "ID of the card to update")]
+    #[schemars(description = "Card ID")]
     card_id: String,
-    #[schemars(description = "New title (omit to keep current)")]
+    #[schemars(description = "New title (omit to keep)")]
     title: Option<String>,
-    #[schemars(description = "New description in markdown (omit to keep current)")]
+    #[schemars(description = "New description (omit to keep)")]
     description: Option<String>,
-    #[schemars(
-        description = "New card type: research, planning, create, edit, or test (omit to keep current)"
-    )]
+    #[schemars(description = "New type (omit to keep)")]
     card_type: Option<CardType>,
-    #[schemars(description = "New repository path (omit to keep current)")]
+    #[schemars(description = "New repo path (omit to keep)")]
     repo: Option<String>,
-    #[schemars(description = "New list of file paths (omit to keep current)")]
+    #[schemars(description = "New file list (omit to keep)")]
     files: Option<Vec<String>>,
-    #[schemars(description = "New list of dependency card IDs (omit to keep current)")]
+    #[schemars(description = "New dependencies (omit to keep)")]
     dependencies: Option<Vec<String>>,
-    #[schemars(
-        description = "File changes map: array of {path, content (markdown with code blocks), language?, changeType?} (omit to keep current)"
-    )]
+    #[schemars(description = "New file changes (omit to keep)")]
     file_changes: Option<Vec<FileChangeEntry>>,
-    #[schemars(
-        description = "Display order (0-based). Cards are sorted by order within each dependency column. Omit to keep current."
-    )]
+    #[schemars(description = "Display order (omit to keep)")]
     order: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct FileChangeEntry {
-    #[schemars(description = "File path (e.g. 'src/main.rs')")]
+    #[schemars(description = "File path")]
     path: String,
-    #[schemars(
-        description = "Unified diff, full file content, or markdown with ```code blocks```. Rendered with markdown support in the UI."
-    )]
+    #[schemars(description = "Diff, full content, or markdown with code blocks")]
     content: String,
-    #[schemars(
-        description = "Language hint (e.g. 'rust', 'typescript'). Auto-detected from extension if omitted."
-    )]
+    #[schemars(description = "Language hint (auto-detected if omitted)")]
     language: Option<String>,
-    #[schemars(description = "Type of change: 'create', 'edit', or 'delete'. Defaults to 'edit'.")]
+    #[schemars(description = "'create', 'edit', or 'delete' (default 'edit')")]
     change_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct SetFileChangesParams {
-    #[schemars(description = "ID of the plan containing the card")]
-    plan_id: String,
-    #[schemars(description = "ID of the card to set file changes on")]
-    card_id: String,
-    #[schemars(description = "Array of file change entries")]
-    changes: Vec<FileChangeEntry>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 struct ReorderCardsParams {
-    #[schemars(description = "ID of the plan")]
+    #[schemars(description = "Plan ID")]
     plan_id: String,
-    #[schemars(
-        description = "Ordered list of card IDs. The order field of each card is set to its index in this array (0, 1, 2, ...). Cards not in this list keep their current order."
-    )]
+    #[schemars(description = "Ordered card IDs — each gets order = index")]
     card_ids: Vec<String>,
 }
 
@@ -257,11 +203,30 @@ fn build_file_changes(entries: Vec<FileChangeEntry>) -> HashMap<String, FileChan
     map
 }
 
+/// Strip file_changes from cards for lighter responses
+fn card_summary_json(card: &Card) -> serde_json::Value {
+    serde_json::json!({
+        "id": card.id,
+        "title": card.title,
+        "description": card.description,
+        "type": match card.card_type {
+            CardType::Research => "research",
+            CardType::Planning => "planning",
+            CardType::Create => "create",
+            CardType::Edit => "edit",
+            CardType::Test => "test",
+        },
+        "repo": card.repo,
+        "files": card.files,
+        "dependencies": card.dependencies,
+        "hasFileChanges": !card.file_changes.is_empty(),
+        "order": card.order,
+    })
+}
+
 #[tool_router]
 impl PlannerHandler {
-    #[tool(
-        description = "Create a new plan in FlowPlan. A plan is a visual board that contains cards (steps). Returns the plan ID which you need for adding cards. The plan appears immediately in the FlowPlan desktop app sidebar."
-    )]
+    #[tool(description = "Create a new plan board. Returns planId for adding cards.")]
     async fn create_plan(
         &self,
         Parameters(params): Parameters<CreatePlanParams>,
@@ -285,52 +250,7 @@ impl PlannerHandler {
     }
 
     #[tool(
-        description = "Add a single card (step) to a plan. Each card represents one task/step and appears as a draggable node in the FlowPlan flow view. Use dependencies to create connections between cards. IMPORTANT: When listing files, always include file_changes with the proposed code diff or content for each file so users can review changes in the UI. Returns the new card's ID."
-    )]
-    async fn add_card(
-        &self,
-        Parameters(params): Parameters<AddCardParams>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let mut st = self.state.write().await;
-        let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
-        match plan {
-            Some(plan) => {
-                let fc = params
-                    .file_changes
-                    .map(build_file_changes)
-                    .unwrap_or_default();
-                let snap_title = params.title.clone();
-                let next_order = plan.steps.len() as u32;
-                let card = Card {
-                    id: state::gen_id("card"),
-                    title: params.title,
-                    description: params.description,
-                    card_type: params.card_type,
-                    repo: params.repo,
-                    files: params.files,
-                    dependencies: params.dependencies,
-                    file_changes: fc,
-                    order: next_order,
-                };
-                let id = card.id.clone();
-                plan.steps.push(card);
-                state::save_state(&st);
-                if let Some(p) = st.plans.iter().find(|p| p.id == params.plan_id) {
-                    state::record_snapshot(p, "add_card", &format!("Added card: {}", snap_title));
-                }
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::json!({ "cardId": id }).to_string(),
-                )]))
-            }
-            None => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Plan '{}' not found",
-                params.plan_id
-            ))])),
-        }
-    }
-
-    #[tool(
-        description = "Add multiple cards (steps) to a plan at once. More efficient than calling add_card repeatedly. Cards are added in order and IDs are returned in the same order, so you can reference earlier cards as dependencies for later ones. IMPORTANT: When listing files, always include file_changes with the proposed code diff or content for each file so users can review changes in the UI. Returns all new card IDs."
+        description = "Add cards to a plan. Works for single or batch. Returns cardIds in order — use earlier IDs as dependencies for later cards. Every card except the first MUST have dependencies. Include file_changes for each file so users can preview code."
     )]
     async fn add_cards(
         &self,
@@ -362,11 +282,7 @@ impl PlannerHandler {
                     ids.push(card.id.clone());
                     plan.steps.push(card);
                 }
-                let count = ids.len();
                 state::save_state(&st);
-                if let Some(p) = st.plans.iter().find(|p| p.id == params.plan_id) {
-                    state::record_snapshot(p, "add_cards", &format!("Added {} cards", count));
-                }
                 Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({ "cardIds": ids }).to_string(),
                 )]))
@@ -378,7 +294,7 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(description = "Remove a card from a plan by its ID.")]
+    #[tool(description = "Remove a card by ID.")]
     async fn remove_card(
         &self,
         Parameters(params): Parameters<RemoveCardParams>,
@@ -396,13 +312,6 @@ impl PlannerHandler {
                     ))]))
                 } else {
                     state::save_state(&st);
-                    if let Some(p) = st.plans.iter().find(|p| p.id == params.plan_id) {
-                        state::record_snapshot(
-                            p,
-                            "remove_card",
-                            &format!("Removed card: {}", params.card_id),
-                        );
-                    }
                     Ok(CallToolResult::success(vec![Content::text("Card removed")]))
                 }
             }
@@ -414,7 +323,7 @@ impl PlannerHandler {
     }
 
     #[tool(
-        description = "Get cards (steps) from a specific plan. Supports pagination via offset/limit to avoid large context. Returns cards with total count, offset, and whether more cards remain."
+        description = "Get cards from a plan. Returns card metadata without file_changes content (use update_card to modify file_changes). Supports pagination."
     )]
     async fn get_cards(
         &self,
@@ -427,7 +336,13 @@ impl PlannerHandler {
                 let total = plan.steps.len();
                 let off = params.offset.unwrap_or(0).min(total);
                 let lim = params.limit.unwrap_or(total);
-                let page: Vec<&state::Card> = plan.steps.iter().skip(off).take(lim).collect();
+                let page: Vec<serde_json::Value> = plan
+                    .steps
+                    .iter()
+                    .skip(off)
+                    .take(lim)
+                    .map(card_summary_json)
+                    .collect();
                 let has_more = off + page.len() < total;
                 Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({
@@ -447,9 +362,7 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(
-        description = "List all plans with their IDs, titles, and card counts. Use this first to discover available plans before operating on them."
-    )]
+    #[tool(description = "List all plans with IDs, titles, and card counts.")]
     async fn list_plans(
         &self,
         Parameters(_params): Parameters<ListPlansParams>,
@@ -472,7 +385,7 @@ impl PlannerHandler {
         )]))
     }
 
-    #[tool(description = "Get a specific plan by its ID, including all cards and their details.")]
+    #[tool(description = "Get a plan with all cards (without file_changes content). Use get_cards with pagination for large plans.")]
     async fn get_plan(
         &self,
         Parameters(params): Parameters<GetPlanParams>,
@@ -480,9 +393,20 @@ impl PlannerHandler {
         let st = self.state.read().await;
         let plan = st.plans.iter().find(|p| p.id == params.plan_id);
         match plan {
-            Some(plan) => Ok(CallToolResult::success(vec![Content::text(
-                serde_json::to_string(plan).unwrap_or_default(),
-            )])),
+            Some(plan) => {
+                let cards: Vec<serde_json::Value> =
+                    plan.steps.iter().map(card_summary_json).collect();
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::json!({
+                        "id": plan.id,
+                        "title": plan.title,
+                        "icon": plan.icon,
+                        "description": plan.description,
+                        "cards": cards,
+                    })
+                    .to_string(),
+                )]))
+            }
             None => Ok(CallToolResult::error(vec![Content::text(format!(
                 "Plan '{}' not found",
                 params.plan_id
@@ -490,7 +414,7 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(description = "Clear all cards from a plan, keeping the plan itself.")]
+    #[tool(description = "Remove all cards from a plan.")]
     async fn clear_plan(
         &self,
         Parameters(params): Parameters<ClearPlanParams>,
@@ -501,9 +425,6 @@ impl PlannerHandler {
             Some(plan) => {
                 plan.steps.clear();
                 state::save_state(&st);
-                if let Some(p) = st.plans.iter().find(|p| p.id == params.plan_id) {
-                    state::record_snapshot(p, "clear_plan", "Cleared all cards");
-                }
                 Ok(CallToolResult::success(vec![Content::text("Plan cleared")]))
             }
             None => Ok(CallToolResult::error(vec![Content::text(format!(
@@ -514,7 +435,7 @@ impl PlannerHandler {
     }
 
     #[tool(
-        description = "Get pending feedback items from the FlowPlan UI. Only returns unread items — already read/acknowledged directives and issues, and already answered questions are excluded. Feedback types: 'question' (needs your answer - use answer_feedback to respond), 'directive' (instruction to follow), 'issue' (problem to fix). After processing directives/issues, call acknowledge_feedback to mark them as read so they won't appear again."
+        description = "Get pending feedback (unread questions, directives, issues). Answer questions with answer_feedback, acknowledge directives/issues with acknowledge_feedback."
     )]
     async fn get_all_feedback(
         &self,
@@ -524,24 +445,14 @@ impl PlannerHandler {
         let pending: Vec<&state::Feedback> = st
             .feedbacks
             .iter()
-            .filter(|f| {
-                if f.read {
-                    return false;
-                }
-                if f.answer.is_some() {
-                    return false;
-                }
-                true
-            })
+            .filter(|f| !f.read && f.answer.is_none())
             .collect();
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string(&pending).unwrap_or_default(),
         )]))
     }
 
-    #[tool(
-        description = "Mark directive or issue feedback items as read/acknowledged. Call this after you have processed a directive or issue so it won't appear again in get_all_feedback results. Do NOT use this for questions — use answer_feedback instead."
-    )]
+    #[tool(description = "Mark directive/issue feedback as acknowledged so it won't reappear.")]
     async fn acknowledge_feedback(
         &self,
         Parameters(params): Parameters<AcknowledgeFeedbackParams>,
@@ -560,9 +471,7 @@ impl PlannerHandler {
         )]))
     }
 
-    #[tool(
-        description = "Answer a question feedback item from the FlowPlan UI. When a user adds a 'question' type feedback on a card, use this tool to provide your answer. The answer will appear in the FlowPlan app under the question. Answering also marks it as read."
-    )]
+    #[tool(description = "Answer a question feedback. The answer appears in the UI under the question.")]
     async fn answer_feedback(
         &self,
         Parameters(params): Parameters<AnswerFeedbackParams>,
@@ -573,7 +482,7 @@ impl PlannerHandler {
             fb.read = true;
             state::save_state(&st);
             Ok(CallToolResult::success(vec![Content::text(
-                serde_json::json!({ "ok": true, "feedbackId": params.feedback_id }).to_string(),
+                serde_json::json!({ "ok": true }).to_string(),
             )]))
         } else {
             Ok(CallToolResult::error(vec![Content::text(format!(
@@ -583,9 +492,7 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(
-        description = "Update an existing card's fields without removing it. Only provided fields are changed — omitted fields keep their current values. This preserves the card ID and avoids breaking feedback references."
-    )]
+    #[tool(description = "Update card fields. Only provided fields change, others stay. Supports title, description, type, repo, files, dependencies, file_changes, order.")]
     async fn update_card(
         &self,
         Parameters(params): Parameters<UpdateCardParams>,
@@ -622,13 +529,6 @@ impl PlannerHandler {
                             card.file_changes = build_file_changes(entries);
                         }
                         state::save_state(&st);
-                        if let Some(p) = st.plans.iter().find(|p| p.id == params.plan_id) {
-                            state::record_snapshot(
-                                p,
-                                "update_card",
-                                &format!("Updated card: {}", params.card_id),
-                            );
-                        }
                         Ok(CallToolResult::success(vec![Content::text(
                             serde_json::json!({ "ok": true, "cardId": params.card_id }).to_string(),
                         )]))
@@ -646,9 +546,7 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(
-        description = "Reorder cards in a plan. Pass an ordered list of card IDs and each card's order is set to its position in that list (0, 1, 2, ...). This controls the vertical arrangement within dependency columns in the flow view. More efficient than calling update_card for each card individually."
-    )]
+    #[tool(description = "Reorder cards. Each card's order = its index in the provided ID list.")]
     async fn reorder_cards(
         &self,
         Parameters(params): Parameters<ReorderCardsParams>,
@@ -665,56 +563,9 @@ impl PlannerHandler {
                     }
                 }
                 state::save_state(&st);
-                if let Some(p) = st.plans.iter().find(|p| p.id == params.plan_id) {
-                    state::record_snapshot(
-                        p,
-                        "reorder_cards",
-                        &format!("Reordered {} cards", updated),
-                    );
-                }
                 Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({ "ok": true, "updated": updated }).to_string(),
                 )]))
-            }
-            None => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Plan '{}' not found",
-                params.plan_id
-            ))])),
-        }
-    }
-
-    #[tool(
-        description = "Set file changes (diffs or new content) on a card. Each change includes a file path and content (unified diff or full file). The changes appear in the FlowPlan UI as clickable files with a code viewer. Language is auto-detected from extension if not provided."
-    )]
-    async fn set_file_changes(
-        &self,
-        Parameters(params): Parameters<SetFileChangesParams>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let mut st = self.state.write().await;
-        let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
-        match plan {
-            Some(plan) => {
-                let card = plan.steps.iter_mut().find(|c| c.id == params.card_id);
-                match card {
-                    Some(card) => {
-                        let changes = build_file_changes(params.changes);
-                        let count = changes.len();
-                        card.file_changes = changes;
-                        state::save_state(&st);
-                        Ok(CallToolResult::success(vec![Content::text(
-                            serde_json::json!({
-                                "ok": true,
-                                "cardId": params.card_id,
-                                "fileCount": count
-                            })
-                            .to_string(),
-                        )]))
-                    }
-                    None => Ok(CallToolResult::error(vec![Content::text(format!(
-                        "Card '{}' not found in plan '{}'",
-                        params.card_id, params.plan_id
-                    ))])),
-                }
             }
             None => Ok(CallToolResult::error(vec![Content::text(format!(
                 "Plan '{}' not found",

@@ -108,6 +108,51 @@ fn main() {
             // Force dark theme on the main window
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_theme(Some(tauri::Theme::Dark));
+
+                // Disable WebKitGTK pinch-to-zoom gesture on Linux
+                #[cfg(target_os = "linux")]
+                {
+                    let webview = window.as_ref();
+                    let _ = webview.with_webview(|wv| {
+                        use gtk::prelude::*;
+
+                        let inner = wv.inner();
+                        let widget: gtk::Widget = inner.clone().upcast();
+
+                        // Kill WebKitGTK's default zoom gesture
+                        unsafe {
+                            if let Some(data) =
+                                widget.data::<gtk::GestureZoom>("wk-view-zoom-gesture")
+                            {
+                                let ptr: *mut gobject_sys::GObject = data.as_ptr().cast();
+                                gobject_sys::g_signal_handlers_destroy(ptr);
+                            }
+                        }
+
+                        // Add our own pinch gesture that forwards to JS canvas zoom
+                        let gesture = gtk::GestureZoom::new(&widget);
+                        gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
+                        let prev_scale = std::rc::Rc::new(std::cell::Cell::new(1.0f64));
+                        let wv_ref = inner.clone();
+                        let ps1 = prev_scale.clone();
+                        gesture.connect_scale_changed(move |_, scale| {
+                            use webkit2gtk::WebViewExt;
+                            let delta = scale - ps1.get();
+                            ps1.set(scale);
+                            let js = format!(
+                                "window.__fpPinchZoom?.({})",
+                                -delta * 200.0
+                            );
+                            wv_ref.run_javascript(&js, None::<&gio::Cancellable>, |_| {});
+                        });
+                        let ps2 = prev_scale.clone();
+                        gesture.connect_end(move |_, _| {
+                            ps2.set(1.0);
+                        });
+                        // Keep gesture alive by leaking — it's tied to app lifetime
+                        std::mem::forget(gesture);
+                    });
+                }
             }
 
             let about =

@@ -45,10 +45,6 @@ npm run tauri:build
 
 Platform-specific bundles are written under `src-tauri/target/release/bundle/`.
 
-## Release
-
-Push to the `release` branch or trigger the workflow manually from GitHub Actions. The CI builds Ubuntu (`deb` + `AppImage`) and macOS (`dmg` + `.app` for ARM and Intel), then creates a draft GitHub release with all assets.
-
 ## MCP Setup
 
 ### Claude Code
@@ -191,19 +187,17 @@ Click the download icon in the header to export the current plan as an SVG file.
 | Tool | Description |
 |------|-------------|
 | `create_plan` | Create a new plan board. Returns `planId`. |
-| `add_card` | Add a single card to a plan. Returns `cardId`. |
-| `add_cards` | Add multiple cards at once. Returns `cardIds[]`. |
+| `add_cards` | Add one or more cards. Returns `cardIds[]` in order. |
 | `remove_card` | Remove a card by ID. |
-| `update_card` | Update specific fields of a card (title, description, type, files, dependencies, file_changes, order). |
-| `get_cards` | Get cards from a plan with optional pagination (`offset`/`limit`). |
-| `get_plan` | Get full plan details including all cards. |
+| `update_card` | Update card fields (title, description, type, files, dependencies, file_changes, order). |
+| `get_cards` | Get cards (without file_changes content). Supports pagination. |
+| `get_plan` | Get plan with all cards (without file_changes content). |
 | `list_plans` | List all plans with IDs and card counts. |
 | `clear_plan` | Remove all cards from a plan. |
-| `reorder_cards` | Set display order for cards in the flow view. |
-| `set_file_changes` | Set code diffs/content on a card's files. |
-| `get_all_feedback` | Get pending (unread) feedback items. |
-| `answer_feedback` | Answer a question-type feedback. |
-| `acknowledge_feedback` | Mark directive/issue feedback as read. |
+| `reorder_cards` | Set display order for cards. |
+| `get_all_feedback` | Get pending feedback items. |
+| `answer_feedback` | Answer a question feedback. |
+| `acknowledge_feedback` | Mark directive/issue as read. |
 
 ## Card Types
 
