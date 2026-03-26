@@ -3,6 +3,7 @@ import type { AppState, Card, Feedback, FileChange, HistoryEntry, HistoryDiff } 
 import * as api from "./lib/api";
 import { computeDiff } from "./lib/diff";
 import { Md } from "./lib/markdown";
+import { highlight } from "./lib/highlight";
 
 const T = {
   bg: "#1a1a1a", sidebar: "#141414", sH: "#222", sA: "#2a2a2a",
@@ -145,12 +146,21 @@ function CodeViewer({ path, change, onClose }: { path: string; change: FileChang
             </div>
           ) : (
             <pre style={{ margin: 0, padding: 0, fontSize: 12, lineHeight: 1.65, fontFamily: T.m }}>
-              {lines.map((line, i) => (
-                <div key={i} style={{ display: "flex", minHeight: 20, ...lineStyle(line) }}>
-                  <span style={{ display: "inline-block", width: 52, textAlign: "right", paddingRight: 12, color: T.ter, fontSize: 11, flexShrink: 0, userSelect: "none", opacity: 0.6 }}>{i + 1}</span>
-                  <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", color: lineStyle(line).color || T.text, flex: 1 }}>{line}</span>
-                </div>
-              ))}
+              {lines.map((line, i) => {
+                const ls = lineStyle(line);
+                const isDiff = line.startsWith("+") || line.startsWith("-") || line.startsWith("@@");
+                const html = !isDiff ? highlight(line, change.language) : null;
+                return (
+                  <div key={i} style={{ display: "flex", minHeight: 20, ...ls }}>
+                    <span style={{ display: "inline-block", width: 52, textAlign: "right", paddingRight: 12, color: T.ter, fontSize: 11, flexShrink: 0, userSelect: "none", opacity: 0.6 }}>{i + 1}</span>
+                    {html ? (
+                      <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", flex: 1 }} dangerouslySetInnerHTML={{ __html: html }} />
+                    ) : (
+                      <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", color: ls.color || T.text, flex: 1 }}>{line}</span>
+                    )}
+                  </div>
+                );
+              })}
             </pre>
           )}
         </div>
@@ -211,7 +221,7 @@ const SCard = memo(function SCard({ step, pos, sel, onSel, onDrag, fbc, fbt, vm,
         <CopyRef planTitle={planTitle} planId={planId} cardTitle={step.title} cardId={step.id} size={8} />
       </div>
       <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, lineHeight: 1.35 }}>{step.title}</div>
-      <div style={{ fontSize: 10.5, color: T.sec, lineHeight: 1.5, flex: 1, overflow: "hidden" }}><Md text={step.description} fontSize={10.5} color={T.sec} lineHeight={1.5} compact /></div>
+      <div style={{ fontSize: 10.5, color: T.sec, lineHeight: 1.5, flex: 1, overflow: "hidden", maxHeight: 80 }}><Md text={step.description.length > 300 ? step.description.slice(0, 300) + "…" : step.description} fontSize={10.5} color={T.sec} lineHeight={1.5} /></div>
       <div style={{ fontSize: 9, color: T.sec, fontFamily: T.m, display: "flex", alignItems: "center", gap: 3 }}>{Ico.folder(T.sec, 9)} {step.repo}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
         {step.files.slice(0, 3).map((f: string) => {
@@ -560,7 +570,7 @@ export default function App() {
       const my = e.clientY - rect.top;
       if (e.ctrlKey || e.metaKey) {
         setZ(prev => {
-          const next = Math.max(0.1, Math.min(5, prev - e.deltaY * 0.003));
+          const next = Math.max(0.1, Math.min(5, prev - e.deltaY * 0.01));
           const ratio = next / prev;
           setOff(o => ({ x: mx - (mx - o.x) * ratio, y: my - (my - o.y) * ratio }));
           return next;
