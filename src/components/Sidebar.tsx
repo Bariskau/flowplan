@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Plan } from "../types";
 import { T } from "../lib/theme";
 
@@ -40,131 +40,7 @@ const Ico = {
   trash: (c: string, s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v8.5a1 1 0 001 1h4a1 1 0 001-1V4" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   dots: (c: string, s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill={c}/><circle cx="8" cy="8" r="1.2" fill={c}/><circle cx="8" cy="12.5" r="1.2" fill={c}/></svg>,
   download: (c: string, s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 2v8.5M4.5 7.5 8 11l3.5-3.5M3 13h10" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  chevron: (c: string, s = 10, rotated = false) => (
-    <svg width={s} height={s} viewBox="0 0 16 16" fill="none" style={{ transition: "transform 0.2s ease", transform: rotated ? "rotate(90deg)" : "rotate(0deg)" }}>
-      <path d="M6 4l4 4-4 4" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
 };
-
-/* ---- Card type badge colors (Protocol-style method badges) ---- */
-const cardTypeBadge: Record<string, { label: string; color: string }> = {
-  research: { label: "RESEARCH", color: "#60a5fa" },   // blue-400
-  planning: { label: "PLAN", color: "#c084fc" },        // purple-400
-  create:   { label: "CREATE", color: "#34d399" },      // emerald-400
-  edit:     { label: "EDIT", color: "#fbbf24" },         // amber-400
-  test:     { label: "TEST", color: "#22d3ee" },         // cyan-400
-};
-
-/* ---- Animated collapsible list ---- */
-function CollapsibleCards({
-  cards,
-  isOpen,
-}: {
-  cards: { id: string; title: string; type: string }[];
-  isOpen: boolean;
-}) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number | undefined>(isOpen ? undefined : 0);
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-
-    if (isOpen) {
-      // Expand
-      const scrollH = el.scrollHeight;
-      setHeight(0);
-      setIsAnimating(true);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setHeight(scrollH);
-        });
-      });
-      const timer = setTimeout(() => {
-        setHeight(undefined);
-        setIsAnimating(false);
-      }, 250);
-      return () => clearTimeout(timer);
-    } else {
-      // Collapse
-      const scrollH = el.scrollHeight;
-      setHeight(scrollH);
-      setIsAnimating(true);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setHeight(0);
-        });
-      });
-      const timer = setTimeout(() => {
-        setIsAnimating(false);
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  return (
-    <div
-      ref={contentRef}
-      style={{
-        height: height === undefined ? "auto" : height,
-        overflow: isAnimating ? "hidden" : (isOpen ? "visible" : "hidden"),
-        transition: isAnimating ? "height 0.25s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
-      }}
-    >
-      {cards.map((card) => {
-        const badge = cardTypeBadge[card.type] || { label: card.type.toUpperCase(), color: "#a1a1aa" };
-        return (
-          <div
-            key={card.id}
-            className="group"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 8,
-              padding: "4px 12px 4px 28px",
-              lineHeight: "24px",
-              cursor: "default",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 13,
-                color: "#a1a1aa",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                transition: "color 0.15s",
-                flex: 1,
-                minWidth: 0,
-              }}
-              className="group-hover:!text-zinc-300"
-              onMouseEnter={(e: any) => { e.currentTarget.style.color = "#d4d4d8"; }}
-              onMouseLeave={(e: any) => { e.currentTarget.style.color = "#a1a1aa"; }}
-            >
-              {card.title}
-            </span>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: badge.color,
-                opacity: 0.7,
-                flexShrink: 0,
-                fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', monospace",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {badge.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 /* ---- Sidebar Component ---- */
 function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, onNewPlan, connected, feedbackPerPlan }: SidebarProps) {
@@ -248,53 +124,62 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
     </button>
   );
 
-  /* Render a plan row (Protocol-style nav item) */
+  /* Render a single plan row */
   const PlanItem = ({ p }: { p: Plan }) => {
     const act = p.id === activeId;
     const nc = feedbackPerPlan[p.id] || 0;
     const menuOpen = planMenu === p.id;
 
     return (
-      <li key={p.id} style={{ position: "relative" }}>
-        {/* Plan link - top level */}
+      <li style={{ position: "relative" }}>
         <div
-          className="plan-row"
           onClick={() => onSelect(p.id)}
           style={{
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
             gap: 8,
-            padding: "4px 12px 4px 16px",
-            lineHeight: "24px",
+            padding: "6px 8px 6px 10px",
             cursor: "pointer",
-            transition: "color 0.15s",
-            borderLeft: "none",
+            borderRadius: 6,
+            borderLeft: act ? "2px solid #10b981" : "2px solid transparent",
+            background: act ? "rgba(16,185,129,0.06)" : "transparent",
+            transition: "all 0.2s ease",
             position: "relative",
           }}
           onMouseEnter={(e: any) => {
             if (!act) {
+              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
               const nameEl = e.currentTarget.querySelector("[data-plan-name]");
               if (nameEl) nameEl.style.color = "#e4e4e7";
             }
           }}
           onMouseLeave={(e: any) => {
             if (!act) {
+              e.currentTarget.style.background = "transparent";
               const nameEl = e.currentTarget.querySelector("[data-plan-name]");
               if (nameEl) nameEl.style.color = "#a1a1aa";
             }
           }}
         >
+          {/* Pin icon for pinned plans */}
+          {p.pinned && (
+            <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+              {Ico.pinFill("#10b981", 10)}
+            </span>
+          )}
+
+          {/* Plan name */}
           <span
             data-plan-name
             style={{
               fontSize: 14,
               fontWeight: 400,
               color: act ? "#ffffff" : "#a1a1aa",
+              letterSpacing: "-0.01em",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              transition: "color 0.15s",
+              transition: "color 0.2s ease",
               flex: 1,
               minWidth: 0,
             }}
@@ -311,9 +196,13 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
                   color: "#fff",
                   fontSize: 9,
                   fontWeight: 700,
-                  padding: "0 5px",
-                  borderRadius: 10,
-                  lineHeight: "16px",
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  lineHeight: 1,
                   fontFamily: T.m,
                 }}
               >
@@ -321,14 +210,15 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
               </span>
             )}
 
-            {/* Card count (like Protocol's description) */}
+            {/* Card count */}
             <span
               style={{
                 fontSize: 10,
-                fontWeight: 600,
-                color: act ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)",
+                fontWeight: 500,
+                color: act ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
                 fontFamily: T.m,
                 flexShrink: 0,
+                transition: "color 0.2s ease",
               }}
             >
               {p.steps.length}
@@ -336,22 +226,23 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
 
             {/* Three dots menu button */}
             <button
-              className="plan-actions"
               onClick={e => { e.stopPropagation(); setPlanMenu(menuOpen ? null : p.id); setAddMenu(false); }}
               style={{
                 background: menuOpen ? "rgba(255,255,255,0.06)" : "none",
                 border: "none",
                 cursor: "pointer",
-                width: 24,
-                height: 24,
-                borderRadius: 6,
+                width: 22,
+                height: 22,
+                borderRadius: 5,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 padding: 0,
                 flexShrink: 0,
-                transition: "background 0.12s",
+                opacity: menuOpen ? 1 : 0,
+                transition: "all 0.15s ease",
               }}
+              className="plan-actions"
               onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
               onMouseLeave={(e: any) => { e.currentTarget.style.background = menuOpen ? "rgba(255,255,255,0.06)" : "none"; }}
             >
@@ -362,7 +253,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
 
         {/* Context menu dropdown */}
         {menuOpen && (
-          <div style={{ position: "absolute", right: 8, top: 32, zIndex: 100 }}>
+          <div style={{ position: "absolute", right: 4, top: 34, zIndex: 100 }}>
             <DropdownMenu>
               <DropdownItem
                 onClick={() => { onTogglePin(p.id); setPlanMenu(null); }}
@@ -378,63 +269,6 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
             </DropdownMenu>
           </div>
         )}
-
-        {/* Expanded sub-items: cards shown when plan is active (Protocol style) */}
-        <CollapsibleCards
-          cards={p.steps.map(s => ({ id: s.id, title: s.title, type: s.type }))}
-          isOpen={act}
-        />
-      </li>
-    );
-  };
-
-  /* Render a section (Protocol-style section grouping) */
-  const Section = ({
-    title,
-    items,
-    hasBorder = false,
-  }: {
-    title: string;
-    items: Plan[];
-    hasBorder?: boolean;
-  }) => {
-    if (items.length === 0) return null;
-    return (
-      <li style={{ marginTop: hasBorder ? 16 : 0 }}>
-        {/* Section header - Protocol uses 13px, font-weight 600, white */}
-        <h2
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#ffffff",
-            lineHeight: "24px",
-            padding: "0 0 0 0",
-            margin: "0 0 4px 0",
-            letterSpacing: "0.01em",
-            fontFamily: T.f,
-          }}
-        >
-          {title}
-        </h2>
-
-        {/* Vertical border line for the section list (Protocol-style) */}
-        <ul
-          style={{
-            listStyle: "none",
-            margin: 0,
-            padding: 0,
-            borderLeft: "1px solid rgba(255,255,255,0.06)",
-            position: "relative",
-          }}
-        >
-          {/* Emerald active indicator overlay on the border */}
-          {items.some(p => p.id === activeId) && (
-            <ActiveBorderIndicator items={items} activeId={activeId} />
-          )}
-          {items.map(p => (
-            <PlanItem key={p.id} p={p} />
-          ))}
-        </ul>
       </li>
     );
   };
@@ -442,8 +276,8 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   return (
     <div
       style={{
-        width: 240,
-        background: "rgba(15,15,17,0.85)",
+        width: 220,
+        background: "rgba(9,9,11,0.75)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -456,7 +290,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       {/* ---- Header ---- */}
       <div
         style={{
-          padding: "16px 16px 12px",
+          padding: "16px 14px 12px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -478,7 +312,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* MCP connection indicator - small, elegant */}
+          {/* MCP connection indicator */}
           <div
             style={{
               display: "flex",
@@ -574,7 +408,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         style={{
           flex: 1,
           overflow: "auto",
-          padding: "16px 16px",
+          padding: "12px 8px",
         }}
       >
         {plans.length === 0 && (
@@ -605,27 +439,59 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         )}
 
         {plans.length > 0 && (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 0 }}>
-            {/* Pinned section (like Protocol's "Guides") */}
-            <Section title="Pinned" items={pinned} />
+          <>
+            {/* Section header */}
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#52525b",
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                padding: "4px 10px 8px",
+                fontFamily: T.f,
+              }}
+            >
+              Plans
+            </div>
 
-            {/* Plans section (like Protocol's "Resources") */}
-            <Section
-              title="Plans"
-              items={unpinned}
-              hasBorder={pinned.length > 0}
-            />
+            {/* Plan list with hover-reveal for dots button */}
+            <style>{`
+              .sidebar-plan-item:hover .plan-actions {
+                opacity: 1 !important;
+              }
+            `}</style>
 
-            {/* If nothing is pinned, show all plans under single "Plans" header */}
-            {pinned.length === 0 && unpinned.length === 0 && null}
-          </ul>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+              {/* Pinned plans */}
+              {pinned.map(p => (
+                <div key={p.id} className="sidebar-plan-item">
+                  <PlanItem p={p} />
+                </div>
+              ))}
+
+              {/* Separator between pinned and unpinned */}
+              {pinned.length > 0 && unpinned.length > 0 && (
+                <li style={{ padding: "4px 10px" }}>
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
+                </li>
+              )}
+
+              {/* Unpinned plans */}
+              {unpinned.map(p => (
+                <div key={p.id} className="sidebar-plan-item">
+                  <PlanItem p={p} />
+                </div>
+              ))}
+            </ul>
+          </>
         )}
       </nav>
 
       {/* ---- Footer ---- */}
       <div
         style={{
-          padding: "10px 16px",
+          padding: "10px 14px",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           flexShrink: 0,
         }}
@@ -643,71 +509,6 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         </div>
       </div>
     </div>
-  );
-}
-
-/* ---- Active border indicator ---- */
-function ActiveBorderIndicator({
-  items,
-  activeId,
-}: {
-  items: Plan[];
-  activeId: string | null;
-}) {
-  const [indicatorStyle, setIndicatorStyle] = useState<{ top: number; height: number } | null>(null);
-  const rafRef = useRef<number>();
-
-  useEffect(() => {
-    // Calculate the position of the active item's emerald border
-    const updatePosition = () => {
-      const activeIndex = items.findIndex(p => p.id === activeId);
-      if (activeIndex === -1) {
-        setIndicatorStyle(null);
-        return;
-      }
-
-      // Each plan row is ~32px (24px line-height + 8px padding)
-      // Plus expanded cards below it
-      let top = 0;
-      for (let i = 0; i < activeIndex; i++) {
-        top += 32; // base plan row height
-      }
-
-      const activePlan = items[activeIndex];
-      // The indicator covers the plan name + its expanded sub-items
-      const subItemsHeight = activePlan.steps.length * 32;
-      const height = 32 + subItemsHeight;
-
-      setIndicatorStyle({ top, height });
-    };
-
-    // Delay to allow animations
-    rafRef.current = requestAnimationFrame(() => {
-      setTimeout(updatePosition, 30);
-    });
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [items, activeId]);
-
-  if (!indicatorStyle) return null;
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: -1,
-        top: indicatorStyle.top,
-        height: indicatorStyle.height,
-        width: 2,
-        background: "#10b981",
-        borderRadius: 1,
-        transition: "top 0.25s cubic-bezier(0.4, 0, 0.2, 1), height 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-        zIndex: 1,
-        boxShadow: "0 0 8px rgba(16,185,129,0.3)",
-      }}
-    />
   );
 }
 
