@@ -6,6 +6,7 @@ import {
   useEdgesState,
   ReactFlowProvider,
   useReactFlow,
+  useOnViewportChange,
   Panel,
   type Node,
   type Edge,
@@ -14,7 +15,7 @@ import type { Card, FileChange } from "../types";
 import { T } from "../lib/theme";
 import CardNode from "./CardNode";
 
-const CW = 272;
+const CW = 280;
 const CH = 160;
 const GX = 64;
 const GY = 28;
@@ -32,6 +33,9 @@ interface FlowCanvasProps {
   savedPositions: Record<string, { x: number; y: number }>;
   onPositionsChange: (positions: Record<string, { x: number; y: number }>) => void;
   onAddCard: () => void;
+  onEditCard?: (cardId: string) => void;
+  onDeleteCard?: (cardId: string) => void;
+  onViewportChange?: (viewport: { zoom: number; x: number; y: number }) => void;
 }
 
 function computeLayout(cards: Card[]): Record<string, { x: number; y: number }> {
@@ -119,12 +123,20 @@ function FlowCanvasInner({
   savedPositions,
   onPositionsChange,
   onAddCard,
+  onEditCard,
+  onDeleteCard,
+  onViewportChange,
 }: FlowCanvasProps) {
   const { fitView } = useReactFlow();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasFitView = useRef(false);
 
-  // Viewport tracking removed — DotGrid is now at App level
+  // Forward viewport changes to parent (for DotGrid zoom/pan sync)
+  useOnViewportChange({
+    onChange: useCallback((vp: { zoom: number; x: number; y: number }) => {
+      onViewportChange?.(vp);
+    }, [onViewportChange]),
+  });
 
   const autoLayout = useMemo(() => computeLayout(cards), [cards]);
 
@@ -142,11 +154,13 @@ function FlowCanvasInner({
           planTitle,
           planId,
           onFileClick,
+          onEdit: onEditCard,
+          onDelete: onDeleteCard,
           highlight: highlightMap[card.id] || null,
         },
       };
     });
-  }, [cards, savedPositions, autoLayout, feedbackCounts, feedbackTypes, planTitle, planId, onFileClick, highlightMap]);
+  }, [cards, savedPositions, autoLayout, feedbackCounts, feedbackTypes, planTitle, planId, onFileClick, onEditCard, onDeleteCard, highlightMap]);
 
   const initialEdges = useMemo(() => cardsToEdges(cards), [cards]);
 
@@ -166,22 +180,21 @@ function FlowCanvasInner({
   useEffect(() => {
     if (!hasFitView.current && cards.length > 0) {
       hasFitView.current = true;
-      // Small timeout to let React Flow measure nodes
-      const t = setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 50);
+      const t = setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
       return () => clearTimeout(t);
     }
   }, [cards.length, fitView]);
 
   const handleNodeDragStop = useCallback(
-    (_event: React.MouseEvent, _node: Node, allNodes: Node[]) => {
+    (_event: React.MouseEvent, node: Node, allNodes: Node[]) => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         const positions: Record<string, { x: number; y: number }> = {};
         for (const n of allNodes) {
-          positions[n.id] = { x: n.position.x, y: n.position.y };
+          positions[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) };
         }
         onPositionsChange(positions);
-      }, 500);
+      }, 300);
     },
     [onPositionsChange]
   );
@@ -197,9 +210,16 @@ function FlowCanvasInner({
     onSelectCard(null);
   }, [onSelectCard]);
 
+  const handleNodeContextMenu = useCallback(
+    (event: React.MouseEvent, _node: Node) => {
+      // Prevent the default browser context menu; the CardNode handles its own context menu
+      event.preventDefault();
+    },
+    []
+  );
+
   return (
     <div className="w-full h-full relative">
-      {/* Background gradient is now rendered at App level */}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -209,14 +229,18 @@ function FlowCanvasInner({
         onNodeDragStop={handleNodeDragStop}
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
+        onNodeContextMenu={handleNodeContextMenu}
         colorMode="dark"
         fitView
+        fitViewOptions={{ padding: 0.3 }}
         proOptions={{ hideAttribution: true }}
         style={{ background: "transparent" }}
       >
         <Controls
           showInteractive={false}
           style={{
+            left: 10,
+            bottom: 10,
             background: "rgba(24,24,27,0.80)",
             border: "1px solid rgba(255,255,255,0.06)",
             borderRadius: 8,

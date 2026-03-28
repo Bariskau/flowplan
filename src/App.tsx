@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import type { AppState, Card, Feedback, FileChange, HistoryEntry } from "./types";
 import * as api from "./lib/api";
 import { computeDiff } from "./lib/diff";
+import { X } from "@phosphor-icons/react";
 
 import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
@@ -28,6 +29,7 @@ export default function App() {
   const [newPlanModal, setNewPlanModal] = useState(false);
   const [newCardModal, setNewCardModal] = useState(false);
   const [toast, setToast] = useState<{ text: string; file: string; error?: boolean } | null>(null);
+  const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 });
 
   // Disable right-click
   useEffect(() => {
@@ -183,7 +185,7 @@ export default function App() {
     <div className="w-full h-screen bg-fp-bg font-sans text-fp-text overflow-hidden relative">
 
       {/* Layer 0: Full-screen gradient + dot grid background */}
-      <DotGrid />
+      <DotGrid zoom={viewport.zoom} panX={viewport.x} panY={viewport.y} />
 
       {/* Layer 1: Full-window canvas (FlowCanvas or list view or empty state) */}
       <div className="absolute inset-0 z-[1]">
@@ -192,22 +194,25 @@ export default function App() {
             <div className="text-[13px] text-fp-dim text-center">{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
           </div>
         ) : vm === "flow" ? (
-          <FlowCanvas
-            cards={steps}
-            selectedId={sId}
-            onSelectCard={selectCard}
-            feedbackCounts={fcm}
-            feedbackTypes={ftm}
-            planTitle={plan.title}
-            planId={plan.id}
-            onFileClick={onFileClick}
-            highlightMap={hlMap}
-            savedPositions={savedPositions}
-            onPositionsChange={onPositionsChange}
-            onAddCard={() => setNewCardModal(true)}
-          />
+          <div className="absolute inset-0 pl-[--spacing-fp-sidebar]">
+            <FlowCanvas
+              cards={steps}
+              selectedId={sId}
+              onSelectCard={selectCard}
+              feedbackCounts={fcm}
+              feedbackTypes={ftm}
+              planTitle={plan.title}
+              planId={plan.id}
+              onFileClick={onFileClick}
+              highlightMap={hlMap}
+              savedPositions={savedPositions}
+              onPositionsChange={onPositionsChange}
+              onAddCard={() => setNewCardModal(true)}
+              onViewportChange={setViewport}
+            />
+          </div>
         ) : (
-          <div className="pt-[--spacing-fp-toolbar] pr-4 pb-4 pl-[--spacing-fp-sidebar] overflow-auto h-full" style={{ paddingTop: "calc(var(--spacing-fp-toolbar) + 16px)", paddingLeft: "calc(var(--spacing-fp-sidebar) + 16px)" }}>
+          <div className="overflow-auto h-full" style={{ paddingTop: "calc(var(--spacing-fp-toolbar) + 16px)", paddingLeft: "calc(var(--spacing-fp-sidebar) + 16px)", paddingRight: "16px", paddingBottom: "16px" }}>
             <div className="max-w-[440px] mx-auto">
               {sortedSteps.map(s => (
                 <div key={s.id} onClick={() => selectCard(s.id)}
@@ -355,7 +360,9 @@ export default function App() {
             </div>
             {toast.file && <div className="text-[10px] text-fp-muted font-mono">{toast.file}</div>}
           </div>
-          <button onClick={() => setToast(null)} className="bg-transparent border-none text-fp-dim cursor-pointer text-xs py-0.5 px-1 hover:text-fp-muted transition-colors duration-150">{"\u2715"}</button>
+          <button onClick={() => setToast(null)} className="bg-transparent border-none text-fp-dim cursor-pointer p-0.5 hover:text-fp-muted transition-colors duration-150">
+            <X size={12} />
+          </button>
         </div>
       )}
     </div>
