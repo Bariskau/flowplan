@@ -237,26 +237,39 @@ function FlowCanvasInner({
             backdropFilter: "blur(12px)",
           }}
         />
-        <Panel position="bottom-left">
+        <Panel position="top-left">
           <button
             onClick={onAddCard}
             style={{
-              background: "#10b981",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
+              background: "rgba(16,185,129,0.15)",
+              color: "#34d399",
+              border: "1px solid rgba(16,185,129,0.25)",
+              borderRadius: 10,
               padding: "7px 16px",
               fontSize: 13,
               fontWeight: 500,
               fontFamily: T.f,
               cursor: "pointer",
               letterSpacing: "-0.01em",
-              transition: "background 0.15s",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "0 0 20px rgba(16,185,129,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
+              transition: "all 0.2s",
             }}
-            onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.background = "#059669"; }}
-            onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.background = "#10b981"; }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              el.style.background = "rgba(16,185,129,0.25)";
+              el.style.borderColor = "rgba(16,185,129,0.4)";
+              el.style.boxShadow = "0 0 30px rgba(16,185,129,0.20), inset 0 1px 0 rgba(255,255,255,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.style.background = "rgba(16,185,129,0.15)";
+              el.style.borderColor = "rgba(16,185,129,0.25)";
+              el.style.boxShadow = "0 0 20px rgba(16,185,129,0.10), inset 0 1px 0 rgba(255,255,255,0.05)";
+            }}
           >
-            Add Card
+            + Add Card
           </button>
         </Panel>
       </ReactFlow>
