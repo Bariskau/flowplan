@@ -140,15 +140,7 @@ const CHANGE_BADGE: Record<string, { label: string; color: string; bg: string }>
 /* ---- Protocol-style Section Header ---- */
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      fontSize: 13,
-      fontWeight: 600,
-      color: T.text,
-      letterSpacing: "-0.01em",
-      paddingBottom: 8,
-      marginBottom: 0,
-      marginTop: 4,
-    }}>
+    <div className="text-[13px] font-semibold text-[#fafafa] tracking-[-0.01em] pb-2 mb-0 mt-1">
       {children}
     </div>
   );
@@ -157,41 +149,24 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 /* ---- Protocol-style separator ---- */
 function Separator() {
   return (
-    <div style={{
-      height: 1,
-      background: "rgba(255,255,255,0.06)",
-      margin: "16px 0",
-    }} />
+    <div className="h-px bg-[rgba(255,255,255,0.06)] my-4" />
   );
 }
 
 /* ---- Protocol-style property row separator (lighter, for within a list) ---- */
 function RowSeparator() {
   return (
-    <div style={{
-      height: 1,
-      background: "rgba(255,255,255,0.04)",
-      margin: 0,
-    }} />
+    <div className="h-px bg-[rgba(255,255,255,0.04)] m-0" />
   );
 }
 
 /* ---- Protocol-style monospace chip (like `id`, `username` in Protocol) ---- */
 function MonoChip({ children, color }: { children: React.ReactNode; color?: string }) {
   return (
-    <span style={{
-      fontFamily: T.m,
-      fontSize: 11,
-      fontWeight: 500,
-      color: color || T.text,
-      background: "rgba(255,255,255,0.06)",
-      border: "1px solid rgba(255,255,255,0.06)",
-      borderRadius: 5,
-      padding: "2px 7px",
-      lineHeight: 1,
-      display: "inline-flex",
-      alignItems: "center",
-    }}>
+    <span
+      className="font-mono text-[11px] font-medium bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.06)] rounded-[5px] px-[7px] py-[2px] leading-none inline-flex items-center"
+      style={{ color: color || T.text }}
+    >
       {children}
     </span>
   );
@@ -221,102 +196,56 @@ function FeedbackItem({
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className="bg-[rgba(255,255,255,0.02)] border rounded-lg p-0 mb-2 relative overflow-hidden transition-[border-color,background] duration-150"
       style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: 8,
-        padding: 0,
-        marginBottom: 8,
-        position: "relative",
-        overflow: "hidden",
-        transition: "border-color 0.15s, background 0.15s",
         borderColor: hovered ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.06)",
       }}
     >
       {/* Left accent bar */}
-      <div style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 3,
-        background: accentColor,
-        borderRadius: "8px 0 0 8px",
-        opacity: 0.7,
-      }} />
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg opacity-70"
+        style={{ background: accentColor }}
+      />
 
-      <div style={{ padding: "10px 12px 10px 16px" }}>
+      <div className="py-2.5 pr-3 pl-4">
         {/* Header row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: accentColor,
-            background: `${accentColor}14`,
-            padding: "3px 8px",
-            borderRadius: 4,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            lineHeight: 1,
-          }}>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span
+            className="text-[10px] font-semibold px-2 py-[3px] rounded-[4px] uppercase tracking-[0.05em] leading-none"
+            style={{ color: accentColor, background: `${accentColor}14` }}
+          >
             {style.label}
           </span>
 
           {fb.type === "question" ? (
-            <span style={{
-              fontSize: 10,
-              fontWeight: 500,
-              color: isAnswered ? T.green : "rgba(255,255,255,0.4)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}>
-              <span style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: isAnswered ? T.green : "rgba(255,255,255,0.25)",
-                display: "inline-block",
-              }} />
+            <span
+              className="text-[10px] font-medium inline-flex items-center gap-1"
+              style={{ color: isAnswered ? T.green : "rgba(255,255,255,0.4)" }}
+            >
+              <span
+                className="w-[5px] h-[5px] rounded-full inline-block"
+                style={{ background: isAnswered ? T.green : "rgba(255,255,255,0.25)" }}
+              />
               {isAnswered ? "Answered" : "Pending"}
             </span>
           ) : (
-            <span style={{
-              fontSize: 10,
-              fontWeight: 500,
-              color: fb.read ? T.green : "rgba(255,255,255,0.4)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}>
-              <span style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: fb.read ? T.green : "rgba(255,255,255,0.25)",
-                display: "inline-block",
-              }} />
+            <span
+              className="text-[10px] font-medium inline-flex items-center gap-1"
+              style={{ color: fb.read ? T.green : "rgba(255,255,255,0.4)" }}
+            >
+              <span
+                className="w-[5px] h-[5px] rounded-full inline-block"
+                style={{ background: fb.read ? T.green : "rgba(255,255,255,0.25)" }}
+              />
               {fb.read ? "Acknowledged" : "Pending"}
             </span>
           )}
 
-          <span style={{ flex: 1 }} />
+          <span className="flex-1" />
           {hovered && !readOnly && (
             <button
               onClick={() => onDelete(fb.id)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 3,
-                borderRadius: 4,
-                display: "flex",
-                alignItems: "center",
-                opacity: 0.6,
-                transition: "opacity 0.15s",
-              }}
-              onMouseEnter={(e: any) => { e.currentTarget.style.opacity = "1"; }}
-              onMouseLeave={(e: any) => { e.currentTarget.style.opacity = "0.6"; }}
+              className="bg-transparent border-none cursor-pointer p-[3px] rounded-[4px] flex items-center opacity-60 hover:opacity-100 transition-opacity duration-150"
             >
               {Ico.trash(T.red, 12)}
             </button>
@@ -324,37 +253,17 @@ function FeedbackItem({
         </div>
 
         {/* Content */}
-        <div style={{
-          fontSize: 12.5,
-          color: "rgba(255,255,255,0.7)",
-          lineHeight: 1.6,
-          letterSpacing: "-0.005em",
-        }}>
+        <div className="text-[12.5px] text-[rgba(255,255,255,0.7)] leading-[1.6] tracking-[-0.005em]">
           {fb.text}
         </div>
 
         {/* Answer (Protocol response-style) */}
         {isAnswered && (
-          <div style={{
-            marginTop: 10,
-            paddingTop: 10,
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-          }}>
-            <div style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: T.green,
-              marginBottom: 5,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}>
+          <div className="mt-2.5 pt-2.5 border-t border-[rgba(255,255,255,0.06)]">
+            <div className="text-[10px] font-semibold mb-[5px] uppercase tracking-[0.05em]" style={{ color: T.green }}>
               Answer
             </div>
-            <div style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.55)",
-              lineHeight: 1.6,
-            }}>
+            <div className="text-xs text-[rgba(255,255,255,0.55)] leading-[1.6]">
               {fb.answer}
             </div>
           </div>
@@ -439,96 +348,30 @@ function DetailDrawer({
     setFbText("");
   }, [onAddFeedback, card.id, fbTab, fbText]);
 
-  /* Shared button style helper */
-  const btnBase: React.CSSProperties = {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-    borderRadius: 6,
-  };
-
-  /* Protocol-style input */
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 8,
-    padding: "8px 12px",
-    color: T.text,
-    fontSize: 13,
-    fontFamily: T.f,
-    outline: "none",
-    transition: "border-color 0.15s, box-shadow 0.15s",
-    boxSizing: "border-box" as const,
-  };
+  /* Protocol-style input classes */
+  const inputCls = "w-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-[#fafafa] text-[13px] font-[ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] outline-none transition-[border-color,box-shadow] duration-150 box-border";
 
   return (
-    <div style={{
-      width: "100%",
-      height: "100%",
-      flexShrink: 0,
-      background: "transparent",
-      display: "flex",
-      flexDirection: "column",
-      fontFamily: T.f,
-      overflow: "hidden",
-    }}>
+    <div className="w-full h-full shrink-0 bg-transparent flex flex-col font-[ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] overflow-hidden">
       {/* ---- Header ---- */}
-      <div style={{
-        padding: "16px 20px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        flexShrink: 0,
-      }}>
+      <div className="px-5 pt-4 pb-3.5 flex items-center gap-2.5 border-b border-[rgba(255,255,255,0.06)] shrink-0">
         {/* Type pill - Protocol style colored badge */}
-        <span style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: tc.c,
-          background: tc.bg,
-          padding: "4px 10px",
-          borderRadius: 9999,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          lineHeight: 1,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          border: `1px solid ${tc.c}20`,
-        }}>
+        <span
+          className="text-[10px] font-semibold py-1 px-2.5 rounded-full uppercase tracking-[0.05em] leading-none inline-flex items-center gap-[5px]"
+          style={{ color: tc.c, background: tc.bg, border: `1px solid ${tc.c}20` }}
+        >
           {typeIcon(card.type, tc.c)}
           {tc.l}
         </span>
 
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
 
         {/* Edit button */}
         {!readOnly && onEditCard && !editing && (
           <button
             onClick={startEdit}
             title="Edit card"
-            style={{
-              ...btnBase,
-              width: 30,
-              height: 30,
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 8,
-              transition: "background 0.15s, border-color 0.15s",
-            }}
-            onMouseEnter={(e: any) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-            }}
-            onMouseLeave={(e: any) => {
-              e.currentTarget.style.background = "none";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-            }}
+            className="bg-transparent border border-[rgba(255,255,255,0.08)] cursor-pointer flex items-center justify-center p-0 rounded-lg w-[30px] h-[30px] transition-[background,border-color] duration-150 hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]"
           >
             {Ico.pencil(T.sec, 13)}
           </button>
@@ -538,74 +381,36 @@ function DetailDrawer({
         <button
           onClick={onClose}
           title="Close"
-          style={{
-            ...btnBase,
-            width: 30,
-            height: 30,
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 8,
-            transition: "background 0.15s, border-color 0.15s",
-          }}
-          onMouseEnter={(e: any) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-          }}
-          onMouseLeave={(e: any) => {
-            e.currentTarget.style.background = "none";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-          }}
+          className="bg-transparent border border-[rgba(255,255,255,0.08)] cursor-pointer flex items-center justify-center p-0 rounded-lg w-[30px] h-[30px] transition-[background,border-color] duration-150 hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]"
         >
           {Ico.close(T.sec, 13)}
         </button>
       </div>
 
       {/* ---- Scrollable content ---- */}
-      <div style={{
-        flex: 1,
-        overflow: "auto",
-        padding: "20px 20px 28px",
-      }}>
+      <div className="flex-1 overflow-auto px-5 pt-5 pb-7">
         {/* ---- Title ---- */}
         {editing ? (
           <input
             value={editTitle}
             onChange={e => setEditTitle(e.target.value)}
-            style={{
-              ...inputStyle,
-              fontSize: 18,
-              fontWeight: 700,
-              marginBottom: 16,
-              padding: "10px 14px",
-              letterSpacing: "-0.02em",
-            }}
+            className={`${inputCls} !text-lg !font-bold !mb-4 !px-3.5 !py-2.5 tracking-[-0.02em]`}
           />
         ) : (
-          <div style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: T.text,
-            lineHeight: 1.35,
-            marginBottom: 16,
-            letterSpacing: "-0.02em",
-          }}>
+          <div className="text-lg font-bold text-[#fafafa] leading-[1.35] mb-4 tracking-[-0.02em]">
             {card.title}
           </div>
         )}
 
         {/* ---- Type select (edit mode) ---- */}
         {editing && (
-          <div style={{ marginBottom: 16 }}>
+          <div className="mb-4">
             <SectionHeader>Type</SectionHeader>
             <select
               value={editType}
               onChange={e => setEditType(e.target.value as Card["type"])}
-              style={{
-                ...inputStyle,
-                cursor: "pointer",
-                color: editTc.c,
-                fontWeight: 600,
-                appearance: "none" as const,
-              }}
+              className={`${inputCls} cursor-pointer font-semibold appearance-none`}
+              style={{ color: editTc.c }}
             >
               {Object.entries(TC).map(([k, v]) => (
                 <option key={k} value={k}>{v.l}</option>
@@ -615,23 +420,17 @@ function DetailDrawer({
         )}
 
         {/* ---- Description ---- */}
-        <div style={{ marginBottom: 0 }}>
+        <div className="mb-0">
           <SectionHeader>Description</SectionHeader>
           {editing ? (
             <textarea
               value={editDesc}
               onChange={e => setEditDesc(e.target.value)}
               rows={8}
-              style={{
-                ...inputStyle,
-                resize: "vertical",
-                fontFamily: T.m,
-                fontSize: 12,
-                lineHeight: 1.7,
-              }}
+              className={`${inputCls} resize-y !font-mono !text-xs !leading-[1.7]`}
             />
           ) : (
-            <div style={{ fontSize: 13 }}>
+            <div className="text-[13px]">
               <Md
                 text={card.description || "*No description*"}
                 fontSize={13}
@@ -645,34 +444,24 @@ function DetailDrawer({
         <Separator />
 
         {/* ---- Repository (Protocol property row style) ---- */}
-        <div style={{ marginBottom: 0 }}>
+        <div className="mb-0">
           <SectionHeader>Repository</SectionHeader>
           {editing ? (
             <input
               value={editRepo}
               onChange={e => setEditRepo(e.target.value)}
               placeholder="e.g. org/repo"
-              style={{ ...inputStyle, fontFamily: T.m, fontSize: 12 }}
+              className={`${inputCls} !font-mono !text-xs`}
             />
           ) : card.repo ? (
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              paddingTop: 4,
-            }}>
-              <span style={{ opacity: 0.45, display: "flex", alignItems: "center" }}>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="opacity-45 flex items-center">
                 {Ico.folder("rgba(255,255,255,0.6)", 14)}
               </span>
               <MonoChip>{card.repo}</MonoChip>
             </div>
           ) : (
-            <div style={{
-              fontSize: 12.5,
-              color: "rgba(255,255,255,0.3)",
-              fontStyle: "italic",
-              paddingTop: 4,
-            }}>
+            <div className="text-[12.5px] text-[rgba(255,255,255,0.3)] italic pt-1">
               No repository specified
             </div>
           )}
@@ -681,16 +470,12 @@ function DetailDrawer({
         <Separator />
 
         {/* ---- Files (Protocol properties-list style) ---- */}
-        <div style={{ marginBottom: 0 }}>
+        <div className="mb-0">
           <SectionHeader>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="inline-flex items-center gap-1.5">
               Files
               {!editing && card.files.length > 0 && (
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "rgba(255,255,255,0.35)",
-                }}>
+                <span className="text-[11px] font-medium text-[rgba(255,255,255,0.35)]">
                   ({card.files.length})
                 </span>
               )}
@@ -702,16 +487,10 @@ function DetailDrawer({
               onChange={e => setEditFiles(e.target.value)}
               rows={5}
               placeholder="One file path per line"
-              style={{
-                ...inputStyle,
-                fontFamily: T.m,
-                fontSize: 11.5,
-                lineHeight: 1.7,
-                resize: "vertical",
-              }}
+              className={`${inputCls} !font-mono !text-[11.5px] !leading-[1.7] resize-y`}
             />
           ) : card.files.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
               {card.files.map((f, idx) => {
                 const change = card.fileChanges?.[f];
                 const fileName = f.split("/").pop() || f;
@@ -723,29 +502,10 @@ function DetailDrawer({
                     <button
                       onClick={() => { if (change) onFileClick(f, change); }}
                       title={f}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        background: "none",
-                        border: "none",
-                        borderRadius: 0,
-                        padding: "10px 4px",
-                        cursor: change ? "pointer" : "default",
-                        textAlign: "left",
-                        width: "100%",
-                        transition: "background 0.12s",
-                        margin: 0,
-                      }}
-                      onMouseEnter={(e: any) => {
-                        if (change) e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                      }}
-                      onMouseLeave={(e: any) => {
-                        e.currentTarget.style.background = "none";
-                      }}
+                      className={`flex items-center gap-2 bg-transparent border-none rounded-none px-1 py-2.5 text-left w-full transition-[background] duration-[120ms] m-0 ${change ? "cursor-pointer hover:bg-[rgba(255,255,255,0.03)]" : "cursor-default"}`}
                     >
                       {/* File icon */}
-                      <span style={{ opacity: 0.35, display: "flex", alignItems: "center", flexShrink: 0 }}>
+                      <span className="opacity-35 flex items-center shrink-0">
                         {Ico.file("rgba(255,255,255,0.7)", 13)}
                       </span>
 
@@ -753,34 +513,20 @@ function DetailDrawer({
                       <MonoChip>{fileName}</MonoChip>
 
                       {/* Directory path */}
-                      {dirPath && (
-                        <span style={{
-                          fontSize: 11,
-                          color: "rgba(255,255,255,0.25)",
-                          fontFamily: T.m,
-                          flex: 1,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}>
+                      {dirPath ? (
+                        <span className="text-[11px] text-[rgba(255,255,255,0.25)] font-mono flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                           {dirPath}
                         </span>
+                      ) : (
+                        <span className="flex-1" />
                       )}
-                      {!dirPath && <span style={{ flex: 1 }} />}
 
                       {/* Change type badge (Protocol GET/POST style) */}
                       {badge && (
-                        <span style={{
-                          fontSize: 9,
-                          fontWeight: 700,
-                          color: badge.color,
-                          background: badge.bg,
-                          padding: "3px 7px",
-                          borderRadius: 4,
-                          letterSpacing: "0.04em",
-                          lineHeight: 1,
-                          flexShrink: 0,
-                        }}>
+                        <span
+                          className="text-[9px] font-bold px-[7px] py-[3px] rounded-[4px] tracking-[0.04em] leading-none shrink-0"
+                          style={{ color: badge.color, background: badge.bg }}
+                        >
                           {badge.label}
                         </span>
                       )}
@@ -791,12 +537,7 @@ function DetailDrawer({
               })}
             </div>
           ) : (
-            <div style={{
-              fontSize: 12.5,
-              color: "rgba(255,255,255,0.3)",
-              fontStyle: "italic",
-              paddingTop: 4,
-            }}>
+            <div className="text-[12.5px] text-[rgba(255,255,255,0.3)] italic pt-1">
               No files
             </div>
           )}
@@ -805,118 +546,62 @@ function DetailDrawer({
         <Separator />
 
         {/* ---- Dependencies (Protocol property-row style) ---- */}
-        <div style={{ marginBottom: 0 }}>
+        <div className="mb-0">
           <SectionHeader>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span className="inline-flex items-center gap-1.5">
               Dependencies
               {!editing && card.dependencies.length > 0 && (
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "rgba(255,255,255,0.35)",
-                }}>
+                <span className="text-[11px] font-medium text-[rgba(255,255,255,0.35)]">
                   ({card.dependencies.length})
                 </span>
               )}
             </span>
           </SectionHeader>
           {depCards.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
               {depCards.map((dep, idx) => {
                 const dtc = TC[dep.type] || { l: dep.type, c: T.accent, bg: T.aD };
                 return (
                   <React.Fragment key={dep.id}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "10px 4px",
-                        transition: "background 0.12s",
-                      }}
-                      onMouseEnter={(e: any) => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                      }}
-                      onMouseLeave={(e: any) => {
-                        e.currentTarget.style.background = "none";
-                      }}
-                    >
+                    <div className="flex items-center gap-2 px-1 py-2.5 transition-[background] duration-[120ms] hover:bg-[rgba(255,255,255,0.03)]">
                       {/* Type chip */}
-                      <span style={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        color: dtc.c,
-                        background: dtc.bg,
-                        padding: "3px 7px",
-                        borderRadius: 4,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        lineHeight: 1,
-                        flexShrink: 0,
-                      }}>
+                      <span
+                        className="text-[9px] font-bold px-[7px] py-[3px] rounded-[4px] uppercase tracking-[0.04em] leading-none shrink-0"
+                        style={{ color: dtc.c, background: dtc.bg }}
+                      >
                         {dtc.l}
                       </span>
 
                       {/* Title */}
-                      <span style={{
-                        fontSize: 12.5,
-                        color: "rgba(255,255,255,0.75)",
-                        flex: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        lineHeight: 1.4,
-                      }}>
+                      <span className="text-[12.5px] text-[rgba(255,255,255,0.75)] flex-1 overflow-hidden text-ellipsis whitespace-nowrap leading-[1.4]">
                         {dep.title}
                       </span>
 
                       {/* Action buttons */}
                       {editing ? (
-                        <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                        <div className="flex gap-0.5 shrink-0">
                           <button
                             onClick={() => moveDep(idx, -1)}
                             title="Move up"
-                            style={{
-                              ...btnBase,
-                              width: 24,
-                              height: 24,
-                              opacity: idx === 0 ? 0.25 : 0.6,
-                              transition: "opacity 0.12s",
-                            }}
+                            className="bg-transparent border-none cursor-pointer flex items-center justify-center p-0 rounded-[6px] w-6 h-6 transition-opacity duration-[120ms] hover:opacity-100"
+                            style={{ opacity: idx === 0 ? 0.25 : 0.6 }}
                             disabled={idx === 0}
-                            onMouseEnter={(e: any) => { if (idx !== 0) e.currentTarget.style.opacity = "1"; }}
-                            onMouseLeave={(e: any) => { e.currentTarget.style.opacity = idx === 0 ? "0.25" : "0.6"; }}
                           >
                             {Ico.arrowUp(T.sec, 11)}
                           </button>
                           <button
                             onClick={() => moveDep(idx, 1)}
                             title="Move down"
-                            style={{
-                              ...btnBase,
-                              width: 24,
-                              height: 24,
-                              opacity: idx === depCards.length - 1 ? 0.25 : 0.6,
-                              transition: "opacity 0.12s",
-                            }}
+                            className="bg-transparent border-none cursor-pointer flex items-center justify-center p-0 rounded-[6px] w-6 h-6 transition-opacity duration-[120ms] hover:opacity-100"
+                            style={{ opacity: idx === depCards.length - 1 ? 0.25 : 0.6 }}
                             disabled={idx === depCards.length - 1}
-                            onMouseEnter={(e: any) => { if (idx !== depCards.length - 1) e.currentTarget.style.opacity = "1"; }}
-                            onMouseLeave={(e: any) => { e.currentTarget.style.opacity = idx === depCards.length - 1 ? "0.25" : "0.6"; }}
                           >
                             {Ico.arrowDown(T.sec, 11)}
                           </button>
                           <button
                             onClick={() => removeDep(idx)}
                             title="Remove dependency"
-                            style={{
-                              ...btnBase,
-                              width: 24,
-                              height: 24,
-                              opacity: 0.6,
-                              transition: "opacity 0.12s",
-                            }}
-                            onMouseEnter={(e: any) => { e.currentTarget.style.opacity = "1"; }}
-                            onMouseLeave={(e: any) => { e.currentTarget.style.opacity = "0.6"; }}
+                            className="bg-transparent border-none cursor-pointer flex items-center justify-center p-0 rounded-[6px] w-6 h-6 opacity-60 transition-opacity duration-[120ms] hover:opacity-100"
                           >
                             {Ico.close(T.red, 11)}
                           </button>
@@ -925,16 +610,7 @@ function DetailDrawer({
                         <button
                           onClick={() => onSelectCard(dep.id)}
                           title="Go to card"
-                          style={{
-                            ...btnBase,
-                            width: 24,
-                            height: 24,
-                            flexShrink: 0,
-                            opacity: 0.4,
-                            transition: "opacity 0.12s",
-                          }}
-                          onMouseEnter={(e: any) => { e.currentTarget.style.opacity = "1"; }}
-                          onMouseLeave={(e: any) => { e.currentTarget.style.opacity = "0.4"; }}
+                          className="bg-transparent border-none cursor-pointer flex items-center justify-center p-0 rounded-[6px] w-6 h-6 shrink-0 opacity-40 transition-opacity duration-[120ms] hover:opacity-100"
                         >
                           {Ico.goto(tc.c, 11)}
                         </button>
@@ -946,12 +622,7 @@ function DetailDrawer({
               })}
             </div>
           ) : (
-            <div style={{
-              fontSize: 12.5,
-              color: "rgba(255,255,255,0.3)",
-              fontStyle: "italic",
-              paddingTop: 4,
-            }}>
+            <div className="text-[12.5px] text-[rgba(255,255,255,0.3)] italic pt-1">
               No dependencies
             </div>
           )}
@@ -961,54 +632,16 @@ function DetailDrawer({
         {editing && (
           <>
             <Separator />
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="flex gap-2.5">
               <button
                 onClick={saveEdit}
-                style={{
-                  flex: 1,
-                  padding: "9px 0",
-                  borderRadius: 8,
-                  background: T.accent,
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#fff",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: T.f,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  transition: "opacity 0.15s",
-                }}
-                onMouseEnter={(e: any) => { e.currentTarget.style.opacity = "0.85"; }}
-                onMouseLeave={(e: any) => { e.currentTarget.style.opacity = "1"; }}
+                className="flex-1 py-[9px] rounded-lg bg-[#10b981] border-none cursor-pointer text-white text-xs font-semibold font-[ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] flex items-center justify-center gap-1.5 transition-opacity duration-150 hover:opacity-85"
               >
                 {Ico.check("#fff", 12)} Save changes
               </button>
               <button
                 onClick={cancelEdit}
-                style={{
-                  flex: 1,
-                  padding: "9px 0",
-                  borderRadius: 8,
-                  background: "none",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  cursor: "pointer",
-                  color: "rgba(255,255,255,0.55)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: T.f,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e: any) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-                }}
-                onMouseLeave={(e: any) => {
-                  e.currentTarget.style.background = "none";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-                }}
+                className="flex-1 py-[9px] rounded-lg bg-transparent border border-[rgba(255,255,255,0.1)] cursor-pointer text-[rgba(255,255,255,0.55)] text-xs font-semibold font-[ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] transition-all duration-150 hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(255,255,255,0.15)]"
               >
                 Cancel
               </button>
@@ -1020,14 +653,10 @@ function DetailDrawer({
 
         {/* ---- Feedback Section ---- */}
         <SectionHeader>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span className="inline-flex items-center gap-1.5">
             Feedback
             {feedbacks.length > 0 && (
-              <span style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: "rgba(255,255,255,0.35)",
-              }}>
+              <span className="text-[11px] font-medium text-[rgba(255,255,255,0.35)]">
                 ({feedbacks.length})
               </span>
             )}
@@ -1036,39 +665,22 @@ function DetailDrawer({
 
         {/* Feedback list */}
         {feedbacks.length > 0 ? (
-          <div style={{ marginBottom: 14, marginTop: 4 }}>
+          <div className="mb-3.5 mt-1">
             {feedbacks.map(fb => (
               <FeedbackItem key={fb.id} fb={fb} onDelete={onDeleteFeedback} readOnly={readOnly} />
             ))}
           </div>
         ) : (
-          <div style={{
-            fontSize: 12.5,
-            color: "rgba(255,255,255,0.3)",
-            fontStyle: "italic",
-            marginBottom: 14,
-            paddingTop: 4,
-          }}>
+          <div className="text-[12.5px] text-[rgba(255,255,255,0.3)] italic mb-3.5 pt-1">
             No feedback yet
           </div>
         )}
 
         {/* Add feedback form (Protocol-style card with tabs) */}
         {!readOnly && (
-          <div style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 10,
-            overflow: "hidden",
-          }}>
+          <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-[10px] overflow-hidden">
             {/* Tab bar (Protocol cURL/JS/Python style) */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0,
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              padding: "0 12px",
-            }}>
+            <div className="flex items-center gap-0 border-b border-[rgba(255,255,255,0.06)] px-3">
               {(["question", "directive", "issue"] as const).map(type => {
                 const active = fbTab === type;
                 const s = FB[type];
@@ -1077,21 +689,10 @@ function DetailDrawer({
                   <button
                     key={type}
                     onClick={() => setFbTab(type)}
+                    className="bg-transparent border-none border-b-2 rounded-none cursor-pointer flex items-center justify-center p-0 gap-[5px] px-3 py-2.5 text-[11px] font-medium capitalize tracking-[0.01em] transition-[color,border-color] duration-150 -mb-px"
                     style={{
-                      ...btnBase,
-                      gap: 5,
-                      padding: "10px 12px",
-                      fontSize: 11,
-                      fontWeight: 500,
                       color: active ? s.color : "rgba(255,255,255,0.35)",
-                      background: "none",
-                      border: "none",
-                      borderBottom: active ? `2px solid ${s.color}` : "2px solid transparent",
-                      borderRadius: 0,
-                      textTransform: "capitalize",
-                      letterSpacing: "0.01em",
-                      transition: "color 0.15s, border-color 0.15s",
-                      marginBottom: -1,
+                      borderBottomColor: active ? s.color : "transparent",
                     }}
                     onMouseEnter={(e: any) => {
                       if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.6)";
@@ -1108,33 +709,13 @@ function DetailDrawer({
             </div>
 
             {/* Textarea */}
-            <div style={{ padding: "12px" }}>
+            <div className="p-3">
               <textarea
                 value={fbText}
                 onChange={e => setFbText(e.target.value)}
                 placeholder={`Add a ${fbTab}...`}
                 rows={3}
-                style={{
-                  width: "100%",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  color: T.text,
-                  fontSize: 12.5,
-                  fontFamily: T.f,
-                  lineHeight: 1.6,
-                  resize: "vertical",
-                  outline: "none",
-                  transition: "border-color 0.15s",
-                  boxSizing: "border-box" as const,
-                }}
-                onFocus={(e: any) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-                }}
-                onBlur={(e: any) => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-                }}
+                className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-2.5 text-[#fafafa] text-[12.5px] font-[ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] leading-[1.6] resize-y outline-none transition-[border-color] duration-150 box-border focus:border-[rgba(255,255,255,0.12)]"
                 onKeyDown={e => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault();
@@ -1144,28 +725,16 @@ function DetailDrawer({
               />
 
               {/* Send button */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+              <div className="flex justify-end mt-2">
                 <button
                   onClick={handleAddFeedback}
                   disabled={!fbText.trim()}
+                  className="bg-transparent border-none cursor-pointer flex items-center justify-center p-0 rounded-[7px] gap-1.5 px-4 py-[7px] text-[11px] font-semibold transition-all duration-150 hover:opacity-85"
                   style={{
-                    ...btnBase,
-                    gap: 6,
-                    padding: "7px 16px",
-                    fontSize: 11,
-                    fontWeight: 600,
                     color: fbText.trim() ? "#fff" : "rgba(255,255,255,0.25)",
                     background: fbText.trim() ? FB[fbTab].color : "rgba(255,255,255,0.04)",
-                    borderRadius: 7,
-                    transition: "all 0.15s",
                     cursor: fbText.trim() ? "pointer" : "default",
                     opacity: fbText.trim() ? 1 : 0.6,
-                  }}
-                  onMouseEnter={(e: any) => {
-                    if (fbText.trim()) e.currentTarget.style.opacity = "0.85";
-                  }}
-                  onMouseLeave={(e: any) => {
-                    e.currentTarget.style.opacity = fbText.trim() ? "1" : "0.6";
                   }}
                 >
                   {Ico.send(fbText.trim() ? "#fff" : "rgba(255,255,255,0.25)", 11)}

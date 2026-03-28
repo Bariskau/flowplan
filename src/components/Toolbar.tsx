@@ -93,17 +93,10 @@ function CopyRef({ planId }: { planId: string }) {
     <button
       onClick={handleCopy}
       title="Copy plan reference"
+      className="flex items-center gap-[5px] px-2 h-[26px] rounded-md cursor-pointer transition-all duration-200 ease-in-out"
       style={{
         background: copied ? emeraldDim : "transparent",
         border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
-        borderRadius: 6,
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "3px 8px",
-        height: 26,
-        transition: "all 0.2s ease",
       }}
       onMouseEnter={(e: any) => {
         if (!copied) {
@@ -120,13 +113,8 @@ function CopyRef({ planId }: { planId: string }) {
     >
       {copied ? Ico.check(emerald, 10) : Ico.copy("rgba(255,255,255,0.4)", 10)}
       <span
-        style={{
-          fontSize: 11,
-          color: copied ? emerald : "rgba(255,255,255,0.4)",
-          fontFamily: T.m,
-          fontWeight: 500,
-          letterSpacing: "0.01em",
-        }}
+        className="text-[11px] font-mono font-medium tracking-[0.01em]"
+        style={{ color: copied ? emerald : "rgba(255,255,255,0.4)" }}
       >
         {copied ? "Copied" : "Ref"}
       </span>
@@ -156,69 +144,15 @@ function Toolbar({
     return () => window.removeEventListener("click", handler);
   }, [exportOpen]);
 
-  /* Icon button base style */
-  const iconBtn = (active: boolean): React.CSSProperties => ({
-    background: active ? emeraldDim : "transparent",
-    border: `1px solid ${active ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
-    borderRadius: 6,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-    height: 28,
-    width: 28,
-    transition: "all 0.2s ease",
-  });
-
   return (
-    <div
-      style={{
-        height: 44,
-        background: "rgba(24,24,27,0.8)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 16px",
-        flexShrink: 0,
-        zIndex: 10,
-      }}
-    >
+    <div className="h-[44px] bg-[rgba(24,24,27,0.8)] backdrop-blur-[16px] border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between px-4 shrink-0 z-10">
       {/* ---- Left: Title, count, CopyRef ---- */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <span
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: "#f4f4f5",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            maxWidth: 240,
-            lineHeight: 1,
-            letterSpacing: "-0.01em",
-          }}
-        >
+      <div className="flex items-center gap-[10px] min-w-0">
+        <span className="text-[15px] font-semibold text-[#f4f4f5] overflow-hidden text-ellipsis whitespace-nowrap max-w-[240px] leading-none tracking-[-0.01em]">
           {planTitle}
         </span>
 
-        <span
-          style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.4)",
-            fontFamily: T.m,
-            fontWeight: 500,
-            background: "rgba(255,255,255,0.06)",
-            padding: "3px 8px",
-            borderRadius: 6,
-            lineHeight: 1,
-            flexShrink: 0,
-            letterSpacing: "0.02em",
-          }}
-        >
+        <span className="text-[11px] text-[rgba(255,255,255,0.4)] font-mono font-medium bg-[rgba(255,255,255,0.06)] px-2 py-[3px] rounded-md leading-none shrink-0 tracking-[0.02em]">
           {plan.steps.length} card{plan.steps.length !== 1 ? "s" : ""}
         </span>
 
@@ -226,12 +160,16 @@ function Toolbar({
       </div>
 
       {/* ---- Right: History, Export, View Toggle ---- */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         {/* History toggle */}
         <button
           onClick={onToggleHistory}
           title="History"
-          style={iconBtn(historyOpen)}
+          className="flex items-center justify-center p-0 h-7 w-7 rounded-md cursor-pointer transition-all duration-200 ease-in-out"
+          style={{
+            background: historyOpen ? emeraldDim : "transparent",
+            border: `1px solid ${historyOpen ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
+          }}
           onMouseEnter={(e: any) => {
             if (!historyOpen) {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";
@@ -249,18 +187,17 @@ function Toolbar({
         </button>
 
         {/* Export dropdown */}
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <button
             onClick={(e) => {
               e.stopPropagation();
               setExportOpen(!exportOpen);
             }}
             title="Export"
+            className="flex items-center justify-center h-7 w-auto gap-1 px-[10px] rounded-md cursor-pointer transition-all duration-200 ease-in-out"
             style={{
-              ...iconBtn(exportOpen),
-              width: "auto",
-              gap: 4,
-              padding: "0 10px",
+              background: exportOpen ? emeraldDim : "transparent",
+              border: `1px solid ${exportOpen ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
             }}
             onMouseEnter={(e: any) => {
               if (!exportOpen) {
@@ -282,20 +219,7 @@ function Toolbar({
           {exportOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "absolute",
-                right: 0,
-                top: "calc(100% + 6px)",
-                background: "rgba(24,24,27,0.95)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 10,
-                padding: 4,
-                zIndex: 100,
-                minWidth: 160,
-                boxShadow: "0 8px 30px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.1)",
-              }}
+              className="absolute right-0 top-[calc(100%+6px)] bg-[rgba(24,24,27,0.95)] backdrop-blur-[20px] border border-[rgba(255,255,255,0.08)] rounded-[10px] p-1 z-[100] min-w-[160px] shadow-[0_8px_30px_rgba(0,0,0,0.4),0_0_1px_rgba(255,255,255,0.1)]"
             >
               {/* SVG Export */}
               <button
@@ -303,22 +227,7 @@ function Toolbar({
                   onExportSvg();
                   setExportOpen(false);
                 }}
-                style={{
-                  width: "100%",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "8px 12px",
-                  borderRadius: 7,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  fontSize: 13,
-                  color: "#e4e4e7",
-                  fontFamily: T.f,
-                  transition: "background 0.15s",
-                  whiteSpace: "nowrap",
-                }}
+                className="w-full bg-none border-none cursor-pointer py-2 px-3 rounded-[7px] flex items-center gap-[10px] text-[13px] text-[#e4e4e7] font-sans whitespace-nowrap transition-[background] duration-150"
                 onMouseEnter={(e: any) => {
                   e.currentTarget.style.background = "rgba(255,255,255,0.06)";
                 }}
@@ -329,23 +238,15 @@ function Toolbar({
                 {Ico.svg(T.purple, 14)}
                 <span>Export SVG</span>
                 <span
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: 10,
-                    fontFamily: T.m,
-                    fontWeight: 600,
-                    color: T.purple,
-                    background: T.pD,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                  }}
+                  className="ml-auto text-[10px] font-mono font-semibold px-[6px] py-[2px] rounded-[4px]"
+                  style={{ color: T.purple, background: T.pD }}
                 >
                   SVG
                 </span>
               </button>
 
               {/* Separator */}
-              <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "2px 8px" }} />
+              <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 my-[2px]" />
 
               {/* JSON Export */}
               <button
@@ -353,22 +254,7 @@ function Toolbar({
                   onExportJson();
                   setExportOpen(false);
                 }}
-                style={{
-                  width: "100%",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "8px 12px",
-                  borderRadius: 7,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  fontSize: 13,
-                  color: "#e4e4e7",
-                  fontFamily: T.f,
-                  transition: "background 0.15s",
-                  whiteSpace: "nowrap",
-                }}
+                className="w-full bg-none border-none cursor-pointer py-2 px-3 rounded-[7px] flex items-center gap-[10px] text-[13px] text-[#e4e4e7] font-sans whitespace-nowrap transition-[background] duration-150"
                 onMouseEnter={(e: any) => {
                   e.currentTarget.style.background = "rgba(255,255,255,0.06)";
                 }}
@@ -379,16 +265,8 @@ function Toolbar({
                 {Ico.json(T.orange, 14)}
                 <span>Export JSON</span>
                 <span
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: 10,
-                    fontFamily: T.m,
-                    fontWeight: 600,
-                    color: T.orange,
-                    background: T.oD,
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                  }}
+                  className="ml-auto text-[10px] font-mono font-semibold px-[6px] py-[2px] rounded-[4px]"
+                  style={{ color: T.orange, background: T.oD }}
                 >
                   JSON
                 </span>
@@ -398,37 +276,15 @@ function Toolbar({
         </div>
 
         {/* Divider */}
-        <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)", marginLeft: 2, marginRight: 2 }} />
+        <div className="w-px h-[18px] bg-[rgba(255,255,255,0.08)] ml-[2px] mr-[2px]" />
 
         {/* Flow / List segmented control */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            background: "rgba(255,255,255,0.04)",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.08)",
-            height: 30,
-            padding: 2,
-            gap: 2,
-          }}
-        >
+        <div className="flex items-center bg-[rgba(255,255,255,0.04)] rounded-lg border border-[rgba(255,255,255,0.08)] h-[30px] p-[2px] gap-[2px]">
           <button
             onClick={() => onViewModeChange("flow")}
             title="Flow view"
-            style={{
-              background: viewMode === "flow" ? emerald : "transparent",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              height: "100%",
-              padding: "0 10px",
-              borderRadius: 6,
-              transition: "all 0.2s ease",
-            }}
+            className="border-none cursor-pointer flex items-center justify-center gap-[5px] h-full px-[10px] rounded-md transition-all duration-200 ease-in-out"
+            style={{ background: viewMode === "flow" ? emerald : "transparent" }}
             onMouseEnter={(e: any) => {
               if (viewMode !== "flow") e.currentTarget.style.background = "rgba(255,255,255,0.06)";
             }}
@@ -438,13 +294,8 @@ function Toolbar({
           >
             {Ico.flow(viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)", 12)}
             <span
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)",
-                fontFamily: T.f,
-                letterSpacing: "0.01em",
-              }}
+              className="text-[11px] font-medium font-sans tracking-[0.01em]"
+              style={{ color: viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)" }}
             >
               Flow
             </span>
@@ -452,19 +303,8 @@ function Toolbar({
           <button
             onClick={() => onViewModeChange("list")}
             title="List view"
-            style={{
-              background: viewMode === "list" ? emerald : "transparent",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              height: "100%",
-              padding: "0 10px",
-              borderRadius: 6,
-              transition: "all 0.2s ease",
-            }}
+            className="border-none cursor-pointer flex items-center justify-center gap-[5px] h-full px-[10px] rounded-md transition-all duration-200 ease-in-out"
+            style={{ background: viewMode === "list" ? emerald : "transparent" }}
             onMouseEnter={(e: any) => {
               if (viewMode !== "list") e.currentTarget.style.background = "rgba(255,255,255,0.06)";
             }}
@@ -474,13 +314,8 @@ function Toolbar({
           >
             {Ico.list(viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)", 12)}
             <span
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)",
-                fontFamily: T.f,
-                letterSpacing: "0.01em",
-              }}
+              className="text-[11px] font-medium font-sans tracking-[0.01em]"
+              style={{ color: viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)" }}
             >
               List
             </span>
