@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Plan } from "../types";
-import { T } from "../lib/theme";
 
 interface SidebarProps {
   plans: Plan[];
@@ -16,7 +15,7 @@ interface SidebarProps {
 
 /* ---- Logo ---- */
 const Logo = ({ size = 20 }: { size?: number }) => (
-  <div style={{ width: size, height: size, background: "#1e1e2a", borderRadius: size * 0.22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+  <div style={{ width: size, height: size, borderRadius: size * 0.22 }} className="bg-[#1e1e2a] flex items-center justify-center shrink-0">
     <svg width={size * 0.72} height={size * 0.72} viewBox="0 0 251 260" fill="none">
       <defs>
         <radialGradient id="sbfp1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(113.355,0,0,113.355,103.715,138.105)">
@@ -69,15 +68,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   const DropdownMenu = ({ children }: { children: React.ReactNode }) => (
     <div
       onClick={e => e.stopPropagation()}
-      style={{
-        background: "#1c1c1e",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 8,
-        padding: 4,
-        minWidth: 160,
-        boxShadow: "0 8px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03)",
-        backdropFilter: "blur(20px)",
-      }}
+      className="bg-[#1c1c1e] border border-[rgba(255,255,255,0.08)] rounded-lg p-1 min-w-[160px] shadow-[0_8px_30px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-[20px]"
     >
       {children}
     </div>
@@ -96,22 +87,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   }) => (
     <button
       onClick={onClick}
-      style={{
-        width: "100%",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "7px 12px",
-        borderRadius: 6,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        fontSize: 13,
-        color: danger ? "#ef4444" : "#e4e4e7",
-        fontFamily: T.f,
-        transition: "background 0.12s",
-        whiteSpace: "nowrap",
-      }}
+      className={`w-full bg-transparent border-none cursor-pointer py-[7px] px-3 rounded-md flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-[background] duration-[120ms] ${danger ? "text-[#ef4444]" : "text-[#e4e4e7]"}`}
       onMouseEnter={(e: any) => {
         e.currentTarget.style.background = danger ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)";
       }}
@@ -131,21 +107,14 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
     const menuOpen = planMenu === p.id;
 
     return (
-      <li style={{ position: "relative" }}>
+      <li className="relative">
         <div
           onClick={() => onSelect(p.id)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 8px 6px 10px",
-            cursor: "pointer",
-            borderRadius: 6,
-            borderLeft: act ? "2px solid #10b981" : "2px solid transparent",
-            background: act ? "rgba(16,185,129,0.06)" : "transparent",
-            transition: "all 0.2s ease",
-            position: "relative",
-          }}
+          className={`flex items-center gap-2 py-1.5 pr-2 pl-2.5 cursor-pointer rounded-md relative transition-all duration-200 ${
+            act
+              ? "border-l-2 border-l-[#10b981] bg-[rgba(16,185,129,0.06)]"
+              : "border-l-2 border-l-transparent bg-transparent"
+          }`}
           onMouseEnter={(e: any) => {
             if (!act) {
               e.currentTarget.style.background = "rgba(255,255,255,0.04)";
@@ -163,7 +132,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         >
           {/* Pin icon for pinned plans */}
           {p.pinned && (
-            <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+            <span className="shrink-0 flex items-center">
               {Ico.pinFill("#10b981", 10)}
             </span>
           )}
@@ -171,55 +140,26 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
           {/* Plan name */}
           <span
             data-plan-name
-            style={{
-              fontSize: 14,
-              fontWeight: 400,
-              color: act ? "#ffffff" : "#a1a1aa",
-              letterSpacing: "-0.01em",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              transition: "color 0.2s ease",
-              flex: 1,
-              minWidth: 0,
-            }}
+            className={`text-sm font-normal tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-200 flex-1 min-w-0 ${
+              act ? "text-white" : "text-[#a1a1aa]"
+            }`}
           >
             {p.title}
           </span>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <div className="flex items-center gap-1 shrink-0">
             {/* Feedback badge */}
             {nc > 0 && (
-              <span
-                style={{
-                  background: "#10b981",
-                  color: "#fff",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  width: 16,
-                  height: 16,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  lineHeight: 1,
-                  fontFamily: T.m,
-                }}
-              >
+              <span className="bg-[#10b981] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none font-mono">
                 {nc}
               </span>
             )}
 
             {/* Card count */}
             <span
-              style={{
-                fontSize: 10,
-                fontWeight: 500,
-                color: act ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
-                fontFamily: T.m,
-                flexShrink: 0,
-                transition: "color 0.2s ease",
-              }}
+              className={`text-[10px] font-medium font-mono shrink-0 transition-colors duration-200 ${
+                act ? "text-[rgba(255,255,255,0.35)]" : "text-[rgba(255,255,255,0.18)]"
+              }`}
             >
               {p.steps.length}
             </span>
@@ -227,22 +167,9 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
             {/* Three dots menu button */}
             <button
               onClick={e => { e.stopPropagation(); setPlanMenu(menuOpen ? null : p.id); setAddMenu(false); }}
-              style={{
-                background: menuOpen ? "rgba(255,255,255,0.06)" : "none",
-                border: "none",
-                cursor: "pointer",
-                width: 22,
-                height: 22,
-                borderRadius: 5,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                flexShrink: 0,
-                opacity: menuOpen ? 1 : 0,
-                transition: "all 0.15s ease",
-              }}
-              className="plan-actions"
+              className={`border-none cursor-pointer w-[22px] h-[22px] rounded-[5px] flex items-center justify-center p-0 shrink-0 transition-all duration-150 ${
+                menuOpen ? "bg-[rgba(255,255,255,0.06)] opacity-100" : "bg-transparent opacity-0"
+              } plan-actions`}
               onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
               onMouseLeave={(e: any) => { e.currentTarget.style.background = menuOpen ? "rgba(255,255,255,0.06)" : "none"; }}
             >
@@ -253,7 +180,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
 
         {/* Context menu dropdown */}
         {menuOpen && (
-          <div style={{ position: "absolute", right: 4, top: 34, zIndex: 100 }}>
+          <div className="absolute right-1 top-[34px] z-[100]">
             <DropdownMenu>
               <DropdownItem
                 onClick={() => { onTogglePin(p.id); setPlanMenu(null); }}
@@ -274,99 +201,51 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   };
 
   return (
-    <div
-      style={{
-        width: 220,
-        background: "rgba(9,9,11,0.75)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        flexDirection: "column",
-        flexShrink: 0,
-        fontFamily: T.f,
-      }}
-    >
+    <div className="w-[220px] bg-[rgba(255,255,255,0.03)] backdrop-blur-[40px] border-r border-r-[rgba(255,255,255,0.06)] flex flex-col shrink-0 font-sans">
       {/* ---- Header ---- */}
-      <div
-        style={{
-          padding: "16px 14px 12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="pt-4 px-3.5 pb-3 flex items-center justify-between border-b border-b-[rgba(255,255,255,0.06)]">
+        <div className="flex items-center gap-2">
           <Logo size={22} />
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#ffffff",
-              letterSpacing: "-0.01em",
-            }}
-          >
+          <span className="text-sm font-semibold text-white tracking-[-0.01em]">
             FlowPlan
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="flex items-center gap-1.5">
           {/* MCP connection indicator */}
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 8px",
-              borderRadius: 6,
-              background: connected
-                ? "rgba(16,185,129,0.08)"
-                : "rgba(255,255,255,0.04)",
-              border: `1px solid ${connected ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.06)"}`,
-            }}
+            className={`flex items-center gap-1 py-[3px] px-2 rounded-md border ${
+              connected
+                ? "bg-[rgba(16,185,129,0.08)] border-[rgba(16,185,129,0.2)]"
+                : "bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.06)]"
+            }`}
           >
             <div
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: connected ? "#10b981" : "#52525b",
-                boxShadow: connected ? "0 0 6px rgba(16,185,129,0.5)" : "none",
-                transition: "all 0.3s",
-              }}
+              className={`w-[5px] h-[5px] rounded-full transition-all duration-300 ${
+                connected
+                  ? "bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.5)]"
+                  : "bg-[#52525b] shadow-none"
+              }`}
             />
             <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: connected ? "#10b981" : "#52525b",
-                fontFamily: T.m,
-                lineHeight: 1,
-              }}
+              className={`text-[10px] font-semibold font-mono leading-none ${
+                connected ? "text-[#10b981]" : "text-[#52525b]"
+              }`}
             >
               MCP
             </span>
           </div>
 
           {/* Add button */}
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <button
               onClick={e => { e.stopPropagation(); setAddMenu(!addMenu); setPlanMenu(null); }}
               title="Add plan"
-              style={{
-                background: addMenu ? "rgba(255,255,255,0.06)" : "none",
-                border: `1px solid ${addMenu ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.06)"}`,
-                cursor: "pointer",
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.15s",
-                padding: 0,
-              }}
+              className={`cursor-pointer w-7 h-7 rounded-md flex items-center justify-center transition-all duration-150 p-0 ${
+                addMenu
+                  ? "bg-[rgba(255,255,255,0.06)] border border-[rgba(16,185,129,0.3)]"
+                  : "bg-transparent border border-[rgba(255,255,255,0.06)]"
+              }`}
               onMouseEnter={(e: any) => {
                 if (!addMenu) {
                   e.currentTarget.style.background = "rgba(255,255,255,0.06)";
@@ -384,7 +263,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
             </button>
 
             {addMenu && (
-              <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 100 }}>
+              <div className="absolute right-0 top-full mt-1 z-[100]">
                 <DropdownMenu>
                   <DropdownItem
                     onClick={() => { onNewPlan(); setAddMenu(false); }}
@@ -404,33 +283,11 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       </div>
 
       {/* ---- Navigation ---- */}
-      <nav
-        style={{
-          flex: 1,
-          overflow: "auto",
-          padding: "12px 8px",
-        }}
-      >
+      <nav className="flex-1 overflow-auto py-3 px-2">
         {plans.length === 0 && (
-          <div
-            style={{
-              padding: "40px 16px",
-              textAlign: "center",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div style={{ opacity: 0.15 }}><Logo size={40} /></div>
-            <div
-              style={{
-                fontSize: 13,
-                color: "#52525b",
-                lineHeight: 1.6,
-                maxWidth: 160,
-              }}
-            >
+          <div className="py-10 px-4 text-center flex flex-col items-center gap-3">
+            <div className="opacity-[0.15]"><Logo size={40} /></div>
+            <div className="text-[13px] text-[#52525b] leading-[1.6] max-w-[160px]">
               {connected
                 ? 'Ask your coding agent to "create a plan and show in FlowPlan"'
                 : "Connecting to MCP server..."}
@@ -441,17 +298,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         {plans.length > 0 && (
           <>
             {/* Section header */}
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#52525b",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                padding: "4px 10px 8px",
-                fontFamily: T.f,
-              }}
-            >
+            <div className="text-[11px] font-semibold text-[#52525b] tracking-[0.05em] uppercase pt-1 px-2.5 pb-2 font-sans">
               Plans
             </div>
 
@@ -462,7 +309,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
               }
             `}</style>
 
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+            <ul className="list-none m-0 p-0 flex flex-col gap-px">
               {/* Pinned plans */}
               {pinned.map(p => (
                 <div key={p.id} className="sidebar-plan-item">
@@ -472,8 +319,8 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
 
               {/* Separator between pinned and unpinned */}
               {pinned.length > 0 && unpinned.length > 0 && (
-                <li style={{ padding: "4px 10px" }}>
-                  <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
+                <li className="py-1 px-2.5">
+                  <div className="h-px bg-[rgba(255,255,255,0.06)]" />
                 </li>
               )}
 
@@ -489,22 +336,8 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       </nav>
 
       {/* ---- Footer ---- */}
-      <div
-        style={{
-          padding: "10px 14px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            color: "#3f3f46",
-            fontFamily: T.m,
-            textAlign: "center",
-            lineHeight: 1.5,
-          }}
-        >
+      <div className="py-2.5 px-3.5 border-t border-t-[rgba(255,255,255,0.06)] shrink-0">
+        <div className="text-[11px] text-[#3f3f46] font-mono text-center leading-[1.5]">
           {plans.length} {plans.length === 1 ? "plan" : "plans"}
         </div>
       </div>
