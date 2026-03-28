@@ -265,7 +265,7 @@ export default function App() {
 
         {/* Old card drawer (history) */}
         {histOpen && oldCard && (
-          <div style={{ position: "fixed", top: 0, right: 320, width: 320, height: "100vh", background: "rgba(26,26,26,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderLeft: `0.5px solid ${T.borderGlass}`, zIndex: 51, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ position: "fixed", top: 0, right: 380, width: 380, height: "100vh", background: "rgba(24,24,27,0.65)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 51, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <DetailDrawer card={oldCard} feedbacks={st.feedbacks} onClose={() => setOldCard(null)}
               onAddFeedback={async () => {}} onDeleteFeedback={async () => {}}
               planTitle="Old Version" planId="" onFileClick={onFileClick}
@@ -275,7 +275,7 @@ export default function App() {
 
         {/* Right drawer */}
         {(histOpen || (!histOpen && sId && ss)) && (
-          <div style={{ position: "fixed", top: 0, right: 0, width: 320, height: "100vh", background: "rgba(26,26,26,0.8)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderLeft: `0.5px solid ${T.borderGlass}`, zIndex: 50, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ position: "fixed", top: 0, right: 0, width: 380, height: "100vh", background: "rgba(24,24,27,0.65)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 50, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {histOpen ? (
               <HistoryPanel entries={history} selectedIdx={histIdx}
                 onSelect={(idx) => {
