@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import type { AppState, Card, Feedback, FileChange, HistoryEntry } from "./types";
 import * as api from "./lib/api";
 import { computeDiff } from "./lib/diff";
-import { T } from "./lib/theme";
 
 import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
@@ -13,6 +12,7 @@ import CodeViewer from "./components/CodeViewer";
 import NewPlanModal from "./components/NewPlanModal";
 import NewCardModal from "./components/NewCardModal";
 import DotGrid from "./components/DotGrid";
+import Button from "./components/ui/Button";
 
 export default function App() {
   const [st, setSt] = useState<AppState>({ plans: [], feedbacks: [], positions: {} });
@@ -180,7 +180,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-screen bg-[#09090b] font-sans text-[#fafafa] overflow-hidden relative">
+    <div className="w-full h-screen bg-fp-bg font-sans text-fp-text overflow-hidden relative">
 
       {/* Layer 0: Full-screen gradient + dot grid background */}
       <DotGrid />
@@ -189,7 +189,7 @@ export default function App() {
       <div className="absolute inset-0 z-[1]">
         {!plan ? (
           <div className="flex items-center justify-center h-full flex-col gap-3">
-            <div className="text-[13px] text-[#71717a] text-center">{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
+            <div className="text-[13px] text-fp-dim text-center">{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
           </div>
         ) : vm === "flow" ? (
           <FlowCanvas
@@ -207,21 +207,29 @@ export default function App() {
             onAddCard={() => setNewCardModal(true)}
           />
         ) : (
-          <div className="pt-[60px] pr-4 pb-4 pl-[240px] overflow-auto h-full">
+          <div className="pt-[--spacing-fp-toolbar] pr-4 pb-4 pl-[--spacing-fp-sidebar] overflow-auto h-full" style={{ paddingTop: "calc(var(--spacing-fp-toolbar) + 16px)", paddingLeft: "calc(var(--spacing-fp-sidebar) + 16px)" }}>
             <div className="max-w-[440px] mx-auto">
               {sortedSteps.map(s => (
                 <div key={s.id} onClick={() => selectCard(s.id)}
-                  className="bg-[rgba(255,255,255,0.03)] backdrop-blur-[16px] rounded-[10px] py-3 px-[14px] cursor-pointer flex flex-col gap-[5px] mb-2"
-                  style={{ border: `1px solid ${sId === s.id ? T.accent : "rgba(255,255,255,0.06)"}` }}>
-                  <div className="text-[13px] font-semibold text-[#fafafa]">{s.title}</div>
-                  <div className="text-[11px] text-[#a1a1aa] leading-[1.5] max-h-[40px] overflow-hidden">{s.description.slice(0, 150)}</div>
-                  <div className="text-[10px] text-[#71717a] font-mono">{s.repo}</div>
+                  className={`fp-glass-card rounded-fp-lg py-3 px-3.5 cursor-pointer flex flex-col gap-[5px] mb-2 border transition-colors duration-150 ${
+                    sId === s.id ? "border-fp-accent" : "border-fp-border hover:border-fp-border-hover"
+                  }`}>
+                  <div className="text-[13px] font-semibold text-fp-text">{s.title}</div>
+                  <div className="text-[11px] text-fp-muted leading-[1.5] max-h-[40px] overflow-hidden">{s.description.slice(0, 150)}</div>
+                  <div className="text-[10px] text-fp-dim font-mono">{s.repo}</div>
                 </div>
               ))}
               {steps.length === 0 && (
-                <div className="text-center p-10 text-[#71717a] text-xs">
+                <div className="text-center p-10 text-fp-dim text-xs">
                   <div>No cards yet</div>
-                  <button onClick={() => setNewCardModal(true)} className="mt-3 bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.25)] rounded-lg py-[7px] px-4 text-xs font-medium text-[#34d399] cursor-pointer backdrop-blur-[12px]">Add Card</button>
+                  <Button
+                    variant="accent"
+                    size="md"
+                    onClick={() => setNewCardModal(true)}
+                    className="mt-3"
+                  >
+                    Add Card
+                  </Button>
                 </div>
               )}
             </div>
@@ -253,7 +261,7 @@ export default function App() {
 
       {/* Layer 3: Toolbar overlay (top, glassy) */}
       {plan && (
-        <div className="fixed top-0 left-[220px] right-0 z-10">
+        <div className="fixed top-0 left-[--spacing-fp-sidebar] right-0 z-10">
           <Toolbar
             plan={plan}
             viewMode={vm}
@@ -270,7 +278,7 @@ export default function App() {
 
         {/* Old card drawer (history) */}
         {histOpen && oldCard && (
-          <div className="fixed top-0 right-[380px] w-[380px] h-screen bg-[rgba(255,255,255,0.03)] backdrop-blur-[40px] border-l border-[rgba(255,255,255,0.06)] z-[51] flex flex-col overflow-hidden">
+          <div className="fixed top-0 right-[--spacing-fp-drawer] w-[--spacing-fp-drawer] h-screen fp-glass border-l border-fp-border z-[51] flex flex-col overflow-hidden">
             <DetailDrawer card={oldCard} feedbacks={st.feedbacks} onClose={() => setOldCard(null)}
               onAddFeedback={async () => {}} onDeleteFeedback={async () => {}}
               planTitle="Old Version" planId="" onFileClick={onFileClick}
@@ -280,7 +288,7 @@ export default function App() {
 
         {/* Right drawer */}
         {(histOpen || (!histOpen && sId && ss)) && (
-          <div className="fixed top-0 right-0 w-[380px] h-screen bg-[rgba(255,255,255,0.03)] backdrop-blur-[40px] border-l border-[rgba(255,255,255,0.06)] z-50 flex flex-col overflow-hidden">
+          <div className="fixed top-0 right-0 w-[--spacing-fp-drawer] h-screen fp-glass border-l border-fp-border z-50 flex flex-col overflow-hidden">
             {histOpen ? (
               <HistoryPanel entries={history} selectedIdx={histIdx}
                 onSelect={(idx) => {
@@ -335,19 +343,19 @@ export default function App() {
 
       {toast && (
         <div
-          className="toast-enter fixed bottom-5 right-5 bg-[#18181b] rounded-[10px] py-[10px] px-[14px] flex items-center gap-[10px] z-[1100] shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[320px]"
-          style={{ border: `1px solid ${toast.error ? T.red : T.border}` }}
+          className={`animate-toast fixed bottom-5 right-5 bg-fp-solid rounded-fp-lg py-2.5 px-3.5 flex items-center gap-2.5 z-[1100] shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[320px] border ${
+            toast.error ? "border-fp-danger" : "border-fp-border"
+          }`}
         >
           <div className="flex-1">
             <div
-              className="text-[11px] font-semibold"
-              style={{ color: toast.error ? T.red : T.text }}
+              className={`text-[11px] font-semibold ${toast.error ? "text-fp-danger" : "text-fp-text"}`}
             >
               {toast.text}
             </div>
-            {toast.file && <div className="text-[10px] text-[#a1a1aa] font-mono">{toast.file}</div>}
+            {toast.file && <div className="text-[10px] text-fp-muted font-mono">{toast.file}</div>}
           </div>
-          <button onClick={() => setToast(null)} className="bg-none border-none text-[#71717a] cursor-pointer text-xs py-[2px] px-1">{"\u2715"}</button>
+          <button onClick={() => setToast(null)} className="bg-transparent border-none text-fp-dim cursor-pointer text-xs py-0.5 px-1 hover:text-fp-muted transition-colors duration-150">{"\u2715"}</button>
         </div>
       )}
     </div>

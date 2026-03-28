@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { Plan } from "../types";
-import { T } from "../lib/theme";
+import Button from "./ui/Button";
+import IconButton from "./ui/IconButton";
 
 interface ToolbarProps {
   plan: Plan;
@@ -74,10 +75,6 @@ const Ico = {
   ),
 };
 
-/* Protocol emerald color */
-const emerald = "#10b981";
-const emeraldDim = "rgba(16,185,129,0.12)";
-
 /* ---- CopyRef inline ---- */
 function CopyRef({ planId }: { planId: string }) {
   const [copied, setCopied] = useState(false);
@@ -90,35 +87,14 @@ function CopyRef({ planId }: { planId: string }) {
   }, [planId]);
 
   return (
-    <button
+    <IconButton
+      variant="ghost"
+      size="sm"
       onClick={handleCopy}
-      title="Copy plan reference"
-      className="flex items-center gap-[5px] px-2 h-[26px] rounded-md cursor-pointer transition-all duration-200 ease-in-out"
-      style={{
-        background: copied ? emeraldDim : "transparent",
-        border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
-      }}
-      onMouseEnter={(e: any) => {
-        if (!copied) {
-          e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-        }
-      }}
-      onMouseLeave={(e: any) => {
-        if (!copied) {
-          e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-        }
-      }}
-    >
-      {copied ? Ico.check(emerald, 10) : Ico.copy("rgba(255,255,255,0.4)", 10)}
-      <span
-        className="text-[11px] font-mono font-medium tracking-[0.01em]"
-        style={{ color: copied ? emerald : "rgba(255,255,255,0.4)" }}
-      >
-        {copied ? "Copied" : "Ref"}
-      </span>
-    </button>
+      label="Copy plan reference"
+      icon={copied ? Ico.check("#10b981", 10) : Ico.copy("currentColor", 10)}
+      className={copied ? "text-fp-accent bg-fp-accent-dim" : ""}
+    />
   );
 }
 
@@ -145,14 +121,14 @@ function Toolbar({
   }, [exportOpen]);
 
   return (
-    <div className="h-[44px] bg-[rgba(24,24,27,0.8)] backdrop-blur-[16px] border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between px-4 shrink-0 z-10">
+    <div className="h-[--spacing-fp-toolbar] fp-glass border-b border-fp-border flex items-center justify-between px-4 shrink-0 z-10">
       {/* ---- Left: Title, count, CopyRef ---- */}
-      <div className="flex items-center gap-[10px] min-w-0">
-        <span className="text-[15px] font-semibold text-[#f4f4f5] overflow-hidden text-ellipsis whitespace-nowrap max-w-[240px] leading-none tracking-[-0.01em]">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-sm font-semibold text-fp-text overflow-hidden text-ellipsis whitespace-nowrap max-w-[240px] leading-none tracking-tight">
           {planTitle}
         </span>
 
-        <span className="text-[11px] text-[rgba(255,255,255,0.4)] font-mono font-medium bg-[rgba(255,255,255,0.06)] px-2 py-[3px] rounded-md leading-none shrink-0 tracking-[0.02em]">
+        <span className="text-xs text-fp-dim font-mono font-medium bg-fp-glass-hover px-2 py-0.5 rounded-fp-sm leading-none shrink-0">
           {plan.steps.length} card{plan.steps.length !== 1 ? "s" : ""}
         </span>
 
@@ -162,164 +138,106 @@ function Toolbar({
       {/* ---- Right: History, Export, View Toggle ---- */}
       <div className="flex items-center gap-2">
         {/* History toggle */}
-        <button
+        <IconButton
+          variant={historyOpen ? "glassy" : "ghost"}
+          size="md"
           onClick={onToggleHistory}
-          title="History"
-          className="flex items-center justify-center p-0 h-7 w-7 rounded-md cursor-pointer transition-all duration-200 ease-in-out"
-          style={{
-            background: historyOpen ? emeraldDim : "transparent",
-            border: `1px solid ${historyOpen ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
-          }}
-          onMouseEnter={(e: any) => {
-            if (!historyOpen) {
-              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-            }
-          }}
-          onMouseLeave={(e: any) => {
-            if (!historyOpen) {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-            }
-          }}
-        >
-          {Ico.history(historyOpen ? emerald : "rgba(255,255,255,0.5)", 14)}
-        </button>
+          label="History"
+          icon={Ico.history(historyOpen ? "#10b981" : "currentColor", 14)}
+          className={historyOpen ? "bg-fp-accent-dim border-fp-accent/25 text-fp-accent" : ""}
+        />
 
         {/* Export dropdown */}
         <div className="relative">
-          <button
+          <IconButton
+            variant={exportOpen ? "glassy" : "ghost"}
+            size="md"
             onClick={(e) => {
               e.stopPropagation();
               setExportOpen(!exportOpen);
             }}
-            title="Export"
-            className="flex items-center justify-center h-7 w-auto gap-1 px-[10px] rounded-md cursor-pointer transition-all duration-200 ease-in-out"
-            style={{
-              background: exportOpen ? emeraldDim : "transparent",
-              border: `1px solid ${exportOpen ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
-            }}
-            onMouseEnter={(e: any) => {
-              if (!exportOpen) {
-                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-              }
-            }}
-            onMouseLeave={(e: any) => {
-              if (!exportOpen) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-              }
-            }}
-          >
-            {Ico.export(exportOpen ? emerald : "rgba(255,255,255,0.5)", 13)}
-            {Ico.chevron(exportOpen ? emerald : "rgba(255,255,255,0.35)", 10)}
-          </button>
+            label="Export"
+            icon={
+              <span className="flex items-center gap-1">
+                {Ico.export(exportOpen ? "#10b981" : "currentColor", 13)}
+                {Ico.chevron(exportOpen ? "#10b981" : "currentColor", 10)}
+              </span>
+            }
+            className={`w-auto px-2 ${exportOpen ? "bg-fp-accent-dim border-fp-accent/25 text-fp-accent" : ""}`}
+          />
 
           {exportOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-[calc(100%+6px)] bg-[rgba(24,24,27,0.95)] backdrop-blur-[20px] border border-[rgba(255,255,255,0.08)] rounded-[10px] p-1 z-[100] min-w-[160px] shadow-[0_8px_30px_rgba(0,0,0,0.4),0_0_1px_rgba(255,255,255,0.1)]"
+              className="absolute right-0 top-[calc(100%+6px)] bg-fp-solid rounded-fp-lg border border-fp-border shadow-lg p-1 z-[100] min-w-[160px]"
             >
               {/* SVG Export */}
-              <button
+              <Button
+                variant="ghost"
+                size="md"
+                icon={Ico.svg("#a78bfa", 14)}
                 onClick={() => {
                   onExportSvg();
                   setExportOpen(false);
                 }}
-                className="w-full bg-none border-none cursor-pointer py-2 px-3 rounded-[7px] flex items-center gap-[10px] text-[13px] text-[#e4e4e7] font-sans whitespace-nowrap transition-[background] duration-150"
-                onMouseEnter={(e: any) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                }}
-                onMouseLeave={(e: any) => {
-                  e.currentTarget.style.background = "none";
-                }}
+                className="w-full justify-start"
               >
-                {Ico.svg(T.purple, 14)}
-                <span>Export SVG</span>
-                <span
-                  className="ml-auto text-[10px] font-mono font-semibold px-[6px] py-[2px] rounded-[4px]"
-                  style={{ color: T.purple, background: T.pD }}
-                >
-                  SVG
+                <span className="flex items-center gap-2 w-full">
+                  Export SVG
+                  <span className="ml-auto text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-fp-sm text-fp-purple bg-fp-purple-dim">
+                    SVG
+                  </span>
                 </span>
-              </button>
+              </Button>
 
               {/* Separator */}
-              <div className="h-px bg-[rgba(255,255,255,0.06)] mx-2 my-[2px]" />
+              <div className="h-px bg-fp-border mx-2 my-0.5" />
 
               {/* JSON Export */}
-              <button
+              <Button
+                variant="ghost"
+                size="md"
+                icon={Ico.json("#fb923c", 14)}
                 onClick={() => {
                   onExportJson();
                   setExportOpen(false);
                 }}
-                className="w-full bg-none border-none cursor-pointer py-2 px-3 rounded-[7px] flex items-center gap-[10px] text-[13px] text-[#e4e4e7] font-sans whitespace-nowrap transition-[background] duration-150"
-                onMouseEnter={(e: any) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                }}
-                onMouseLeave={(e: any) => {
-                  e.currentTarget.style.background = "none";
-                }}
+                className="w-full justify-start"
               >
-                {Ico.json(T.orange, 14)}
-                <span>Export JSON</span>
-                <span
-                  className="ml-auto text-[10px] font-mono font-semibold px-[6px] py-[2px] rounded-[4px]"
-                  style={{ color: T.orange, background: T.oD }}
-                >
-                  JSON
+                <span className="flex items-center gap-2 w-full">
+                  Export JSON
+                  <span className="ml-auto text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-fp-sm text-fp-orange bg-fp-orange-dim">
+                    JSON
+                  </span>
                 </span>
-              </button>
+              </Button>
             </div>
           )}
         </div>
 
         {/* Divider */}
-        <div className="w-px h-[18px] bg-[rgba(255,255,255,0.08)] ml-[2px] mr-[2px]" />
+        <div className="w-px h-[18px] bg-fp-border mx-0.5" />
 
         {/* Flow / List segmented control */}
-        <div className="flex items-center bg-[rgba(255,255,255,0.04)] rounded-lg border border-[rgba(255,255,255,0.08)] h-[30px] p-[2px] gap-[2px]">
-          <button
+        <div className="flex items-center rounded-fp-md overflow-hidden border border-fp-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Ico.flow(viewMode === "flow" ? "#fff" : "currentColor", 12)}
             onClick={() => onViewModeChange("flow")}
-            title="Flow view"
-            className="border-none cursor-pointer flex items-center justify-center gap-[5px] h-full px-[10px] rounded-md transition-all duration-200 ease-in-out"
-            style={{ background: viewMode === "flow" ? emerald : "transparent" }}
-            onMouseEnter={(e: any) => {
-              if (viewMode !== "flow") e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-            }}
-            onMouseLeave={(e: any) => {
-              if (viewMode !== "flow") e.currentTarget.style.background = "transparent";
-            }}
+            className={`rounded-none border-none ${viewMode === "flow" ? "bg-fp-glass-active text-fp-text" : "bg-transparent text-fp-dim"}`}
           >
-            {Ico.flow(viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)", 12)}
-            <span
-              className="text-[11px] font-medium font-sans tracking-[0.01em]"
-              style={{ color: viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)" }}
-            >
-              Flow
-            </span>
-          </button>
-          <button
+            Flow
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Ico.list(viewMode === "list" ? "#fff" : "currentColor", 12)}
             onClick={() => onViewModeChange("list")}
-            title="List view"
-            className="border-none cursor-pointer flex items-center justify-center gap-[5px] h-full px-[10px] rounded-md transition-all duration-200 ease-in-out"
-            style={{ background: viewMode === "list" ? emerald : "transparent" }}
-            onMouseEnter={(e: any) => {
-              if (viewMode !== "list") e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-            }}
-            onMouseLeave={(e: any) => {
-              if (viewMode !== "list") e.currentTarget.style.background = "transparent";
-            }}
+            className={`rounded-none border-none ${viewMode === "list" ? "bg-fp-glass-active text-fp-text" : "bg-transparent text-fp-dim"}`}
           >
-            {Ico.list(viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)", 12)}
-            <span
-              className="text-[11px] font-medium font-sans tracking-[0.01em]"
-              style={{ color: viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)" }}
-            >
-              List
-            </span>
-          </button>
+            List
+          </Button>
         </div>
       </div>
     </div>
