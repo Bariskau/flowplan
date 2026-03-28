@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { Plan } from "../types";
 import IconButton from "./ui/IconButton";
 import DropdownMenu, { DropdownItem } from "./ui/DropdownMenu";
@@ -56,35 +56,35 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
     const nc = feedbackPerPlan[p.id] || 0;
 
     return (
-      <li className="relative plan-row">
+      <li className="relative plan-row mb-0.5">
         <div
           onClick={() => onSelect(p.id)}
-          className={`flex items-center gap-2 py-2 px-4 cursor-pointer rounded-fp-sm transition-all duration-150 ${
+          className={`flex items-center gap-2 py-2.5 px-3 cursor-pointer rounded-fp-md transition-all duration-150 ${
             act
-              ? "bg-fp-glass-active"
-              : "hover:bg-fp-glass-hover"
+              ? "fp-glass-card border border-fp-border-hover shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+              : "border border-transparent hover:bg-fp-glass-hover"
           }`}
         >
           {/* Pin icon for pinned plans */}
           {p.pinned && (
             <span className="shrink-0 flex items-center text-fp-muted">
-              <PushPinSimple size={12} weight="fill" />
+              <PushPinSimple size={11} weight="fill" />
             </span>
           )}
 
           {/* Plan name */}
           <span
-            className={`text-sm font-normal tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-150 flex-1 min-w-0 ${
+            className={`text-[13px] font-medium tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-150 flex-1 min-w-0 ${
               act ? "text-fp-text" : "text-fp-muted"
             }`}
           >
             {p.title}
           </span>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Feedback badge */}
             {nc > 0 && (
-              <span className="bg-fp-accent text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none font-mono">
+              <span className="bg-fp-orange-dim text-fp-orange text-[9px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center leading-none font-mono border border-fp-orange/15">
                 {nc}
               </span>
             )}
@@ -107,8 +107,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
                   size="sm"
                   icon={<DotsThreeVertical size={14} />}
                   label="Plan options"
-                  onClick={e => e.stopPropagation()}
-                  className="opacity-0 plan-actions"
+                  className="plan-actions"
                 />
               }
             >
@@ -131,28 +130,28 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   };
 
   return (
-    <div className="w-[--spacing-fp-sidebar] h-screen fp-glass border-r border-r-fp-border flex flex-col shrink-0 font-sans">
+    <div className="w-[var(--spacing-fp-sidebar)] h-full fp-glass border border-fp-border rounded-[16px] flex flex-col shrink-0 font-sans overflow-hidden">
       {/* ---- Header ---- */}
-      <div className="py-3 px-4 flex items-center justify-between border-b border-b-fp-border">
+      <div className="py-3 px-3 flex items-center justify-between border-b border-b-fp-border">
         <div className="flex items-center gap-2">
-          <Logo size={22} />
-          <span className="text-sm font-semibold text-fp-text tracking-[-0.01em]">
+          <Logo size={20} />
+          <span className="text-[13px] font-semibold text-fp-text tracking-[-0.01em]">
             FlowPlan
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {/* MCP connection indicator */}
           <div
-            className={`flex items-center gap-1 py-[3px] px-2 rounded-fp-pill border text-[10px] font-semibold font-mono leading-none ${
+            className={`flex items-center gap-1 py-[3px] px-1.5 rounded-fp-pill border text-[9px] font-semibold font-mono leading-none ${
               connected
                 ? "bg-fp-accent-dim border-fp-accent/20 text-fp-accent"
                 : "bg-fp-glass border-fp-border text-fp-dim"
             }`}
           >
             {connected
-              ? <CloudCheck size={12} weight="fill" />
-              : <CloudSlash size={12} />
+              ? <CloudCheck size={10} weight="fill" />
+              : <CloudSlash size={10} />
             }
             <span>MCP</span>
           </div>
@@ -163,8 +162,8 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
             trigger={
               <IconButton
                 variant="glassy"
-                size="md"
-                icon={<Plus size={14} />}
+                size="sm"
+                icon={<Plus size={12} />}
                 label="Add plan"
               />
             }
@@ -184,11 +183,11 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       </div>
 
       {/* ---- Navigation ---- */}
-      <nav className="flex-1 overflow-auto py-3 px-2">
+      <nav className="flex-1 overflow-auto py-2.5 px-2">
         {plans.length === 0 && (
-          <div className="py-10 px-4 text-center flex flex-col items-center gap-3">
-            <div className="opacity-[0.15]"><Logo size={40} /></div>
-            <div className="text-[13px] text-fp-dim leading-[1.6] max-w-[160px]">
+          <div className="py-8 px-3 text-center flex flex-col items-center gap-3">
+            <div className="opacity-[0.15]"><Logo size={36} /></div>
+            <div className="text-[12px] text-fp-dim leading-[1.6] max-w-[160px]">
               {connected
                 ? 'Ask your coding agent to "create a plan and show in FlowPlan"'
                 : "Connecting to MCP server..."}
@@ -199,7 +198,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         {plans.length > 0 && (
           <>
             {/* Section header */}
-            <div className="text-[11px] font-mono uppercase tracking-wider text-fp-dim pt-1 px-4 pb-2">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim pt-1 px-3 pb-2">
               Plans
             </div>
 
@@ -226,8 +225,8 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       </nav>
 
       {/* ---- Footer ---- */}
-      <div className="py-2.5 px-4 border-t border-t-fp-border shrink-0">
-        <div className="text-xs text-fp-dim font-mono text-center leading-[1.5]">
+      <div className="py-2 px-3 border-t border-t-fp-border shrink-0">
+        <div className="text-[10px] text-fp-dim font-mono text-center leading-[1.5]">
           {plans.length} {plans.length === 1 ? "plan" : "plans"}
         </div>
       </div>
@@ -235,4 +234,4 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   );
 }
 
-export default Sidebar;
+export default React.memo(Sidebar);

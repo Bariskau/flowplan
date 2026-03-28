@@ -1,5 +1,5 @@
 export const T = {
-  bg: "#09090b",
+  bg: "#191A1F",
   sidebar: "rgba(9,9,11,0.80)",
   sH: "#18181b",
   sA: "#27272a",

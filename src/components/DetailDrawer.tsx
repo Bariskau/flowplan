@@ -57,11 +57,11 @@ const CHANGE_BADGE: Record<string, { label: string; cls: string }> = {
   delete: { label: "DELETE", cls: "text-fp-danger bg-fp-danger-dim" },
 };
 
-/* ---- Feedback accent color map ---- */
-const FB_ACCENT: Record<string, { text: string; bg: string; border: string; hoverBorder: string }> = {
-  question: { text: "text-fp-info", bg: "bg-fp-info-dim", border: "border-fp-info/20", hoverBorder: "hover:border-fp-info/40" },
-  directive: { text: "text-fp-warning", bg: "bg-fp-warning-dim", border: "border-fp-warning/20", hoverBorder: "hover:border-fp-warning/40" },
-  issue: { text: "text-fp-danger", bg: "bg-fp-danger-dim", border: "border-fp-danger/20", hoverBorder: "hover:border-fp-danger/40" },
+/* ---- Feedback accent color map (Protocol-style glassy cards) ---- */
+const FB_ACCENT: Record<string, { text: string; bg: string; border: string; hoverBorder: string; hoverBg: string; ring: string }> = {
+  question: { text: "text-fp-info", bg: "bg-fp-glass", border: "border-fp-border", hoverBorder: "hover:border-fp-info/30", hoverBg: "hover:bg-fp-info/[0.04]", ring: "group-hover:ring-fp-info/10" },
+  directive: { text: "text-fp-warning", bg: "bg-fp-glass", border: "border-fp-border", hoverBorder: "hover:border-fp-warning/30", hoverBg: "hover:bg-fp-warning/[0.04]", ring: "group-hover:ring-fp-warning/10" },
+  issue: { text: "text-fp-danger", bg: "bg-fp-glass", border: "border-fp-border", hoverBorder: "hover:border-fp-danger/30", hoverBg: "hover:bg-fp-danger/[0.04]", ring: "group-hover:ring-fp-danger/10" },
 };
 
 /* ---- FeedbackItem sub-component ---- */
@@ -88,49 +88,52 @@ function FeedbackItem({
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`rounded-fp-lg border p-3 mb-2 relative overflow-hidden transition-colors duration-150 ${accent.bg} ${accent.border} ${accent.hoverBorder}`}
+      className={`group rounded-fp-lg border p-3 mb-2 relative overflow-hidden transition-all duration-200 backdrop-blur-fp-card ${accent.bg} ${accent.border} ${accent.hoverBorder} ${accent.hoverBg}`}
     >
       {/* Header row */}
-      <div className="flex items-center gap-2 mb-1.5">
-        {/* Type badge pill */}
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-fp-pill uppercase tracking-wider leading-none inline-flex items-center gap-1 ${accent.text}`}>
-          {fbIcon}
+      <div className="flex items-center gap-1.5 mb-1.5">
+        {/* Type icon */}
+        <span className={`${accent.text} shrink-0`}>{fbIcon}</span>
+
+        {/* Type label */}
+        <span className={`text-[10px] font-semibold uppercase tracking-wider leading-none ${accent.text}`}>
           {style.label}
         </span>
 
         {/* Status dot */}
-        <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${(isAnswered || isAcknowledged) ? "text-fp-success" : "text-fp-dim"}`}>
-          <span className={`w-[5px] h-[5px] rounded-full inline-block ${(isAnswered || isAcknowledged) ? "bg-fp-success" : "bg-fp-dim/40"}`} />
+        <span className={`text-[9px] font-medium inline-flex items-center gap-1 ${(isAnswered || isAcknowledged) ? "text-fp-success" : "text-fp-dim"}`}>
+          <span className={`w-1 h-1 rounded-full inline-block ${(isAnswered || isAcknowledged) ? "bg-fp-success" : "bg-fp-dim/40"}`} />
           {fb.type === "question"
             ? (isAnswered ? "Answered" : "Pending")
-            : (isAcknowledged ? "Acknowledged" : "Pending")}
+            : (isAcknowledged ? "Ack" : "Pending")}
         </span>
 
         <span className="flex-1" />
-        {hovered && !readOnly && (
+        {!readOnly && (
           <IconButton
             variant="danger"
             size="sm"
-            icon={<Trash size={12} weight="bold" />}
+            icon={<Trash size={11} weight="bold" />}
             label="Delete feedback"
             onClick={() => onDelete(fb.id)}
+            className={`transition-opacity duration-150 ${hovered ? "opacity-100" : "opacity-0"}`}
           />
         )}
       </div>
 
       {/* Content */}
-      <div className="text-[12.5px] text-fp-muted leading-relaxed">
+      <div className="text-[12px] text-fp-muted leading-relaxed">
         {fb.text}
       </div>
 
       {/* Answer section */}
       {isAnswered && (
-        <div className="mt-2.5 pt-2.5 border-t border-fp-border">
-          <div className="text-[10px] font-semibold mb-1 uppercase tracking-wider text-fp-success inline-flex items-center gap-1">
-            <CheckCircle size={10} weight="bold" />
+        <div className="mt-2 pt-2 border-t border-fp-border">
+          <div className="text-[9px] font-semibold mb-1 uppercase tracking-wider text-fp-success inline-flex items-center gap-1">
+            <CheckCircle size={9} weight="bold" />
             Answer
           </div>
-          <div className="text-xs text-fp-dim leading-relaxed">
+          <div className="text-[11px] text-fp-dim leading-relaxed">
             {fb.answer}
           </div>
         </div>
@@ -241,15 +244,15 @@ function DetailDrawer({
   return (
     <div className="h-full w-full flex flex-col bg-transparent overflow-hidden">
       {/* ---- Header ---- */}
-      <div className="p-4 flex items-center gap-2.5 border-b border-fp-border shrink-0">
+      <div className="p-3 flex items-center gap-2 border-b border-fp-border shrink-0">
         {/* Type badge pill */}
-        <span className={`text-[10px] font-semibold py-1 px-2.5 rounded-fp-pill uppercase tracking-wider leading-none inline-flex items-center gap-1.5 border ${typeCls.text} ${typeCls.bg} ${typeCls.border}`}>
+        <span className={`text-[9px] font-semibold py-[3px] px-2 rounded-fp-pill uppercase tracking-wider leading-none inline-flex items-center gap-1 border ${typeCls.text} ${typeCls.bg} ${typeCls.border}`}>
           {typeIcon(card.type)}
           {tc.l}
         </span>
 
         {/* Title */}
-        <span className="text-lg font-semibold text-fp-text truncate flex-1">
+        <span className="text-[13px] font-semibold text-fp-text truncate flex-1">
           {card.title}
         </span>
 
@@ -257,8 +260,8 @@ function DetailDrawer({
         {!readOnly && onEditCard && !editing && (
           <IconButton
             variant="glassy"
-            size="md"
-            icon={<PencilSimple size={13} weight="bold" />}
+            size="sm"
+            icon={<PencilSimple size={12} weight="bold" />}
             label="Edit card"
             onClick={startEdit}
           />
@@ -266,9 +269,9 @@ function DetailDrawer({
 
         {/* Close button */}
         <IconButton
-          variant="glassy"
-          size="md"
-          icon={<X size={13} weight="bold" />}
+          variant="ghost"
+          size="sm"
+          icon={<X size={12} weight="bold" />}
           label="Close"
           onClick={onClose}
         />
@@ -278,7 +281,7 @@ function DetailDrawer({
       <div className="flex-1 overflow-y-auto">
         {/* ---- Edit mode: Title ---- */}
         {editing && (
-          <div className="p-4 border-b border-fp-border">
+          <div className="p-3 border-b border-fp-border">
             <label className="fp-label">Title</label>
             <input
               value={editTitle}
@@ -290,7 +293,7 @@ function DetailDrawer({
 
         {/* ---- Edit mode: Type select ---- */}
         {editing && (
-          <div className="p-4 border-b border-fp-border">
+          <div className="p-3 border-b border-fp-border">
             <label className="fp-label">Type</label>
             <select
               value={editType}
@@ -306,8 +309,8 @@ function DetailDrawer({
         )}
 
         {/* ---- Description ---- */}
-        <div className="p-4 border-b border-fp-border">
-          <div className="text-xs font-mono uppercase tracking-wider text-fp-dim mb-2">Description</div>
+        <div className="p-3 border-b border-fp-border">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Description</div>
           {editing ? (
             <textarea
               value={editDesc}
@@ -328,8 +331,8 @@ function DetailDrawer({
         </div>
 
         {/* ---- Repository ---- */}
-        <div className="p-4 border-b border-fp-border">
-          <div className="text-xs font-mono uppercase tracking-wider text-fp-dim mb-2">Repository</div>
+        <div className="p-3 border-b border-fp-border">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Repository</div>
           {editing ? (
             <div className="flex flex-col gap-3">
               <label className="fp-label">Repo path</label>
@@ -353,8 +356,8 @@ function DetailDrawer({
         </div>
 
         {/* ---- Files ---- */}
-        <div className="p-4 border-b border-fp-border">
-          <div className="text-xs font-mono uppercase tracking-wider text-fp-dim mb-2">
+        <div className="p-3 border-b border-fp-border">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
             Files
             {!editing && card.files.length > 0 && (
               <span className="ml-1.5 text-fp-dim/50">({card.files.length})</span>
@@ -419,8 +422,8 @@ function DetailDrawer({
         </div>
 
         {/* ---- Dependencies ---- */}
-        <div className="p-4 border-b border-fp-border">
-          <div className="text-xs font-mono uppercase tracking-wider text-fp-dim mb-2">
+        <div className="p-3 border-b border-fp-border">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
             Dependencies
             {!editing && card.dependencies.length > 0 && (
               <span className="ml-1.5 text-fp-dim/50">({card.dependencies.length})</span>
@@ -491,9 +494,9 @@ function DetailDrawer({
           )}
         </div>
 
-        {/* ---- Save / Cancel buttons (edit mode) ---- */}
+        {/* ---- Save / Cancel buttons (edit mode) — sticky bottom ---- */}
         {editing && (
-          <div className="p-4 border-b border-fp-border flex gap-2.5">
+          <div className="p-3 border-t border-fp-border flex gap-2 shrink-0 sticky bottom-0 bg-fp-solid/80 backdrop-blur-fp-card z-10">
             <Button
               variant="accent"
               size="md"
@@ -504,7 +507,7 @@ function DetailDrawer({
               Save changes
             </Button>
             <Button
-              variant="glassy"
+              variant="ghost"
               size="md"
               onClick={cancelEdit}
               className="flex-1"
@@ -515,8 +518,8 @@ function DetailDrawer({
         )}
 
         {/* ---- Feedback Section ---- */}
-        <div className="p-4">
-          <div className="text-xs font-mono uppercase tracking-wider text-fp-dim mb-2">
+        <div className="p-3">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
             Feedback
             {feedbacks.length > 0 && (
               <span className="ml-1.5 text-fp-dim/50">({feedbacks.length})</span>

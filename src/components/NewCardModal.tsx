@@ -50,167 +50,170 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
       onClick={onClose}
     >
       <div
-        className="bg-fp-solid rounded-fp-xl border border-fp-border shadow-2xl w-[500px] max-h-[80vh] overflow-y-auto p-6 animate-slide-up"
+        className="fp-glass-card border border-fp-border shadow-2xl w-[440px] max-h-[80vh] flex flex-col animate-slide-up rounded-fp-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="text-lg font-semibold text-fp-text tracking-[-0.02em]">
+        {/* Header — sticky */}
+        <div className="px-5 pt-4 pb-3 flex items-center justify-between shrink-0 border-b border-fp-border">
+          <div className="text-[14px] font-semibold text-fp-text tracking-[-0.02em]">
             New Card
           </div>
           <IconButton
             variant="ghost"
             size="sm"
-            icon={<X size={14} />}
+            icon={<X size={12} />}
             label="Close"
             onClick={onClose}
           />
         </div>
 
-        {/* Fields */}
-        <div className="flex flex-col gap-4">
-          {/* Title */}
-          <div>
-            <label className="fp-label">Title</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Card title"
-              autoFocus
-              className="fp-input"
-            />
-          </div>
-
-          {/* Card Type Selector — styled mini-buttons */}
-          <div>
-            <label className="fp-label">Type</label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(TC).map(([k, v]) => {
-                const active = cardType === k;
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setCardType(k)}
-                    className={`
-                      inline-flex items-center gap-1.5 text-[11px] font-semibold font-mono
-                      py-[5px] px-3 rounded-fp-md tracking-[0.03em] leading-none
-                      cursor-pointer transition-all duration-150 border
-                      ${active
-                        ? "border-current shadow-[0_0_8px_rgba(255,255,255,0.04)]"
-                        : "border-transparent opacity-50 hover:opacity-80"
-                      }
-                    `.trim().replace(/\s+/g, " ")}
-                    style={{
-                      color: v.c,
-                      background: active ? v.bg : "transparent",
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: v.c }}
-                    />
-                    {v.l}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="fp-label">Description</label>
-            <textarea
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              placeholder="Description (markdown supported)"
-              rows={4}
-              className="fp-input resize-y leading-[1.6]"
-            />
-          </div>
-
-          {/* Repository */}
-          <div>
-            <label className="fp-label">Repository</label>
-            <input
-              value={repo}
-              onChange={(e) => setRepo(e.target.value)}
-              placeholder="/path/to/repo"
-              className="fp-input font-mono !text-xs"
-            />
-          </div>
-
-          {/* Files */}
-          <div>
-            <label className="fp-label">
-              Files <span className="normal-case font-normal opacity-60">(one per line)</span>
-            </label>
-            <textarea
-              value={filesStr}
-              onChange={(e) => setFilesStr(e.target.value)}
-              placeholder={"src/main.ts\nsrc/utils.ts"}
-              rows={3}
-              className="fp-input !text-xs font-mono resize-y leading-[1.6]"
-            />
-          </div>
-
-          {/* Dependencies */}
-          {existingCards.length > 0 && (
+        {/* Body — scrollable */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex flex-col gap-4">
+            {/* Title */}
             <div>
-              <label className="fp-label">
-                Dependencies <span className="normal-case font-normal opacity-60">(optional)</span>
-              </label>
-              <div className="max-h-[140px] overflow-y-auto flex flex-col gap-1 p-1 bg-fp-surface rounded-fp-lg border border-fp-border">
-                {existingCards.map((s) => {
-                  const checked = deps.includes(s.id);
-                  const stc = TC[s.type] || TC.research;
+              <label className="fp-label">Title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Card title"
+                autoFocus
+                className="fp-input"
+              />
+            </div>
+
+            {/* Card Type Selector — styled mini-buttons */}
+            <div>
+              <label className="fp-label">Type</label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(TC).map(([k, v]) => {
+                  const active = cardType === k;
                   return (
-                    <label
-                      key={s.id}
-                      className={`flex items-center gap-2 py-[7px] px-2.5 rounded-fp-sm cursor-pointer transition-all duration-150
-                        ${checked
-                          ? "bg-fp-accent-dim border border-fp-accent/20"
-                          : "border border-transparent hover:bg-fp-glass-hover"
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setDeps((d) =>
-                            checked ? d.filter((x) => x !== s.id) : [...d, s.id]
-                          )
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setCardType(k)}
+                      className={`
+                        inline-flex items-center gap-1 text-[10px] font-semibold font-mono
+                        py-1 px-2.5 rounded-full tracking-[0.03em] leading-none
+                        cursor-pointer transition-all duration-150
+                        ${active
+                          ? "ring-1 ring-inset ring-current shadow-[0_0_8px_rgba(255,255,255,0.04)]"
+                          : "opacity-50 hover:opacity-80"
                         }
-                        className="w-3.5 h-3.5 cursor-pointer accent-fp-accent"
+                      `.trim().replace(/\s+/g, " ")}
+                      style={{
+                        color: v.c,
+                        background: active ? v.bg : "transparent",
+                      }}
+                    >
+                      <span
+                        className="w-1 h-1 rounded-full shrink-0"
+                        style={{ background: v.c }}
                       />
-                      <span
-                        className="text-[10px] font-bold py-0.5 px-[7px] rounded-fp-sm font-mono tracking-[0.03em] shrink-0"
-                        style={{ color: stc.c, background: stc.bg }}
-                      >
-                        {stc.l}
-                      </span>
-                      <span
-                        className={`text-[12.5px] overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150
-                          ${checked ? "text-fp-text" : "text-fp-muted"}`}
-                      >
-                        {s.title}
-                      </span>
-                    </label>
+                      {v.l}
+                    </button>
                   );
                 })}
               </div>
             </div>
-          )}
+
+            {/* Description */}
+            <div>
+              <label className="fp-label">Description</label>
+              <textarea
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                placeholder="Description (markdown supported)"
+                rows={4}
+                className="fp-input resize-y leading-[1.6]"
+              />
+            </div>
+
+            {/* Repository */}
+            <div>
+              <label className="fp-label">Repository</label>
+              <input
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                placeholder="/path/to/repo"
+                className="fp-input font-mono !text-xs"
+              />
+            </div>
+
+            {/* Files */}
+            <div>
+              <label className="fp-label">
+                Files <span className="normal-case font-normal opacity-60">(one per line)</span>
+              </label>
+              <textarea
+                value={filesStr}
+                onChange={(e) => setFilesStr(e.target.value)}
+                placeholder={"src/main.ts\nsrc/utils.ts"}
+                rows={3}
+                className="fp-input !text-xs font-mono resize-y leading-[1.6]"
+              />
+            </div>
+
+            {/* Dependencies */}
+            {existingCards.length > 0 && (
+              <div>
+                <label className="fp-label">
+                  Dependencies <span className="normal-case font-normal opacity-60">(optional)</span>
+                </label>
+                <div className="max-h-[120px] overflow-y-auto flex flex-col gap-0.5 p-1 rounded-fp-md" style={{ background: "rgba(0,0,0,0.15)", border: "1px solid var(--color-fp-border)" }}>
+                  {existingCards.map((s) => {
+                    const checked = deps.includes(s.id);
+                    const stc = TC[s.type] || TC.research;
+                    return (
+                      <label
+                        key={s.id}
+                        className={`flex items-center gap-1.5 py-1.5 px-2 rounded-fp-sm cursor-pointer transition-all duration-150
+                          ${checked
+                            ? "bg-fp-accent-dim ring-1 ring-inset ring-fp-accent/20"
+                            : "hover:bg-fp-glass-hover"
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setDeps((d) =>
+                              checked ? d.filter((x) => x !== s.id) : [...d, s.id]
+                            )
+                          }
+                          className="w-3 h-3 cursor-pointer accent-fp-accent"
+                        />
+                        <span
+                          className="text-[9px] font-bold py-[2px] px-1.5 rounded-full font-mono tracking-[0.03em] shrink-0"
+                          style={{ color: stc.c, background: stc.bg }}
+                        >
+                          {stc.l}
+                        </span>
+                        <span
+                          className={`text-[11px] overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150
+                            ${checked ? "text-fp-text" : "text-fp-muted"}`}
+                        >
+                          {s.title}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Buttons */}
-        <div className="flex justify-end gap-2.5 mt-6">
-          <Button variant="ghost" onClick={onClose}>
+        {/* Footer — sticky */}
+        <div className="px-5 pb-4 pt-3 flex justify-end gap-2 shrink-0 border-t border-fp-border">
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
           <Button
             variant="accent"
-            icon={<Plus size={14} weight="bold" />}
+            size="sm"
+            icon={<Plus size={12} weight="bold" />}
             onClick={submit}
             disabled={!title.trim() || saving}
             loading={saving}

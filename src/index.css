@@ -49,6 +49,7 @@
   --spacing-fp-drawer: 300px;
   --spacing-fp-history: 340px;
   --spacing-fp-toolbar: 44px;
+  --spacing-fp-gap: 10px;
 
   /* Radius */
   --radius-fp-sm: 6px;
@@ -62,16 +63,18 @@
   --blur-fp-card: 16px;
 }
 
-/* ── Base ── */
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
-html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #191A1F; color: var(--color-fp-text); }
-textarea, input, select, [data-selectable], [data-selectable] * { -webkit-user-select: text; user-select: text; }
+/* ── Base — MUST be in @layer base so Tailwind utilities can override ── */
+@layer base {
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #191A1F; color: var(--color-fp-text); }
+  textarea, input, select, [data-selectable], [data-selectable] * { -webkit-user-select: text; user-select: text; }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #52525b; }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+}
 
 /* ── Animations ── */
 @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
@@ -79,60 +82,62 @@ textarea, input, select, [data-selectable], [data-selectable] * { -webkit-user-s
 @keyframes slide-up { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-.animate-fade-in { animation: fade-in 0.18s ease-out; }
-.animate-slide-up { animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-.animate-toast { animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+@layer components {
+  .animate-fade-in { animation: fade-in 0.18s ease-out; }
+  .animate-slide-up { animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-toast { animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
 
-/* ── Glass panel base ── */
-.fp-glass {
-  background: var(--color-fp-glass);
-  backdrop-filter: blur(var(--blur-fp-panel));
-  -webkit-backdrop-filter: blur(var(--blur-fp-panel));
-}
+  /* Glass panel base */
+  .fp-glass {
+    background: rgba(25, 26, 31, 0.65);
+    backdrop-filter: blur(var(--blur-fp-panel));
+    -webkit-backdrop-filter: blur(var(--blur-fp-panel));
+  }
 
-.fp-glass-card {
-  background: var(--color-fp-glass);
-  backdrop-filter: blur(var(--blur-fp-card));
-  -webkit-backdrop-filter: blur(var(--blur-fp-card));
-}
+  .fp-glass-card {
+    background: var(--color-fp-glass);
+    backdrop-filter: blur(var(--blur-fp-card));
+    -webkit-backdrop-filter: blur(var(--blur-fp-card));
+  }
 
-/* ── Sidebar ── */
-.plan-actions { opacity: 0; transition: opacity 0.12s; }
-.plan-row:hover .plan-actions { opacity: 1; }
+  /* Sidebar */
+  .plan-actions { opacity: 0; transition: opacity 0.12s !important; }
+  .plan-row:hover .plan-actions { opacity: 1 !important; }
 
-/* ── React Flow ── */
-.react-flow { --xy-background-color: transparent; --xy-node-border-radius: 8px; }
-.react-flow__node { padding: 0 !important; border: none !important; background: none !important; }
-.react-flow__edge-path { stroke: #3f3f46; stroke-width: 1; stroke-dasharray: 4 3; }
-.react-flow__controls { background: var(--color-fp-glass); backdrop-filter: blur(12px); border: 1px solid var(--color-fp-border); border-radius: var(--radius-fp-md); }
-.react-flow__controls-button { background: transparent; border-bottom-color: var(--color-fp-border); fill: var(--color-fp-muted); }
-.react-flow__controls-button:hover { background: var(--color-fp-accent-dim); fill: var(--color-fp-accent); }
+  /* React Flow */
+  .react-flow { --xy-background-color: transparent; --xy-node-border-radius: 8px; }
+  .react-flow__node { padding: 0 !important; border: none !important; background: none !important; }
+  .react-flow__edge-path { stroke: #3f3f46; stroke-width: 1; stroke-dasharray: 4 3; }
+  .react-flow__controls { background: var(--color-fp-glass); backdrop-filter: blur(12px); border: 1px solid var(--color-fp-border); border-radius: var(--radius-fp-md); }
+  .react-flow__controls-button { background: transparent; border-bottom-color: var(--color-fp-border); fill: var(--color-fp-muted); }
+  .react-flow__controls-button:hover { background: var(--color-fp-accent-dim); fill: var(--color-fp-accent); }
 
-/* ── Input base ── */
-.fp-input {
-  width: 100%;
-  background: var(--color-fp-bg);
-  border: 1px solid var(--color-fp-border);
-  border-radius: var(--radius-fp-md);
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--color-fp-text);
-  outline: none;
-  transition: border-color 0.15s;
-}
-.fp-input:focus {
-  border-color: var(--color-fp-border-hover);
-  box-shadow: 0 0 0 3px var(--color-fp-accent-dim);
-}
-.fp-input::placeholder { color: var(--color-fp-dim); }
+  /* Input base */
+  .fp-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--color-fp-border);
+    border-radius: var(--radius-fp-md);
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--color-fp-text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .fp-input:focus {
+    border-color: rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+  }
+  .fp-input::placeholder { color: var(--color-fp-dim); }
 
-.fp-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-fp-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 6px;
-  font-family: ui-monospace, monospace;
+  .fp-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-fp-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    font-family: ui-monospace, monospace;
+  }
 }

@@ -13,25 +13,25 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   glassy:
-    "bg-fp-glass border border-fp-border text-fp-text hover:bg-fp-glass-hover hover:border-fp-border-hover active:bg-fp-glass-active shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    "bg-fp-glass text-fp-muted ring-1 ring-inset ring-fp-border hover:bg-fp-glass-hover hover:text-fp-text hover:ring-fp-border-hover active:bg-fp-glass-active",
   accent:
-    "bg-fp-accent-dim border border-fp-accent/25 text-fp-accent hover:bg-fp-accent/20 hover:border-fp-accent/40 active:bg-fp-accent/25 shadow-[0_0_16px_rgba(16,185,129,0.08),inset_0_1px_0_rgba(255,255,255,0.04)]",
+    "bg-fp-accent-dim text-fp-accent ring-1 ring-inset ring-fp-accent/20 hover:bg-fp-accent/20 hover:ring-fp-accent/40 active:bg-fp-accent/25 shadow-[0_0_16px_rgba(16,185,129,0.06)]",
   success:
-    "bg-fp-success-dim border border-fp-success/25 text-fp-success hover:bg-fp-success/20 hover:border-fp-success/40 active:bg-fp-success/25 shadow-[0_0_16px_rgba(52,211,153,0.08)]",
+    "bg-fp-success-dim text-fp-success ring-1 ring-inset ring-fp-success/20 hover:bg-fp-success/20 hover:ring-fp-success/40 active:bg-fp-success/25 shadow-[0_0_16px_rgba(52,211,153,0.06)]",
   info:
-    "bg-fp-info-dim border border-fp-info/25 text-fp-info hover:bg-fp-info/20 hover:border-fp-info/40 active:bg-fp-info/25 shadow-[0_0_16px_rgba(56,189,248,0.08)]",
+    "bg-fp-info-dim text-fp-info ring-1 ring-inset ring-fp-info/20 hover:bg-fp-info/20 hover:ring-fp-info/40 active:bg-fp-info/25 shadow-[0_0_16px_rgba(56,189,248,0.06)]",
   warning:
-    "bg-fp-warning-dim border border-fp-warning/25 text-fp-warning hover:bg-fp-warning/20 hover:border-fp-warning/40 active:bg-fp-warning/25 shadow-[0_0_16px_rgba(251,191,36,0.08)]",
+    "bg-fp-warning-dim text-fp-warning ring-1 ring-inset ring-fp-warning/20 hover:bg-fp-warning/20 hover:ring-fp-warning/40 active:bg-fp-warning/25 shadow-[0_0_16px_rgba(251,191,36,0.06)]",
   danger:
-    "bg-fp-danger-dim border border-fp-danger/25 text-fp-danger hover:bg-fp-danger/20 hover:border-fp-danger/40 active:bg-fp-danger/25 shadow-[0_0_16px_rgba(248,113,113,0.08)]",
+    "bg-fp-danger-dim text-fp-danger ring-1 ring-inset ring-fp-danger/20 hover:bg-fp-danger/20 hover:ring-fp-danger/40 active:bg-fp-danger/25 shadow-[0_0_16px_rgba(248,113,113,0.06)]",
   ghost:
-    "bg-transparent border border-transparent text-fp-muted hover:bg-fp-glass-hover hover:text-fp-text active:bg-fp-glass-active",
+    "bg-transparent text-fp-muted hover:bg-fp-glass-hover hover:text-fp-text active:bg-fp-glass-active",
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "h-7 px-2.5 text-xs gap-1.5 rounded-fp-sm",
-  md: "h-8 px-3.5 text-[13px] gap-2 rounded-fp-md",
-  lg: "h-9 px-4 text-sm gap-2 rounded-fp-md",
+  sm: "h-7 px-2.5 text-xs gap-1.5 rounded-full",
+  md: "h-8 px-3.5 text-[13px] gap-2 rounded-full",
+  lg: "h-9 px-4 text-sm gap-2 rounded-full",
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(

@@ -68,44 +68,44 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
   return (
     <div className="h-full flex flex-col">
       {/* ---- Header ---- */}
-      <div className="p-4 border-b border-fp-border shrink-0">
+      <div className="p-3 border-b border-fp-border shrink-0">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ClockCounterClockwise size={15} className="text-fp-muted" />
-            <span className="text-sm font-semibold text-fp-text">
+          <div className="flex items-center gap-1.5">
+            <ClockCounterClockwise size={13} className="text-fp-muted" />
+            <span className="text-[13px] font-semibold text-fp-text">
               History
             </span>
-            <span className="text-xs font-mono text-fp-dim bg-fp-glass-hover px-1.5 py-0.5 rounded-fp-sm font-medium">
+            <span className="text-[10px] font-mono text-fp-dim bg-fp-glass-hover px-1.5 py-0.5 rounded-fp-sm font-medium">
               {entries.length}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {entries.length > 0 && (
               <IconButton
                 variant="danger"
-                size="md"
+                size="sm"
                 onClick={onClear}
                 label="Clear history"
-                icon={<Trash size={12} />}
+                icon={<Trash size={11} />}
               />
             )}
             <IconButton
               variant="ghost"
-              size="md"
+              size="sm"
               onClick={onClose}
               label="Close history"
-              icon={<X size={12} />}
+              icon={<X size={11} />}
             />
           </div>
         </div>
       </div>
 
       {/* ---- Entries List ---- */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-1.5">
         {entries.length === 0 && (
-          <div className="p-8 text-center">
-            <div className="text-xs text-fp-dim leading-relaxed">
+          <div className="p-6 text-center">
+            <div className="text-[11px] text-fp-dim leading-relaxed">
               No history entries yet
             </div>
           </div>
@@ -121,7 +121,7 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
               key={entry.id}
               onClick={() => onSelect(selected ? null : idx)}
               className={`
-                p-2.5 rounded-fp-md cursor-pointer transition-all mb-1 relative
+                p-2 rounded-fp-sm cursor-pointer transition-all mb-0.5 relative
                 ${selected
                   ? "bg-fp-glass-active border-l-2 border-fp-accent"
                   : "border-l-2 border-transparent hover:bg-fp-glass-hover"
@@ -129,42 +129,42 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
               `.trim().replace(/\s+/g, " ")}
             >
               {/* Top row: badge + timestamp */}
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1">
                 <span
-                  className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase font-semibold px-1.5 py-0.5 rounded-fp-sm tracking-wide leading-snug ${badge.colorClass} ${badge.bgClass}`}
+                  className={`inline-flex items-center gap-0.5 text-[9px] font-mono uppercase font-semibold px-1 py-[2px] rounded-fp-sm tracking-wide leading-snug ${badge.colorClass} ${badge.bgClass}`}
                 >
                   {actionIcons[badge.icon]}
                   {badge.label}
                 </span>
-                <span className="text-fp-dim text-xs font-mono">
+                <span className="text-fp-dim text-[10px] font-mono">
                   {formatTime(entry.timestamp)}
                 </span>
               </div>
 
               {/* Description */}
               <div
-                className={`text-[12.5px] leading-normal overflow-hidden text-ellipsis whitespace-nowrap transition-colors ${selected ? "text-fp-text" : "text-fp-muted"}`}
+                className={`text-[11px] leading-normal overflow-hidden text-ellipsis whitespace-nowrap transition-colors ${selected ? "text-fp-text" : "text-fp-muted"}`}
               >
                 {entry.description}
               </div>
 
               {/* Card count + diff summary */}
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-fp-dim text-[10px] font-mono">
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-fp-dim text-[9px] font-mono">
                   {entry.cards.length} card{entry.cards.length !== 1 ? "s" : ""}
                 </span>
                 {diff && diff.added.length > 0 && (
-                  <span className="text-[10px] text-fp-success font-mono font-semibold">
+                  <span className="text-[9px] text-fp-success font-mono font-semibold">
                     +{diff.added.length}
                   </span>
                 )}
                 {diff && diff.removed.length > 0 && (
-                  <span className="text-[10px] text-fp-danger font-mono font-semibold">
+                  <span className="text-[9px] text-fp-danger font-mono font-semibold">
                     -{diff.removed.length}
                   </span>
                 )}
                 {diff && diff.modified.length > 0 && (
-                  <span className="text-[10px] text-fp-warning font-mono font-semibold">
+                  <span className="text-[9px] text-fp-warning font-mono font-semibold">
                     ~{diff.modified.length}
                   </span>
                 )}
@@ -175,7 +175,7 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
       </div>
 
       {/* ---- Footer ---- */}
-      <div className="p-3 border-t border-fp-border text-fp-dim text-xs shrink-0">
+      <div className="p-2 border-t border-fp-border text-fp-dim text-[10px] shrink-0">
         <div className="font-mono text-center leading-relaxed">
           {selectedIdx !== null ? (
             <span>

@@ -21,7 +21,7 @@ export default function DropdownMenu({ trigger, children, align = "left" }: Drop
 
   return (
     <div ref={ref} className="relative">
-      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      <div onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{trigger}</div>
       {open && (
         <div
           className={`absolute top-full mt-1.5 z-[100] min-w-[180px] fp-glass border border-fp-border rounded-fp-lg p-1 shadow-[0_8px_30px_rgba(0,0,0,0.4)] ${
