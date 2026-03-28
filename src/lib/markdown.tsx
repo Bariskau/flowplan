@@ -2,14 +2,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { highlight } from "./highlight";
-
-const T = {
-  text: "#ececec", sec: "#999", ter: "#666",
-  accent: "#0a84ff", green: "#30d158", orange: "#ff9f0a",
-  purple: "#bf5af2", border: "#333", surface: "#1e1e1e",
-  m: "'SF Mono', 'JetBrains Mono', monospace",
-  f: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif",
-};
+import { T } from "./theme";
 
 interface MdProps {
   text: string;

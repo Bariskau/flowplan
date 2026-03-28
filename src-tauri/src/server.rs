@@ -15,7 +15,7 @@ use tower_http::cors::CorsLayer;
 
 use std::collections::HashMap;
 
-use crate::state::{self, Feedback, FeedbackType, Position, SharedState};
+use crate::state::{self, Card, CardType, Feedback, FeedbackType, Plan, Position, SharedState};
 use crate::tools::PlannerHandler;
 
 pub async fn run_server(shared: SharedState, ct: CancellationToken) -> anyhow::Result<()> {
@@ -49,10 +49,13 @@ pub async fn run_server(shared: SharedState, ct: CancellationToken) -> anyhow::R
         .route("/api/feedback", post(add_feedback))
         .route("/api/feedback/{id}/answer", post(answer_feedback))
         .route("/api/feedback/{id}", delete(delete_feedback))
+        .route("/api/plans/create", post(create_plan_rest))
+        .route("/api/plans/import", post(import_plan))
         .route("/api/plans/{plan_id}/positions", post(save_positions))
+        .route("/api/plans/{plan_id}/cards/{card_id}", post(update_card_rest))
+        .route("/api/plans/{plan_id}/cards", post(add_card_rest))
         .route("/api/plans/{plan_id}", delete(delete_plan))
         .route("/api/plans/{plan_id}/pin", post(toggle_pin))
-        .route("/api/plans/import", post(import_plan))
         .route("/api/plans/{plan_id}/history", get(get_history))
         .route("/api/plans/{plan_id}/history", delete(clear_history))
         .with_state(shared)
@@ -199,4 +202,128 @@ async fn get_history(Path(plan_id): Path<String>) -> Json<serde_json::Value> {
 async fn clear_history(Path(plan_id): Path<String>) -> Json<serde_json::Value> {
     state::delete_history(&plan_id);
     Json(serde_json::json!({ "ok": true }))
+}
+
+// --- Manual operations (REST) ---
+
+#[derive(Deserialize)]
+struct CreatePlanInput {
+    title: String,
+    icon: String,
+    description: String,
+}
+
+async fn create_plan_rest(
+    AxumState(st): AxumState<SharedState>,
+    Json(input): Json<CreatePlanInput>,
+) -> Json<serde_json::Value> {
+    let mut s = st.write().await;
+    let plan = Plan {
+        id: state::gen_id("plan"),
+        title: input.title,
+        icon: input.icon,
+        description: input.description,
+        steps: Vec::new(),
+        created_at: state::now_millis(),
+        pinned: false,
+    };
+    let id = plan.id.clone();
+    s.plans.insert(0, plan);
+    state::save_state(&s);
+    Json(serde_json::json!({ "id": id }))
+}
+
+#[derive(Deserialize)]
+struct AddCardInput {
+    title: String,
+    description: String,
+    #[serde(rename = "type")]
+    card_type: String,
+    repo: String,
+    #[serde(default)]
+    files: Vec<String>,
+    #[serde(default)]
+    dependencies: Vec<String>,
+}
+
+async fn add_card_rest(
+    AxumState(st): AxumState<SharedState>,
+    Path(plan_id): Path<String>,
+    Json(input): Json<AddCardInput>,
+) -> Json<serde_json::Value> {
+    let mut s = st.write().await;
+    if let Some(plan) = s.plans.iter_mut().find(|p| p.id == plan_id) {
+        let ct = match input.card_type.as_str() {
+            "research" => CardType::Research,
+            "planning" => CardType::Planning,
+            "create" => CardType::Create,
+            "test" => CardType::Test,
+            _ => CardType::Edit,
+        };
+        let next_order = plan.steps.len() as u32;
+        let card = Card {
+            id: state::gen_id("card"),
+            title: input.title,
+            description: input.description,
+            card_type: ct,
+            repo: input.repo,
+            files: input.files,
+            dependencies: input.dependencies,
+            file_changes: HashMap::new(),
+            order: next_order,
+        };
+        let id = card.id.clone();
+        plan.steps.push(card);
+        state::save_state(&s);
+        Json(serde_json::json!({ "id": id }))
+    } else {
+        Json(serde_json::json!({ "error": "Plan not found" }))
+    }
+}
+
+#[derive(Deserialize)]
+struct UpdateCardInput {
+    title: Option<String>,
+    description: Option<String>,
+    #[serde(rename = "type")]
+    card_type: Option<String>,
+    repo: Option<String>,
+    files: Option<Vec<String>>,
+    dependencies: Option<Vec<String>>,
+    #[serde(rename = "fileChanges")]
+    file_changes: Option<HashMap<String, state::FileChange>>,
+}
+
+async fn update_card_rest(
+    AxumState(st): AxumState<SharedState>,
+    Path((plan_id, card_id)): Path<(String, String)>,
+    Json(input): Json<UpdateCardInput>,
+) -> Json<serde_json::Value> {
+    let mut s = st.write().await;
+    if let Some(plan) = s.plans.iter_mut().find(|p| p.id == plan_id) {
+        if let Some(card) = plan.steps.iter_mut().find(|c| c.id == card_id) {
+            if let Some(v) = input.title { card.title = v; }
+            if let Some(v) = input.description { card.description = v; }
+            if let Some(v) = input.card_type {
+                card.card_type = match v.as_str() {
+                    "research" => CardType::Research,
+                    "planning" => CardType::Planning,
+                    "create" => CardType::Create,
+                    "test" => CardType::Test,
+                    _ => CardType::Edit,
+                };
+            }
+            if let Some(v) = input.repo { card.repo = v; }
+            if let Some(v) = input.files { card.files = v; }
+            if let Some(v) = input.dependencies { card.dependencies = v; }
+            if let Some(v) = input.file_changes { card.file_changes = v; }
+            // Manual edits don't record history
+            state::save_state_no_history(&s);
+            Json(serde_json::json!({ "ok": true }))
+        } else {
+            Json(serde_json::json!({ "error": "Card not found" }))
+        }
+    } else {
+        Json(serde_json::json!({ "error": "Plan not found" }))
+    }
 }

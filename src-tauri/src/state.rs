@@ -124,6 +124,16 @@ pub fn load_state() -> AppState {
     }
 }
 
+/// Save state without recording history (for manual UI edits)
+pub fn save_state_no_history(state: &AppState) {
+    let dir = state_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = state_file();
+    if let Ok(data) = serde_json::to_string_pretty(state) {
+        let _ = std::fs::write(path, data);
+    }
+}
+
 pub fn save_state(state: &AppState) {
     let old = load_state();
     let dir = state_dir();
