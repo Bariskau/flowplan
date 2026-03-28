@@ -62,6 +62,10 @@ hljs.registerLanguage("diff", diff);
 const cache = new Map<string, string>();
 const MAX_CACHE = 500;
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export function highlight(code: string, lang?: string): string {
   const key = (lang || "") + "\0" + code;
   const cached = cache.get(key);
@@ -72,13 +76,13 @@ export function highlight(code: string, lang?: string): string {
     try {
       result = hljs.highlight(code, { language: lang }).value;
     } catch {
-      result = code;
+      result = escapeHtml(code);
     }
   } else {
     try {
       result = hljs.highlightAuto(code).value;
     } catch {
-      result = code;
+      result = escapeHtml(code);
     }
   }
 
