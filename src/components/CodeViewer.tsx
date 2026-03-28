@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useCallback, useState } from "react";
+import { X, Copy, Check, FileCode } from "@phosphor-icons/react";
 import type { FileChange } from "../types";
 import { highlight } from "../lib/highlight";
 import { Md } from "../lib/markdown";
@@ -12,23 +13,23 @@ interface CodeViewerProps {
 }
 
 /* ---- Change type badge config ---- */
-const changeTypeStyle: Record<string, { color: string; bg: string; label: string }> = {
-  create:   { color: "var(--color-fp-success)",  bg: "var(--color-fp-success-dim)",  label: "CREATE" },
-  created:  { color: "var(--color-fp-success)",  bg: "var(--color-fp-success-dim)",  label: "CREATE" },
-  add:      { color: "var(--color-fp-success)",  bg: "var(--color-fp-success-dim)",  label: "ADD" },
-  added:    { color: "var(--color-fp-success)",  bg: "var(--color-fp-success-dim)",  label: "ADD" },
-  modify:   { color: "var(--color-fp-warning)",  bg: "var(--color-fp-warning-dim)",  label: "EDIT" },
-  modified: { color: "var(--color-fp-warning)",  bg: "var(--color-fp-warning-dim)",  label: "EDIT" },
-  delete:   { color: "var(--color-fp-danger)",   bg: "var(--color-fp-danger-dim)",   label: "DELETE" },
-  deleted:  { color: "var(--color-fp-danger)",   bg: "var(--color-fp-danger-dim)",   label: "DELETE" },
-  rename:   { color: "var(--color-fp-purple)",   bg: "var(--color-fp-purple-dim)",   label: "RENAME" },
-  renamed:  { color: "var(--color-fp-purple)",   bg: "var(--color-fp-purple-dim)",   label: "RENAME" },
+const changeTypeStyle: Record<string, { colorClass: string; bgClass: string; label: string }> = {
+  create:   { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "CREATE" },
+  created:  { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "CREATE" },
+  add:      { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "ADD" },
+  added:    { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "ADD" },
+  modify:   { colorClass: "text-fp-warning",  bgClass: "bg-fp-warning-dim",  label: "EDIT" },
+  modified: { colorClass: "text-fp-warning",  bgClass: "bg-fp-warning-dim",  label: "EDIT" },
+  delete:   { colorClass: "text-fp-danger",   bgClass: "bg-fp-danger-dim",   label: "DELETE" },
+  deleted:  { colorClass: "text-fp-danger",   bgClass: "bg-fp-danger-dim",   label: "DELETE" },
+  rename:   { colorClass: "text-fp-purple",   bgClass: "bg-fp-purple-dim",   label: "RENAME" },
+  renamed:  { colorClass: "text-fp-purple",   bgClass: "bg-fp-purple-dim",   label: "RENAME" },
 };
 
 function getChangeStyle(changeType: string) {
   return changeTypeStyle[changeType.toLowerCase()] ?? {
-    color: "var(--color-fp-muted)",
-    bg: "rgba(255,255,255,0.05)",
+    colorClass: "text-fp-muted",
+    bgClass: "bg-fp-glass-hover",
     label: changeType.toUpperCase(),
   };
 }
@@ -86,26 +87,6 @@ function isDiffContent(content: string): boolean {
   return diffLineCount > lines.length * 0.15;
 }
 
-/* ---- Inline SVG Icons ---- */
-const CloseIcon = (
-  <svg width={14} height={14} viewBox="0 0 16 16" fill="none">
-    <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
-const CopyIcon = (
-  <svg width={13} height={13} viewBox="0 0 16 16" fill="none">
-    <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-    <path d="M3 11V3.5A1.5 1.5 0 014.5 2H10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-  </svg>
-);
-
-const CheckIcon = (
-  <svg width={13} height={13} viewBox="0 0 16 16" fill="none">
-    <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 /* ============================================================
    CodeViewer
    ============================================================ */
@@ -161,12 +142,13 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
       >
         {/* ---- Header ---- */}
         <div className="px-4 py-3 flex items-center justify-between border-b border-fp-border shrink-0">
-          {/* Left: change badge + file path */}
+          {/* Left: file icon + change badge + file path */}
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <FileCode size={16} className="text-fp-dim shrink-0" />
+
             {/* Change type pill */}
             <span
-              className="text-[10px] font-bold font-mono py-[3px] px-2 rounded-fp-sm tracking-[0.06em] leading-none shrink-0"
-              style={{ color: cs.color, background: cs.bg }}
+              className={`text-[10px] font-bold font-mono py-[3px] px-2 rounded-fp-sm tracking-[0.06em] leading-none shrink-0 ${cs.colorClass} ${cs.bgClass}`}
             >
               {cs.label}
             </span>
@@ -195,7 +177,7 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             <Button
               variant={copied ? "accent" : "ghost"}
               size="sm"
-              icon={copied ? CheckIcon : CopyIcon}
+              icon={copied ? <Check size={13} weight="bold" /> : <Copy size={13} />}
               onClick={handleCopy}
             >
               {copied ? "Copied!" : "Copy"}
@@ -205,7 +187,7 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             <IconButton
               variant="ghost"
               size="md"
-              icon={CloseIcon}
+              icon={<X size={14} />}
               label="Close (Esc)"
               onClick={onClose}
             />
@@ -248,8 +230,8 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
                 >
                   {/* Line number gutter */}
                   <div
-                    className={`w-14 text-right pr-3 text-[11px] select-none shrink-0 font-mono leading-[24px] ${
-                      dl.type === "hunk" ? "text-fp-purple" : "text-fp-dim"
+                    className={`w-14 text-right pr-3 text-[11px] select-none shrink-0 font-mono leading-[24px] text-fp-dim ${
+                      dl.type === "hunk" ? "text-fp-purple" : ""
                     }`}
                     style={{ opacity: dl.lineNum != null ? 1 : 0.5 }}
                   >
@@ -292,7 +274,7 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             /* ---- Code Mode with line numbers ---- */
             <div className="flex font-mono text-[13px] leading-[24px]">
               {/* Line numbers gutter */}
-              <div className="text-right p-4 text-fp-dim text-xs select-none border-r border-fp-border shrink-0 font-mono leading-[24px] min-w-[56px] bg-fp-surface">
+              <div className="text-right p-4 text-fp-dim font-mono text-xs select-none border-r border-fp-border shrink-0 leading-[24px] min-w-[56px] bg-fp-surface">
                 {change.content.split("\n").map((_, i) => (
                   <div key={i} className="leading-[24px]">
                     {i + 1}

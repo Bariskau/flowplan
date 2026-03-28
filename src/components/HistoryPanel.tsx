@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ClockCounterClockwise, Trash, X, Plus, PencilSimple, ArrowsDownUp } from "@phosphor-icons/react";
 import type { HistoryEntry } from "../types";
 import { computeDiff } from "../lib/diff";
 import IconButton from "./ui/IconButton";
@@ -11,38 +12,27 @@ interface HistoryPanelProps {
   onClear: () => void;
 }
 
-/* ---- Action badge colors using fp-* tokens ---- */
-const actionStyle: Record<string, { colorClass: string; bgClass: string; label: string }> = {
-  add:     { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "ADD" },
-  remove:  { colorClass: "text-fp-danger",   bgClass: "bg-fp-danger-dim",   label: "REMOVE" },
-  update:  { colorClass: "text-fp-warning",  bgClass: "bg-fp-warning-dim",  label: "UPDATE" },
-  reorder: { colorClass: "text-fp-purple",   bgClass: "bg-fp-purple-dim",   label: "REORDER" },
-  clear:   { colorClass: "text-fp-danger",   bgClass: "bg-fp-danger-dim",   label: "CLEAR" },
-  create:  { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "CREATE" },
+/* ---- Action badge colors using fp-* token classes ---- */
+const actionStyle: Record<string, { colorClass: string; bgClass: string; label: string; icon: "plus" | "pencil" | "trash" | "arrows" | "clear" | "create" }> = {
+  add:     { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "ADD",     icon: "plus" },
+  remove:  { colorClass: "text-fp-danger",   bgClass: "bg-fp-danger-dim",   label: "REMOVE",  icon: "trash" },
+  update:  { colorClass: "text-fp-warning",  bgClass: "bg-fp-warning-dim",  label: "UPDATE",  icon: "pencil" },
+  reorder: { colorClass: "text-fp-purple",   bgClass: "bg-fp-purple-dim",   label: "REORDER", icon: "arrows" },
+  clear:   { colorClass: "text-fp-danger",   bgClass: "bg-fp-danger-dim",   label: "CLEAR",   icon: "clear" },
+  create:  { colorClass: "text-fp-success",  bgClass: "bg-fp-success-dim",  label: "CREATE",  icon: "create" },
 };
 
 function getActionBadge(action: string) {
-  return actionStyle[action] || { colorClass: "text-fp-muted", bgClass: "bg-fp-glass-hover", label: action.toUpperCase() };
+  return actionStyle[action] || { colorClass: "text-fp-muted", bgClass: "bg-fp-glass-hover", label: action.toUpperCase(), icon: "plus" as const };
 }
 
-/* ---- Inline SVG Icons ---- */
-const Ico = {
-  close: (c: string, s = 14) => (
-    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
-      <path d="M4 4l8 8M12 4l-8 8" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
-  trash: (c: string, s = 13) => (
-    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
-      <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v8.5a1 1 0 001 1h4a1 1 0 001-1V4" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  history: (c: string, s = 16) => (
-    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
-      <path d="M2 8a6 6 0 1112 0A6 6 0 012 8z" stroke={c} strokeWidth="1.3" />
-      <path d="M8 5v3.5l2.5 1.5" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
+const actionIcons: Record<string, React.ReactNode> = {
+  plus:    <Plus size={10} weight="bold" />,
+  pencil:  <PencilSimple size={10} weight="bold" />,
+  trash:   <Trash size={10} weight="bold" />,
+  arrows:  <ArrowsDownUp size={10} weight="bold" />,
+  clear:   <Trash size={10} weight="bold" />,
+  create:  <Plus size={10} weight="bold" />,
 };
 
 /* ---- Timestamp formatting ---- */
@@ -81,7 +71,7 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
       <div className="p-4 border-b border-fp-border shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {Ico.history("currentColor", 15)}
+            <ClockCounterClockwise size={15} className="text-fp-muted" />
             <span className="text-sm font-semibold text-fp-text">
               History
             </span>
@@ -97,7 +87,7 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
                 size="md"
                 onClick={onClear}
                 label="Clear history"
-                icon={Ico.trash("currentColor", 12)}
+                icon={<Trash size={12} />}
               />
             )}
             <IconButton
@@ -105,14 +95,14 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
               size="md"
               onClick={onClose}
               label="Close history"
-              icon={Ico.close("currentColor", 12)}
+              icon={<X size={12} />}
             />
           </div>
         </div>
       </div>
 
       {/* ---- Entries List ---- */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-2">
         {entries.length === 0 && (
           <div className="p-8 text-center">
             <div className="text-xs text-fp-dim leading-relaxed">
@@ -141,8 +131,9 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
               {/* Top row: badge + timestamp */}
               <div className="flex items-center justify-between mb-1.5">
                 <span
-                  className={`text-[10px] font-mono uppercase font-semibold px-1.5 py-0.5 rounded-fp-sm tracking-wide leading-snug ${badge.colorClass} ${badge.bgClass}`}
+                  className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase font-semibold px-1.5 py-0.5 rounded-fp-sm tracking-wide leading-snug ${badge.colorClass} ${badge.bgClass}`}
                 >
+                  {actionIcons[badge.icon]}
                   {badge.label}
                 </span>
                 <span className="text-fp-dim text-xs font-mono">
