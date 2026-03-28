@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Plan } from "../types";
+import Button from "./ui/Button";
+import IconButton from "./ui/IconButton";
 
 interface SidebarProps {
   plans: Plan[];
@@ -15,7 +17,7 @@ interface SidebarProps {
 
 /* ---- Logo ---- */
 const Logo = ({ size = 20 }: { size?: number }) => (
-  <div style={{ width: size, height: size, borderRadius: size * 0.22 }} className="bg-[#1e1e2a] flex items-center justify-center shrink-0">
+  <div style={{ width: size, height: size, borderRadius: size * 0.22 }} className="bg-fp-raised flex items-center justify-center shrink-0">
     <svg width={size * 0.72} height={size * 0.72} viewBox="0 0 251 260" fill="none">
       <defs>
         <radialGradient id="sbfp1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(113.355,0,0,113.355,103.715,138.105)">
@@ -33,12 +35,12 @@ const Logo = ({ size = 20 }: { size?: number }) => (
 
 /* ---- Inline SVG Icons ---- */
 const Ico = {
-  plus: (c: string, s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={c} strokeWidth="1.5" strokeLinecap="round"/></svg>,
-  pin: (c: string, s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M9.5 2.5L13.5 6.5L10 10L9 13L3 7L6 6Z" stroke={c} strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 13L6 10" stroke={c} strokeWidth="1.3" strokeLinecap="round"/></svg>,
-  pinFill: (c: string, s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M9.5 2.5L13.5 6.5L10 10L9 13L3 7L6 6Z" fill={c} opacity="0.6" stroke={c} strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 13L6 10" stroke={c} strokeWidth="1.3" strokeLinecap="round"/></svg>,
-  trash: (c: string, s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v8.5a1 1 0 001 1h4a1 1 0 001-1V4" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  dots: (c: string, s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill={c}/><circle cx="8" cy="8" r="1.2" fill={c}/><circle cx="8" cy="12.5" r="1.2" fill={c}/></svg>,
-  download: (c: string, s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 2v8.5M4.5 7.5 8 11l3.5-3.5M3 13h10" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  plus: (s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  pin: (s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M9.5 2.5L13.5 6.5L10 10L9 13L3 7L6 6Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 13L6 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  pinFill: (s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M9.5 2.5L13.5 6.5L10 10L9 13L3 7L6 6Z" fill="currentColor" opacity="0.6" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 13L6 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  trash: (s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v8.5a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  dots: (s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="12.5" r="1.2" fill="currentColor"/></svg>,
+  download: (s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 2v8.5M4.5 7.5 8 11l3.5-3.5M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
 
 /* ---- Sidebar Component ---- */
@@ -68,7 +70,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   const DropdownMenu = ({ children }: { children: React.ReactNode }) => (
     <div
       onClick={e => e.stopPropagation()}
-      className="bg-[#1c1c1e] border border-[rgba(255,255,255,0.08)] rounded-lg p-1 min-w-[160px] shadow-[0_8px_30px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-[20px]"
+      className="bg-fp-solid border border-fp-border-hover rounded-fp-md p-1 min-w-[160px] shadow-[0_8px_30px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-fp-panel"
     >
       {children}
     </div>
@@ -87,13 +89,9 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   }) => (
     <button
       onClick={onClick}
-      className={`w-full bg-transparent border-none cursor-pointer py-[7px] px-3 rounded-md flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-[background] duration-[120ms] ${danger ? "text-[#ef4444]" : "text-[#e4e4e7]"}`}
-      onMouseEnter={(e: any) => {
-        e.currentTarget.style.background = danger ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)";
-      }}
-      onMouseLeave={(e: any) => {
-        e.currentTarget.style.background = "none";
-      }}
+      className={`w-full bg-transparent border-none cursor-pointer py-[7px] px-3 rounded-fp-sm flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-colors duration-150 hover:bg-fp-glass-hover ${
+        danger ? "text-fp-danger hover:bg-fp-danger-dim" : "text-fp-text"
+      }`}
     >
       {icon}
       <span>{label}</span>
@@ -107,41 +105,26 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
     const menuOpen = planMenu === p.id;
 
     return (
-      <li className="relative">
+      <li className="relative plan-row">
         <div
           onClick={() => onSelect(p.id)}
-          className={`flex items-center gap-2 py-1.5 pr-2 pl-2.5 cursor-pointer rounded-md relative transition-all duration-200 ${
+          className={`flex items-center gap-2 py-2 px-3 cursor-pointer rounded-fp-sm transition-all duration-150 ${
             act
-              ? "border-l-2 border-l-[#10b981] bg-[rgba(16,185,129,0.06)]"
-              : "border-l-2 border-l-transparent bg-transparent"
+              ? "border-l-2 border-l-fp-accent bg-fp-glass-hover"
+              : "border-l-2 border-l-transparent hover:bg-fp-glass-hover"
           }`}
-          onMouseEnter={(e: any) => {
-            if (!act) {
-              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-              const nameEl = e.currentTarget.querySelector("[data-plan-name]");
-              if (nameEl) nameEl.style.color = "#e4e4e7";
-            }
-          }}
-          onMouseLeave={(e: any) => {
-            if (!act) {
-              e.currentTarget.style.background = "transparent";
-              const nameEl = e.currentTarget.querySelector("[data-plan-name]");
-              if (nameEl) nameEl.style.color = "#a1a1aa";
-            }
-          }}
         >
           {/* Pin icon for pinned plans */}
           {p.pinned && (
-            <span className="shrink-0 flex items-center">
-              {Ico.pinFill("#10b981", 10)}
+            <span className="shrink-0 flex items-center text-fp-accent">
+              {Ico.pinFill(10)}
             </span>
           )}
 
           {/* Plan name */}
           <span
-            data-plan-name
-            className={`text-sm font-normal tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-200 flex-1 min-w-0 ${
-              act ? "text-white" : "text-[#a1a1aa]"
+            className={`text-sm font-normal tracking-[-0.01em] whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-150 flex-1 min-w-0 ${
+              act ? "text-fp-text" : "text-fp-muted"
             }`}
           >
             {p.title}
@@ -150,31 +133,29 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
           <div className="flex items-center gap-1 shrink-0">
             {/* Feedback badge */}
             {nc > 0 && (
-              <span className="bg-[#10b981] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none font-mono">
+              <span className="bg-fp-accent text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none font-mono">
                 {nc}
               </span>
             )}
 
             {/* Card count */}
             <span
-              className={`text-[10px] font-medium font-mono shrink-0 transition-colors duration-200 ${
-                act ? "text-[rgba(255,255,255,0.35)]" : "text-[rgba(255,255,255,0.18)]"
+              className={`text-[10px] font-medium font-mono shrink-0 transition-colors duration-150 ${
+                act ? "text-fp-dim" : "text-fp-dim/50"
               }`}
             >
               {p.steps.length}
             </span>
 
             {/* Three dots menu button */}
-            <button
+            <IconButton
+              variant="ghost"
+              size="sm"
+              icon={Ico.dots(14)}
+              label="Plan options"
               onClick={e => { e.stopPropagation(); setPlanMenu(menuOpen ? null : p.id); setAddMenu(false); }}
-              className={`border-none cursor-pointer w-[22px] h-[22px] rounded-[5px] flex items-center justify-center p-0 shrink-0 transition-all duration-150 ${
-                menuOpen ? "bg-[rgba(255,255,255,0.06)] opacity-100" : "bg-transparent opacity-0"
-              } plan-actions`}
-              onMouseEnter={(e: any) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-              onMouseLeave={(e: any) => { e.currentTarget.style.background = menuOpen ? "rgba(255,255,255,0.06)" : "none"; }}
-            >
-              {Ico.dots(act ? "#71717a" : "#52525b", 14)}
-            </button>
+              className={`${menuOpen ? "opacity-100 bg-fp-glass-hover" : "opacity-0"} plan-actions`}
+            />
           </div>
         </div>
 
@@ -184,12 +165,12 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
             <DropdownMenu>
               <DropdownItem
                 onClick={() => { onTogglePin(p.id); setPlanMenu(null); }}
-                icon={p.pinned ? Ico.pinFill("#10b981", 13) : Ico.pin("#a1a1aa", 13)}
+                icon={<span className="text-fp-accent">{p.pinned ? Ico.pinFill(13) : Ico.pin(13)}</span>}
                 label={p.pinned ? "Unpin" : "Pin to top"}
               />
               <DropdownItem
                 onClick={() => { onDelete(p.id); setPlanMenu(null); }}
-                icon={Ico.trash("#ef4444", 13)}
+                icon={<span className="text-fp-danger">{Ico.trash(13)}</span>}
                 label="Delete plan"
                 danger
               />
@@ -201,12 +182,12 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   };
 
   return (
-    <div className="w-[220px] bg-[rgba(255,255,255,0.03)] backdrop-blur-[40px] border-r border-r-[rgba(255,255,255,0.06)] flex flex-col shrink-0 font-sans">
+    <div className="w-[--spacing-fp-sidebar] h-screen fp-glass border-r border-r-fp-border flex flex-col shrink-0 font-sans">
       {/* ---- Header ---- */}
-      <div className="pt-4 px-3.5 pb-3 flex items-center justify-between border-b border-b-[rgba(255,255,255,0.06)]">
+      <div className="py-1.5 px-3.5 flex items-center justify-between border-b border-b-fp-border">
         <div className="flex items-center gap-2">
           <Logo size={22} />
-          <span className="text-sm font-semibold text-white tracking-[-0.01em]">
+          <span className="text-sm font-semibold text-fp-text tracking-[-0.01em]">
             FlowPlan
           </span>
         </div>
@@ -214,65 +195,44 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         <div className="flex items-center gap-1.5">
           {/* MCP connection indicator */}
           <div
-            className={`flex items-center gap-1 py-[3px] px-2 rounded-md border ${
+            className={`flex items-center gap-1 py-[3px] px-2 rounded-fp-pill border text-[10px] font-semibold font-mono leading-none ${
               connected
-                ? "bg-[rgba(16,185,129,0.08)] border-[rgba(16,185,129,0.2)]"
-                : "bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.06)]"
+                ? "bg-fp-accent-dim border-fp-accent/20 text-fp-accent"
+                : "bg-fp-glass border-fp-border text-fp-dim"
             }`}
           >
             <div
               className={`w-[5px] h-[5px] rounded-full transition-all duration-300 ${
                 connected
-                  ? "bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.5)]"
-                  : "bg-[#52525b] shadow-none"
+                  ? "bg-fp-accent shadow-[0_0_6px_rgba(16,185,129,0.5)]"
+                  : "bg-fp-dim shadow-none"
               }`}
             />
-            <span
-              className={`text-[10px] font-semibold font-mono leading-none ${
-                connected ? "text-[#10b981]" : "text-[#52525b]"
-              }`}
-            >
-              MCP
-            </span>
+            <span>MCP</span>
           </div>
 
           {/* Add button */}
           <div className="relative">
-            <button
+            <IconButton
+              variant="glassy"
+              size="md"
+              icon={<span className={addMenu ? "text-fp-accent" : ""}>{Ico.plus(14)}</span>}
+              label="Add plan"
               onClick={e => { e.stopPropagation(); setAddMenu(!addMenu); setPlanMenu(null); }}
-              title="Add plan"
-              className={`cursor-pointer w-7 h-7 rounded-md flex items-center justify-center transition-all duration-150 p-0 ${
-                addMenu
-                  ? "bg-[rgba(255,255,255,0.06)] border border-[rgba(16,185,129,0.3)]"
-                  : "bg-transparent border border-[rgba(255,255,255,0.06)]"
-              }`}
-              onMouseEnter={(e: any) => {
-                if (!addMenu) {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                  e.currentTarget.style.borderColor = "rgba(16,185,129,0.3)";
-                }
-              }}
-              onMouseLeave={(e: any) => {
-                if (!addMenu) {
-                  e.currentTarget.style.background = "none";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-                }
-              }}
-            >
-              {Ico.plus(addMenu ? "#10b981" : "#a1a1aa", 14)}
-            </button>
+              className={addMenu ? "border-fp-accent/30" : ""}
+            />
 
             {addMenu && (
               <div className="absolute right-0 top-full mt-1 z-[100]">
                 <DropdownMenu>
                   <DropdownItem
                     onClick={() => { onNewPlan(); setAddMenu(false); }}
-                    icon={Ico.plus("#10b981", 14)}
+                    icon={<span className="text-fp-accent">{Ico.plus(14)}</span>}
                     label="New Plan"
                   />
                   <DropdownItem
                     onClick={() => { onImport(); setAddMenu(false); }}
-                    icon={Ico.download("#10b981", 14)}
+                    icon={<span className="text-fp-accent">{Ico.download(14)}</span>}
                     label="Import JSON"
                   />
                 </DropdownMenu>
@@ -287,7 +247,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         {plans.length === 0 && (
           <div className="py-10 px-4 text-center flex flex-col items-center gap-3">
             <div className="opacity-[0.15]"><Logo size={40} /></div>
-            <div className="text-[13px] text-[#52525b] leading-[1.6] max-w-[160px]">
+            <div className="text-[13px] text-fp-dim leading-[1.6] max-w-[160px]">
               {connected
                 ? 'Ask your coding agent to "create a plan and show in FlowPlan"'
                 : "Connecting to MCP server..."}
@@ -298,37 +258,26 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         {plans.length > 0 && (
           <>
             {/* Section header */}
-            <div className="text-[11px] font-semibold text-[#52525b] tracking-[0.05em] uppercase pt-1 px-2.5 pb-2 font-sans">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-fp-dim pt-1 px-2.5 pb-2">
               Plans
             </div>
-
-            {/* Plan list with hover-reveal for dots button */}
-            <style>{`
-              .sidebar-plan-item:hover .plan-actions {
-                opacity: 1 !important;
-              }
-            `}</style>
 
             <ul className="list-none m-0 p-0 flex flex-col gap-px">
               {/* Pinned plans */}
               {pinned.map(p => (
-                <div key={p.id} className="sidebar-plan-item">
-                  <PlanItem p={p} />
-                </div>
+                <PlanItem key={p.id} p={p} />
               ))}
 
               {/* Separator between pinned and unpinned */}
               {pinned.length > 0 && unpinned.length > 0 && (
                 <li className="py-1 px-2.5">
-                  <div className="h-px bg-[rgba(255,255,255,0.06)]" />
+                  <div className="h-px bg-fp-border" />
                 </li>
               )}
 
               {/* Unpinned plans */}
               {unpinned.map(p => (
-                <div key={p.id} className="sidebar-plan-item">
-                  <PlanItem p={p} />
-                </div>
+                <PlanItem key={p.id} p={p} />
               ))}
             </ul>
           </>
@@ -336,8 +285,8 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       </nav>
 
       {/* ---- Footer ---- */}
-      <div className="py-2.5 px-3.5 border-t border-t-[rgba(255,255,255,0.06)] shrink-0">
-        <div className="text-[11px] text-[#3f3f46] font-mono text-center leading-[1.5]">
+      <div className="py-2.5 px-3.5 border-t border-t-fp-border shrink-0">
+        <div className="text-xs text-fp-dim font-mono text-center leading-[1.5]">
           {plans.length} {plans.length === 1 ? "plan" : "plans"}
         </div>
       </div>
