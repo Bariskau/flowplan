@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 
 interface DotGridProps {
   zoom?: number;
@@ -6,24 +6,19 @@ interface DotGridProps {
   panY?: number;
 }
 
-const SPACING = 30;
-const DOT_RADIUS = 1.2;
-const DOT_COLOR: [number, number, number] = [63, 63, 70]; // zinc-700
-const GLOW_COLOR: [number, number, number] = [16, 185, 129]; // emerald-500
-const ACCENT_COLOR: [number, number, number] = [20, 184, 166]; // teal-500
-const INFLUENCE_RADIUS = 160;
-const MAX_GLOW_RADIUS = 3.5;
-const BASE_DOT_OPACITY = 0.5;
-
+/**
+ * Protocol-inspired gradient background with subtle interactive glow.
+ * Replaces the dot grid with smooth radial gradients that respond to mouse.
+ */
 function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef<{ x: number; y: number } | null>(null);
+  const mouseRef = useRef<{ x: number; y: number }>({ x: -9999, y: -9999 });
+  const targetRef = useRef<{ x: number; y: number }>({ x: -9999, y: -9999 });
   const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -40,26 +35,16 @@ function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) {
     };
 
     resizeCanvas();
-
-    const observer = new ResizeObserver(() => {
-      resizeCanvas();
-    });
-
+    const observer = new ResizeObserver(() => resizeCanvas());
     const parent = canvas.parentElement;
-    if (parent) {
-      observer.observe(parent);
-    }
+    if (parent) observer.observe(parent);
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      mouseRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
+      targetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
-
     const handleMouseLeave = () => {
-      mouseRef.current = null;
+      targetRef.current = { x: -9999, y: -9999 };
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -75,79 +60,92 @@ function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const draw = () => {
       const dpr = window.devicePixelRatio || 1;
-      const width = canvas.width / dpr;
-      const height = canvas.height / dpr;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
 
-      ctx.clearRect(0, 0, width, height);
-
-      const scaledSpacing = SPACING * zoom;
-      const scaledDotRadius = DOT_RADIUS * zoom;
-      const scaledMaxGlowRadius = MAX_GLOW_RADIUS * zoom;
-
-      // Compute the offset so dots shift with the pan, then wrap within one spacing cell
-      const offsetX = ((panX * zoom) % scaledSpacing + scaledSpacing) % scaledSpacing;
-      const offsetY = ((panY * zoom) % scaledSpacing + scaledSpacing) % scaledSpacing;
-
-      // How many dots we need to cover the canvas, plus a buffer
-      const cols = Math.ceil(width / scaledSpacing) + 2;
-      const rows = Math.ceil(height / scaledSpacing) + 2;
-
+      // Smooth mouse tracking
+      const target = targetRef.current;
       const mouse = mouseRef.current;
+      mouse.x += (target.x - mouse.x) * 0.08;
+      mouse.y += (target.y - mouse.y) * 0.08;
 
-      for (let row = -1; row < rows; row++) {
-        for (let col = -1; col < cols; col++) {
-          const x = offsetX + col * scaledSpacing;
-          const y = offsetY + row * scaledSpacing;
+      // Clear
+      ctx.clearRect(0, 0, w, h);
 
-          // Skip dots that are well outside the visible area
-          if (
-            x < -scaledMaxGlowRadius ||
-            x > width + scaledMaxGlowRadius ||
-            y < -scaledMaxGlowRadius ||
-            y > height + scaledMaxGlowRadius
-          ) {
-            continue;
-          }
+      // --- Static gradient layers (Protocol-inspired) ---
+      // Top-left emerald glow
+      const g1 = ctx.createRadialGradient(w * 0.15, h * 0.1, 0, w * 0.15, h * 0.1, w * 0.6);
+      g1.addColorStop(0, "rgba(16, 185, 129, 0.06)");
+      g1.addColorStop(0.5, "rgba(16, 185, 129, 0.02)");
+      g1.addColorStop(1, "transparent");
+      ctx.fillStyle = g1;
+      ctx.fillRect(0, 0, w, h);
 
-          let radius = scaledDotRadius;
-          let r = DOT_COLOR[0];
-          let g = DOT_COLOR[1];
-          let b = DOT_COLOR[2];
-          let opacity = BASE_DOT_OPACITY;
+      // Bottom-right subtle teal
+      const g2 = ctx.createRadialGradient(w * 0.85, h * 0.85, 0, w * 0.85, h * 0.85, w * 0.5);
+      g2.addColorStop(0, "rgba(20, 184, 166, 0.04)");
+      g2.addColorStop(0.6, "rgba(20, 184, 166, 0.01)");
+      g2.addColorStop(1, "transparent");
+      ctx.fillStyle = g2;
+      ctx.fillRect(0, 0, w, h);
 
-          if (mouse) {
-            const dx = x - mouse.x;
-            const dy = y - mouse.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+      // Center very subtle warm glow
+      const g3 = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, w * 0.7);
+      g3.addColorStop(0, "rgba(167, 139, 250, 0.025)");
+      g3.addColorStop(1, "transparent");
+      ctx.fillStyle = g3;
+      ctx.fillRect(0, 0, w, h);
 
-            if (dist < INFLUENCE_RADIUS) {
-              const t = 1 - dist / INFLUENCE_RADIUS;
-              // Ease in for a smoother falloff
-              const ease = t * t;
+      // --- Interactive mouse glow (very subtle) ---
+      if (mouse.x > -1000 && mouse.y > -1000) {
+        const gMouse = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 250);
+        gMouse.addColorStop(0, "rgba(16, 185, 129, 0.04)");
+        gMouse.addColorStop(0.5, "rgba(16, 185, 129, 0.015)");
+        gMouse.addColorStop(1, "transparent");
+        ctx.fillStyle = gMouse;
+        ctx.fillRect(0, 0, w, h);
+      }
 
-              // Interpolate radius
-              radius = scaledDotRadius + (scaledMaxGlowRadius - scaledDotRadius) * ease;
+      // --- Subtle grid dots (fixed spacing, zoom-aware position only) ---
+      const spacing = 32 * zoom;
+      const dotRadius = Math.max(0.4, 0.7 * zoom);
+      const dotOpacity = 0.12;
 
-              // Interpolate color: teal at edges of influence, emerald at center
-              const colorT = ease;
-              r = ACCENT_COLOR[0] + (GLOW_COLOR[0] - ACCENT_COLOR[0]) * colorT;
-              g = ACCENT_COLOR[1] + (GLOW_COLOR[1] - ACCENT_COLOR[1]) * colorT;
-              b = ACCENT_COLOR[2] + (GLOW_COLOR[2] - ACCENT_COLOR[2]) * colorT;
+      // Skip dots if zoomed out too much (would be too dense)
+      if (spacing >= 8) {
+        const offsetX = ((panX * zoom) % spacing + spacing) % spacing;
+        const offsetY = ((panY * zoom) % spacing + spacing) % spacing;
+        const cols = Math.ceil(w / spacing) + 2;
+        const rows = Math.ceil(h / spacing) + 2;
 
-              opacity = BASE_DOT_OPACITY + (1 - BASE_DOT_OPACITY) * ease;
+        for (let row = -1; row < rows; row++) {
+          for (let col = -1; col < cols; col++) {
+            const x = offsetX + col * spacing;
+            const y = offsetY + row * spacing;
+            if (x < -2 || x > w + 2 || y < -2 || y > h + 2) continue;
+
+            // Near mouse: slightly brighter but same color (no color change)
+            let opacity = dotOpacity;
+            if (mouse.x > -1000) {
+              const dx = x - mouse.x;
+              const dy = y - mouse.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 150) {
+                const t = 1 - dist / 150;
+                opacity = dotOpacity + t * t * 0.12;
+              }
             }
-          }
 
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${opacity})`;
-          ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(161, 161, 170, ${opacity})`;
+            ctx.fill();
+          }
         }
       }
 
@@ -155,10 +153,7 @@ function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) {
     };
 
     animFrameRef.current = requestAnimationFrame(draw);
-
-    return () => {
-      cancelAnimationFrame(animFrameRef.current);
-    };
+    return () => cancelAnimationFrame(animFrameRef.current);
   }, [zoom, panX, panY]);
 
   return (
