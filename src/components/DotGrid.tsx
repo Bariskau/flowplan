@@ -7,13 +7,13 @@ interface DotGridProps {
 }
 
 const SPACING = 30;
-const DOT_RADIUS = 1.5;
-const DOT_COLOR: [number, number, number] = [90, 90, 110];
-const GLOW_COLOR: [number, number, number] = [140, 80, 255];
-const ACCENT_COLOR: [number, number, number] = [80, 180, 255];
+const DOT_RADIUS = 1.2;
+const DOT_COLOR: [number, number, number] = [63, 63, 70]; // zinc-700
+const GLOW_COLOR: [number, number, number] = [16, 185, 129]; // emerald-500
+const ACCENT_COLOR: [number, number, number] = [20, 184, 166]; // teal-500
 const INFLUENCE_RADIUS = 160;
-const MAX_GLOW_RADIUS = 4;
-const BASE_DOT_OPACITY = 0.7;
+const MAX_GLOW_RADIUS = 3.5;
+const BASE_DOT_OPACITY = 0.5;
 
 function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -134,8 +134,7 @@ function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) {
               // Interpolate radius
               radius = scaledDotRadius + (scaledMaxGlowRadius - scaledDotRadius) * ease;
 
-              // Interpolate color: accent (blue) at edges of influence, glow (purple) at center
-              // We blend from accent -> glow as we get closer
+              // Interpolate color: teal at edges of influence, emerald at center
               const colorT = ease;
               r = ACCENT_COLOR[0] + (GLOW_COLOR[0] - ACCENT_COLOR[0]) * colorT;
               g = ACCENT_COLOR[1] + (GLOW_COLOR[1] - ACCENT_COLOR[1]) * colorT;

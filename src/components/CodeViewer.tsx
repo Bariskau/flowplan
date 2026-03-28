@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import type { FileChange } from "../types";
 import { T } from "../lib/theme";
 import { highlight } from "../lib/highlight";
@@ -10,40 +10,89 @@ interface CodeViewerProps {
   onClose: () => void;
 }
 
+/* ---- Protocol-style color tokens ---- */
+const P = {
+  // Surfaces
+  panelBg: "rgba(24,24,27,0.92)",
+  codeBg: "#111113",
+  headerBg: "rgba(255,255,255,0.03)",
+  // Borders
+  ring: "rgba(255,255,255,0.08)",
+  ringHover: "rgba(255,255,255,0.14)",
+  separator: "rgba(255,255,255,0.06)",
+  // Text
+  white: "#fff",
+  muted: "#a1a1aa",
+  dimmed: "#71717a",
+  ghost: "#52525b",
+  // Accents (Protocol uses emerald for primary)
+  emerald: "#10b981",
+  emeraldDim: "rgba(16,185,129,0.12)",
+  amber: "#f59e0b",
+  amberDim: "rgba(245,158,11,0.12)",
+  rose: "#f43f5e",
+  roseDim: "rgba(244,63,94,0.10)",
+  violet: "#a78bfa",
+  violetDim: "rgba(167,139,250,0.10)",
+  sky: "#38bdf8",
+  skyDim: "rgba(56,189,248,0.10)",
+  // Diff
+  addBg: "rgba(16,185,129,0.07)",
+  addBorder: "#10b981",
+  addText: "#6ee7b7",
+  removeBg: "rgba(244,63,94,0.07)",
+  removeBorder: "#f43f5e",
+  removeText: "#fda4af",
+  hunkBg: "rgba(167,139,250,0.06)",
+  hunkBorder: "#a78bfa",
+  hunkText: "#c4b5fd",
+};
+
 /* ---- Inline SVG Icons ---- */
 const Ico = {
-  close: (c: string, s = 14) => (
+  close: (c: string, s = 16) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <path d="M4 4l8 8M12 4l-8 8" stroke={c} strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
-  file: (c: string, s = 13) => (
+  file: (c: string, s = 14) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
-      <path d="M4.5 2h5l3 3v8.5a1 1 0 01-1 1h-7a1 1 0 01-1-1v-10.5a1 1 0 011-1z" stroke={c} strokeWidth="1.3" strokeLinejoin="round" />
-      <path d="M9.5 2v3h3" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 2h5l3 3v8.5a1 1 0 01-1 1h-7a1 1 0 01-1-1v-10.5a1 1 0 011-1z" stroke={c} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M9.5 2v3h3" stroke={c} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  copy: (c: string, s = 14) => (
+    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <rect x="5" y="5" width="8" height="8" rx="1.5" stroke={c} strokeWidth="1.2" />
+      <path d="M3 11V3.5A1.5 1.5 0 014.5 2H10" stroke={c} strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  ),
+  check: (c: string, s = 14) => (
+    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <path d="M3.5 8.5l3 3 6-7" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
 };
 
-/* ---- Change type badge colors ---- */
+/* ---- Change type badge config (Protocol method-pill style) ---- */
 const changeTypeStyle: Record<string, { color: string; bg: string; label: string }> = {
-  create: { color: T.green, bg: T.gD, label: "Created" },
-  created: { color: T.green, bg: T.gD, label: "Created" },
-  modify: { color: T.orange, bg: T.oD, label: "Modified" },
-  modified: { color: T.orange, bg: T.oD, label: "Modified" },
-  delete: { color: T.red, bg: T.rD, label: "Deleted" },
-  deleted: { color: T.red, bg: T.rD, label: "Deleted" },
-  rename: { color: T.purple, bg: T.pD, label: "Renamed" },
-  renamed: { color: T.purple, bg: T.pD, label: "Renamed" },
-  add: { color: T.green, bg: T.gD, label: "Added" },
-  added: { color: T.green, bg: T.gD, label: "Added" },
+  create:   { color: P.emerald, bg: P.emeraldDim, label: "CREATE" },
+  created:  { color: P.emerald, bg: P.emeraldDim, label: "CREATE" },
+  add:      { color: P.emerald, bg: P.emeraldDim, label: "ADD" },
+  added:    { color: P.emerald, bg: P.emeraldDim, label: "ADD" },
+  modify:   { color: P.amber,   bg: P.amberDim,   label: "EDIT" },
+  modified: { color: P.amber,   bg: P.amberDim,   label: "EDIT" },
+  delete:   { color: P.rose,    bg: P.roseDim,     label: "DELETE" },
+  deleted:  { color: P.rose,    bg: P.roseDim,     label: "DELETE" },
+  rename:   { color: P.violet,  bg: P.violetDim,   label: "RENAME" },
+  renamed:  { color: P.violet,  bg: P.violetDim,   label: "RENAME" },
 };
 
 function getChangeStyle(changeType: string) {
-  return changeTypeStyle[changeType.toLowerCase()] || { color: T.sec, bg: "rgba(255,255,255,0.06)", label: changeType };
+  return changeTypeStyle[changeType.toLowerCase()] ?? { color: P.muted, bg: "rgba(255,255,255,0.05)", label: changeType.toUpperCase() };
 }
 
-/* ---- Detect if content looks like markdown ---- */
+/* ---- Detect markdown content ---- */
 function isMarkdownContent(content: string, language: string): boolean {
   if (language === "markdown" || language === "md") return true;
   const mdSignals = [/^#{1,6}\s+/m, /^\s*[-*+]\s+/m, /\[.*?\]\(.*?\)/, /```/, /^\s*>\s+/m, /\*\*.*?\*\*/];
@@ -54,7 +103,7 @@ function isMarkdownContent(content: string, language: string): boolean {
   return score >= 3;
 }
 
-/* ---- Parse diff lines for highlighting ---- */
+/* ---- Parse diff lines ---- */
 interface DiffLine {
   type: "add" | "remove" | "hunk" | "normal";
   text: string;
@@ -69,7 +118,6 @@ function parseDiffLines(content: string): DiffLine[] {
   for (const line of lines) {
     if (line.startsWith("@@")) {
       result.push({ type: "hunk", text: line, lineNum: null });
-      /* Extract line number from hunk header */
       const match = line.match(/@@ -\d+(?:,\d+)? \+(\d+)/);
       if (match) lineNum = parseInt(match[1], 10) - 1;
     } else if (line.startsWith("+")) {
@@ -82,7 +130,6 @@ function parseDiffLines(content: string): DiffLine[] {
       result.push({ type: "normal", text: line.startsWith(" ") ? line.substring(1) : line, lineNum });
     }
   }
-
   return result;
 }
 
@@ -98,14 +145,39 @@ function isDiffContent(content: string): boolean {
   return diffLineCount > lines.length * 0.15;
 }
 
-/* ---- CodeViewer ---- */
+/* ---- Keyframes for modal animation ---- */
+const animId = "cv-anim-" + Math.random().toString(36).slice(2, 8);
+if (typeof document !== "undefined" && !document.getElementById(animId)) {
+  const style = document.createElement("style");
+  style.id = animId;
+  style.textContent = `
+    @keyframes cv-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes cv-panel-in { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes cv-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes cv-panel-out { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.97) translateY(8px); } }
+  `;
+  document.head.appendChild(style);
+}
+
+/* ============================================================
+   CodeViewer -- Protocol design language
+   ============================================================ */
 function CodeViewer({ path, change, onClose }: CodeViewerProps) {
-  /* Escape key to close */
+  const [copied, setCopied] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  /* Animated close */
+  const startClose = useCallback(() => {
+    setClosing(true);
+    setTimeout(onClose, 160);
+  }, [onClose]);
+
+  /* Escape key */
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") startClose();
     },
-    [onClose]
+    [startClose],
   );
 
   useEffect(() => {
@@ -113,245 +185,307 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [handleKey]);
 
-  /* Determine rendering mode */
+  /* Copy to clipboard */
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(change.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [change.content]);
+
+  /* Rendering mode */
   const isMarkdown = useMemo(() => isMarkdownContent(change.content, change.language), [change.content, change.language]);
   const isDiff = useMemo(() => isDiffContent(change.content), [change.content]);
   const diffLines = useMemo(() => (isDiff ? parseDiffLines(change.content) : null), [isDiff, change.content]);
 
-  /* Syntax-highlighted HTML for code mode */
+  /* Syntax highlighted HTML */
   const highlightedHtml = useMemo(() => {
     if (isMarkdown || isDiff) return "";
     return highlight(change.content, change.language);
   }, [change.content, change.language, isMarkdown, isDiff]);
 
-  /* Extract filename from path */
+  /* Derived values */
   const filename = path.split("/").pop() || path;
   const cs = getChangeStyle(change.changeType);
+  const langLabel = change.language ? change.language.toUpperCase() : "";
 
-  /* Diff line background colors */
-  const diffBg: Record<string, string> = {
-    add: "rgba(48,209,88,0.08)",
-    remove: "rgba(255,69,58,0.08)",
-    hunk: "rgba(191,90,242,0.06)",
+  /* Diff line styling maps */
+  const diffLineBg: Record<string, string> = {
+    add: P.addBg,
+    remove: P.removeBg,
+    hunk: P.hunkBg,
     normal: "transparent",
   };
-  const diffBorder: Record<string, string> = {
-    add: T.green,
-    remove: T.red,
-    hunk: T.purple,
+  const diffLineBorder: Record<string, string> = {
+    add: P.addBorder,
+    remove: P.removeBorder,
+    hunk: P.hunkBorder,
     normal: "transparent",
+  };
+  const diffLineColor: Record<string, string> = {
+    add: P.addText,
+    remove: P.removeText,
+    hunk: P.hunkText,
+    normal: "rgba(255,255,255,0.8)",
   };
 
   return (
+    /* ---- Overlay ---- */
     <div
-      onClick={onClose}
+      onClick={startClose}
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
+        background: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
+        animation: closing ? "cv-overlay-out 160ms ease-in forwards" : "cv-overlay-in 200ms ease-out",
       }}
     >
+      {/* ---- Modal Panel ---- */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "85vw",
-          maxWidth: 900,
-          height: "85vh",
-          background: T.bg,
-          border: `1px solid ${T.border}`,
-          borderRadius: 12,
+          width: "88vw",
+          maxWidth: 940,
+          height: "86vh",
+          background: P.panelBg,
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          borderRadius: 16,
+          border: `1px solid ${P.ring}`,
+          boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+          animation: closing ? "cv-panel-out 160ms ease-in forwards" : "cv-panel-in 250ms cubic-bezier(0.16,1,0.3,1)",
         }}
       >
         {/* ---- Header ---- */}
         <div
           style={{
-            padding: "10px 16px",
+            padding: "0 20px",
+            height: 48,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: `1px solid ${T.border}`,
-            background: "rgba(20,20,20,0.6)",
+            borderBottom: `1px solid ${P.separator}`,
+            background: P.headerBg,
             flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-            {Ico.file(T.sec, 14)}
-            <span
-              style={{
-                fontSize: 12,
-                fontFamily: T.m,
-                color: T.text,
-                fontWeight: 600,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={path}
-            >
-              {filename}
-            </span>
+          {/* Left: file path + change badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+            {/* Change type pill (Protocol method badge style) */}
             <span
               style={{
                 fontSize: 10,
-                color: T.ter,
-                fontFamily: T.m,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 300,
-              }}
-              title={path}
-            >
-              {path !== filename ? path : ""}
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-            {/* Change type badge */}
-            <span
-              style={{
-                fontSize: 9,
                 fontWeight: 700,
                 fontFamily: T.m,
                 color: cs.color,
                 background: cs.bg,
-                padding: "2px 7px",
-                borderRadius: 4,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
+                padding: "3px 8px",
+                borderRadius: 6,
+                letterSpacing: "0.06em",
+                lineHeight: 1,
+                flexShrink: 0,
               }}
             >
               {cs.label}
             </span>
+
+            {/* Dot separator */}
+            <span style={{ color: P.ghost, fontSize: 11, flexShrink: 0 }}>·</span>
+
+            {/* File path in monospace (like Protocol endpoint path) */}
+            <span
+              style={{
+                fontSize: 12.5,
+                fontFamily: T.m,
+                color: P.muted,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+              title={path}
+            >
+              {path}
+            </span>
+          </div>
+
+          {/* Right: language badge + copy + close */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 12 }}>
             {/* Language badge */}
-            {change.language && (
+            {langLabel && (
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontFamily: T.m,
-                  color: T.sec,
-                  background: "rgba(255,255,255,0.06)",
-                  padding: "2px 7px",
-                  borderRadius: 4,
+                  color: P.dimmed,
+                  background: "rgba(255,255,255,0.05)",
+                  padding: "3px 8px",
+                  borderRadius: 6,
                   fontWeight: 500,
+                  letterSpacing: "0.03em",
+                  lineHeight: 1,
                 }}
               >
-                {change.language}
+                {langLabel}
               </span>
             )}
+
+            {/* Copy button (Protocol-style: icon + text, pill-shaped) */}
+            <button
+              onClick={handleCopy}
+              title="Copy to clipboard"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                background: copied ? P.emeraldDim : "rgba(255,255,255,0.025)",
+                border: `1px solid ${copied ? "rgba(16,185,129,0.25)" : P.ring}`,
+                borderRadius: 9999,
+                padding: "4px 12px 4px 8px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                color: copied ? P.emerald : P.muted,
+                fontSize: 12,
+                fontFamily: T.m,
+                fontWeight: 500,
+                lineHeight: 1,
+              }}
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+                if (!copied) {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  e.currentTarget.style.borderColor = P.ringHover;
+                  e.currentTarget.style.color = P.white;
+                }
+              }}
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                if (!copied) {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.025)";
+                  e.currentTarget.style.borderColor = P.ring;
+                  e.currentTarget.style.color = P.muted;
+                }
+              }}
+            >
+              {copied ? Ico.check(P.emerald, 13) : Ico.copy(P.muted, 13)}
+              <span>{copied ? "Copied!" : "Copy"}</span>
+            </button>
+
             {/* Close button */}
             <button
-              onClick={onClose}
+              onClick={startClose}
               title="Close (Esc)"
               style={{
-                background: "none",
-                border: `0.5px solid ${T.border}`,
-                borderRadius: 5,
+                background: "transparent",
+                border: "none",
+                borderRadius: 8,
                 cursor: "pointer",
-                width: 24,
-                height: 24,
+                width: 28,
+                height: 28,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 padding: 0,
-                marginLeft: 4,
-                transition: "all 0.12s",
+                transition: "all 0.12s ease",
+                color: P.dimmed,
               }}
-              onMouseEnter={(e: any) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-                e.currentTarget.style.borderColor = T.accent;
+                (e.currentTarget.firstChild as any)?.querySelector?.("path")?.setAttribute?.("stroke", P.white);
               }}
-              onMouseLeave={(e: any) => {
-                e.currentTarget.style.background = "none";
-                e.currentTarget.style.borderColor = T.border;
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.currentTarget.style.background = "transparent";
+                (e.currentTarget.firstChild as any)?.querySelector?.("path")?.setAttribute?.("stroke", P.dimmed);
               }}
             >
-              {Ico.close(T.sec, 12)}
+              {Ico.close(P.dimmed, 14)}
             </button>
           </div>
         </div>
 
-        {/* ---- Content ---- */}
-        <div style={{ flex: 1, overflow: "auto", position: "relative" }}>
+        {/* ---- Content Area ---- */}
+        <div
+          style={{
+            flex: 1,
+            overflow: "auto",
+            background: P.codeBg,
+          }}
+        >
           {isMarkdown ? (
             /* ---- Markdown Mode ---- */
-            <div style={{ padding: "16px 24px" }}>
-              <Md text={change.content} fontSize={13} color={T.sec} lineHeight={1.8} />
+            <div style={{ padding: "24px 32px" }}>
+              <Md text={change.content} fontSize={14} color={P.muted} lineHeight={1.8} />
             </div>
           ) : isDiff && diffLines ? (
             /* ---- Diff Mode ---- */
-            <div style={{ fontFamily: T.m, fontSize: 11.5, lineHeight: 1.7 }}>
+            <div
+              style={{
+                fontFamily: T.m,
+                fontSize: 13,
+                lineHeight: "24px",
+              }}
+            >
               {diffLines.map((dl, i) => (
                 <div
                   key={i}
                   style={{
                     display: "flex",
-                    background: diffBg[dl.type],
-                    borderLeft: `2px solid ${diffBorder[dl.type]}`,
-                    minHeight: 20,
+                    background: diffLineBg[dl.type],
+                    borderLeft: `2px solid ${diffLineBorder[dl.type]}`,
+                    minHeight: 24,
                   }}
                 >
                   {/* Line number gutter */}
                   <div
                     style={{
-                      width: 50,
+                      width: 56,
                       textAlign: "right",
-                      padding: "0 8px",
-                      color: dl.type === "hunk" ? T.purple : T.ter,
-                      fontSize: 10,
+                      paddingRight: 12,
+                      color: dl.type === "hunk" ? P.hunkText : P.ghost,
+                      fontSize: 11,
                       userSelect: "none",
                       flexShrink: 0,
                       fontFamily: T.m,
-                      opacity: dl.lineNum != null ? 1 : 0.4,
+                      lineHeight: "24px",
+                      opacity: dl.lineNum != null ? 1 : 0.5,
                     }}
                   >
                     {dl.lineNum ?? ""}
                   </div>
+
                   {/* Diff marker */}
                   <div
                     style={{
-                      width: 16,
+                      width: 20,
                       textAlign: "center",
-                      color:
-                        dl.type === "add"
-                          ? T.green
-                          : dl.type === "remove"
-                          ? T.red
-                          : dl.type === "hunk"
-                          ? T.purple
-                          : "transparent",
+                      color: diffLineColor[dl.type],
                       fontWeight: 700,
                       userSelect: "none",
                       flexShrink: 0,
+                      lineHeight: "24px",
+                      fontSize: 12,
                     }}
                   >
-                    {dl.type === "add" ? "+" : dl.type === "remove" ? "-" : dl.type === "hunk" ? "@@" : ""}
+                    {dl.type === "add" ? "+" : dl.type === "remove" ? "\u2212" : dl.type === "hunk" ? "@@" : ""}
                   </div>
+
                   {/* Code content */}
                   <div
                     style={{
                       flex: 1,
-                      padding: "0 12px 0 4px",
+                      padding: "0 16px 0 8px",
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-all",
-                      color:
-                        dl.type === "add"
-                          ? T.green
-                          : dl.type === "remove"
-                          ? T.red
-                          : dl.type === "hunk"
-                          ? T.purple
-                          : T.text,
+                      color: diffLineColor[dl.type],
                       fontStyle: dl.type === "hunk" ? "italic" : "normal",
+                      lineHeight: "24px",
                     }}
                   >
                     {dl.text}
@@ -361,40 +495,52 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             </div>
           ) : (
             /* ---- Code Mode with line numbers ---- */
-            <div style={{ display: "flex", fontFamily: T.m, fontSize: 11.5, lineHeight: 1.7 }}>
+            <div
+              style={{
+                display: "flex",
+                fontFamily: T.m,
+                fontSize: 13,
+                lineHeight: "24px",
+              }}
+            >
               {/* Line numbers gutter */}
               <div
                 style={{
                   textAlign: "right",
-                  padding: "12px 8px 12px 12px",
-                  color: T.ter,
-                  fontSize: 10,
+                  padding: "16px 0",
+                  paddingRight: 16,
+                  paddingLeft: 16,
+                  color: P.ghost,
+                  fontSize: 12,
                   userSelect: "none",
-                  borderRight: `1px solid ${T.border}`,
+                  borderRight: `1px solid ${P.separator}`,
                   flexShrink: 0,
                   fontFamily: T.m,
-                  background: "rgba(255,255,255,0.015)",
+                  lineHeight: "24px",
+                  minWidth: 56,
+                  background: "rgba(255,255,255,0.01)",
                 }}
               >
                 {change.content.split("\n").map((_, i) => (
-                  <div key={i} style={{ lineHeight: 1.7 }}>
+                  <div key={i} style={{ lineHeight: "24px" }}>
                     {i + 1}
                   </div>
                 ))}
               </div>
+
               {/* Code content */}
               <pre
                 style={{
                   margin: 0,
-                  padding: "12px 16px",
+                  padding: "16px 20px",
                   flex: 1,
                   overflow: "auto",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-all",
-                  color: T.text,
+                  color: P.white,
                   fontFamily: T.m,
-                  fontSize: 11.5,
-                  lineHeight: 1.7,
+                  fontSize: 13,
+                  lineHeight: "24px",
                 }}
               >
                 <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
