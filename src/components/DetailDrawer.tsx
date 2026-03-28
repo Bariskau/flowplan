@@ -468,16 +468,13 @@ function DetailDrawer({
 
   return (
     <div style={{
-      width: 400,
+      width: "100%",
+      height: "100%",
       flexShrink: 0,
-      background: "rgba(24,24,27,0.85)",
-      backdropFilter: "blur(20px)",
-      WebkitBackdropFilter: "blur(20px)",
-      borderLeft: "1px solid rgba(255,255,255,0.06)",
+      background: "transparent",
       display: "flex",
       flexDirection: "column",
       fontFamily: T.f,
-      height: "100%",
       overflow: "hidden",
     }}>
       {/* ---- Header ---- */}
