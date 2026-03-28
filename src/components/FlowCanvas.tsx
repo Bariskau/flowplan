@@ -2,21 +2,17 @@ import React, { useMemo, useCallback, useRef, useState, useEffect } from "react"
 import {
   ReactFlow,
   Controls,
-  Background,
   useNodesState,
   useEdgesState,
   ReactFlowProvider,
   useReactFlow,
   Panel,
-  BackgroundVariant,
-  useOnViewportChange,
   type Node,
   type Edge,
 } from "@xyflow/react";
 import type { Card, FileChange } from "../types";
 import { T } from "../lib/theme";
 import CardNode from "./CardNode";
-import DotGrid from "./DotGrid";
 
 const CW = 272;
 const CH = 160;
@@ -128,17 +124,7 @@ function FlowCanvasInner({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasFitView = useRef(false);
 
-  const [zoom, setZoom] = useState(1);
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
-
-  useOnViewportChange({
-    onChange: useCallback((viewport: { zoom: number; x: number; y: number }) => {
-      setZoom(viewport.zoom);
-      setPanX(viewport.x);
-      setPanY(viewport.y);
-    }, []),
-  });
+  // Viewport tracking removed — DotGrid is now at App level
 
   const autoLayout = useMemo(() => computeLayout(cards), [cards]);
 
@@ -213,7 +199,7 @@ function FlowCanvasInner({
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <DotGrid zoom={zoom} panX={panX} panY={panY} />
+      {/* Background gradient is now rendered at App level */}
       <ReactFlow
         nodes={nodes}
         edges={edges}

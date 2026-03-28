@@ -12,6 +12,7 @@ import HistoryPanel from "./components/HistoryPanel";
 import CodeViewer from "./components/CodeViewer";
 import NewPlanModal from "./components/NewPlanModal";
 import NewCardModal from "./components/NewCardModal";
+import DotGrid from "./components/DotGrid";
 
 export default function App() {
   const [st, setSt] = useState<AppState>({ plans: [], feedbacks: [], positions: {} });
@@ -179,8 +180,10 @@ export default function App() {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: T.bg, fontFamily: T.f, color: T.text, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100vh", background: T.bg, fontFamily: T.f, color: T.text, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+      {/* Full-screen gradient background — sits behind everything including sidebar/drawers */}
+      <DotGrid />
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", zIndex: 1 }}>
         {/* Sidebar */}
         <Sidebar
           plans={st.plans}
