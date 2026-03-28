@@ -100,7 +100,7 @@ export default function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) 
         ref={glowRef}
         className="absolute inset-0 z-[2]"
         style={{
-          background: "radial-gradient(200px circle at var(--mx, -500px) var(--my, -500px), rgba(255,255,255,0.06) 0%, transparent 100%)",
+          background: "radial-gradient(90px circle at var(--mx, -500px) var(--my, -500px), rgba(255,255,255,0.03) 0%, transparent 100%)",
           mixBlendMode: "screen",
         }}
       />
@@ -120,7 +120,7 @@ export default function DotGrid({ zoom = 1, panX = 0, panY = 0 }: DotGridProps) 
             <stop offset="100%" stopColor="black" />
           </radialGradient>
           <mask id="fp-glow-mask">
-            <circle ref={maskRef} cx="-500" cy="-500" r="180" fill="url(#fp-glow-grad)" />
+            <circle ref={maskRef} cx="-500" cy="-500" r="90" fill="url(#fp-glow-grad)" />
           </mask>
         </defs>
         <rect width="100%" height="100%" fill="url(#fp-dots-bright)" mask="url(#fp-glow-mask)" />
