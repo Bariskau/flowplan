@@ -16,7 +16,7 @@ interface ToolbarProps {
 
 /* ---- Inline SVG Icons ---- */
 const Ico = {
-  flow: (c: string, s = 12) => (
+  flow: (c: string, s = 14) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <rect x="1" y="1" width="5" height="5" rx="1" stroke={c} strokeWidth="1.3" />
       <rect x="10" y="1" width="5" height="5" rx="1" stroke={c} strokeWidth="1.3" />
@@ -24,7 +24,7 @@ const Ico = {
       <path d="M3.5 6v2.5a1 1 0 001 1h3M12.5 6v2.5a1 1 0 01-1 1h-3" stroke={c} strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   ),
-  list: (c: string, s = 12) => (
+  list: (c: string, s = 14) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <path d="M4 4h9M4 8h9M4 12h9" stroke={c} strokeWidth="1.3" strokeLinecap="round" />
       <circle cx="1.5" cy="4" r="0.8" fill={c} />
@@ -32,35 +32,51 @@ const Ico = {
       <circle cx="1.5" cy="12" r="0.8" fill={c} />
     </svg>
   ),
-  history: (c: string, s = 12) => (
+  history: (c: string, s = 14) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <path d="M2 8a6 6 0 1112 0A6 6 0 012 8z" stroke={c} strokeWidth="1.3" />
       <path d="M8 5v3.5l2.5 1.5" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
-  export: (c: string, s = 12) => (
+  export: (c: string, s = 14) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <path d="M8 2v8M4.5 7L8 10.5 11.5 7" stroke={c} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M3 12h10" stroke={c} strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   ),
-  copy: (c: string, s = 11) => (
+  copy: (c: string, s = 12) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <rect x="5" y="5" width="8" height="8" rx="1.5" stroke={c} strokeWidth="1.3" />
       <path d="M3 11V3.5A1.5 1.5 0 014.5 2H11" stroke={c} strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   ),
-  check: (c: string, s = 11) => (
+  check: (c: string, s = 12) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <path d="M3 8.5L6.5 12 13 4" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
-  chevron: (c: string, s = 8) => (
+  chevron: (c: string, s = 10) => (
     <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
       <path d="M5 6l3 3 3-3" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  svg: (c: string, s = 12) => (
+    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <rect x="1" y="3" width="14" height="10" rx="2" stroke={c} strokeWidth="1.2" />
+      <path d="M4.5 9.5L6 7.5 8 10l2.5-4L13 9.5" stroke={c} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  json: (c: string, s = 12) => (
+    <svg width={s} height={s} viewBox="0 0 16 16" fill="none">
+      <path d="M5 2C3.5 2 3 3 3 4v2c0 1-1 1.5-1.5 2 .5.5 1.5 1 1.5 2v2c0 1 .5 2 2 2" stroke={c} strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M11 2c1.5 0 2 1 2 2v2c0 1 1 1.5 1.5 2-.5.5-1.5 1-1.5 2v2c0 1-.5 2-2 2" stroke={c} strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  ),
 };
+
+/* Protocol emerald color */
+const emerald = "#10b981";
+const emeraldDim = "rgba(16,185,129,0.12)";
 
 /* ---- CopyRef inline ---- */
 function CopyRef({ planId }: { planId: string }) {
@@ -78,32 +94,40 @@ function CopyRef({ planId }: { planId: string }) {
       onClick={handleCopy}
       title="Copy plan reference"
       style={{
-        background: copied ? T.gD : "rgba(255,255,255,0.04)",
-        border: `0.5px solid ${copied ? T.green : "rgba(255,255,255,0.08)"}`,
-        borderRadius: 4,
+        background: copied ? emeraldDim : "transparent",
+        border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
+        borderRadius: 6,
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
-        gap: 4,
-        padding: "2px 6px",
-        height: 20,
-        transition: "all 0.15s",
+        gap: 5,
+        padding: "3px 8px",
+        height: 26,
+        transition: "all 0.2s ease",
       }}
       onMouseEnter={(e: any) => {
         if (!copied) {
-          e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-          e.currentTarget.style.borderColor = T.border;
+          e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
         }
       }}
       onMouseLeave={(e: any) => {
         if (!copied) {
-          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
         }
       }}
     >
-      {copied ? Ico.check(T.green, 9) : Ico.copy(T.ter, 9)}
-      <span style={{ fontSize: 9, color: copied ? T.green : T.ter, fontFamily: T.m, fontWeight: 500 }}>
+      {copied ? Ico.check(emerald, 10) : Ico.copy("rgba(255,255,255,0.4)", 10)}
+      <span
+        style={{
+          fontSize: 11,
+          color: copied ? emerald : "rgba(255,255,255,0.4)",
+          fontFamily: T.m,
+          fontWeight: 500,
+          letterSpacing: "0.01em",
+        }}
+      >
         {copied ? "Copied" : "Ref"}
       </span>
     </button>
@@ -132,95 +156,96 @@ function Toolbar({
     return () => window.removeEventListener("click", handler);
   }, [exportOpen]);
 
-  const btnBase: React.CSSProperties = {
-    background: "none",
-    border: `0.5px solid ${T.border}`,
-    borderRadius: 5,
+  /* Icon button base style */
+  const iconBtn = (active: boolean): React.CSSProperties => ({
+    background: active ? emeraldDim : "transparent",
+    border: `1px solid ${active ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.1)"}`,
+    borderRadius: 6,
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: 0,
-    height: 22,
-    transition: "all 0.12s",
-  };
+    height: 28,
+    width: 28,
+    transition: "all 0.2s ease",
+  });
 
   return (
     <div
       style={{
-        height: 32,
-        background: "rgba(20,20,20,0.75)",
+        height: 44,
+        background: "rgba(24,24,27,0.8)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.06)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 12px",
+        padding: "0 16px",
         flexShrink: 0,
         zIndex: 10,
       }}
     >
       {/* ---- Left: Title, count, CopyRef ---- */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
         <span
           style={{
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: T.text,
+            fontSize: 15,
+            fontWeight: 600,
+            color: "#f4f4f5",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            maxWidth: 200,
+            maxWidth: 240,
             lineHeight: 1,
+            letterSpacing: "-0.01em",
           }}
         >
           {planTitle}
         </span>
+
         <span
           style={{
-            fontSize: 9,
-            color: T.ter,
+            fontSize: 11,
+            color: "rgba(255,255,255,0.4)",
             fontFamily: T.m,
             fontWeight: 500,
-            background: "rgba(255,255,255,0.04)",
-            padding: "2px 6px",
-            borderRadius: 4,
+            background: "rgba(255,255,255,0.06)",
+            padding: "3px 8px",
+            borderRadius: 6,
             lineHeight: 1,
             flexShrink: 0,
+            letterSpacing: "0.02em",
           }}
         >
           {plan.steps.length} card{plan.steps.length !== 1 ? "s" : ""}
         </span>
+
         <CopyRef planId={planId} />
       </div>
 
       {/* ---- Right: History, Export, View Toggle ---- */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {/* History */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* History toggle */}
         <button
           onClick={onToggleHistory}
           title="History"
-          style={{
-            ...btnBase,
-            width: 22,
-            background: historyOpen ? T.aD : "none",
-            borderColor: historyOpen ? T.accent : T.border,
-          }}
+          style={iconBtn(historyOpen)}
           onMouseEnter={(e: any) => {
             if (!historyOpen) {
-              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-              e.currentTarget.style.borderColor = T.accent;
+              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
             }
           }}
           onMouseLeave={(e: any) => {
             if (!historyOpen) {
-              e.currentTarget.style.background = "none";
-              e.currentTarget.style.borderColor = T.border;
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
             }
           }}
         >
-          {Ico.history(historyOpen ? T.accent : T.sec, 12)}
+          {Ico.history(historyOpen ? emerald : "rgba(255,255,255,0.5)", 14)}
         </button>
 
         {/* Export dropdown */}
@@ -232,45 +257,47 @@ function Toolbar({
             }}
             title="Export"
             style={{
-              ...btnBase,
-              gap: 3,
-              padding: "0 6px",
-              background: exportOpen ? "rgba(255,255,255,0.08)" : "none",
-              borderColor: exportOpen ? T.accent : T.border,
+              ...iconBtn(exportOpen),
+              width: "auto",
+              gap: 4,
+              padding: "0 10px",
             }}
             onMouseEnter={(e: any) => {
               if (!exportOpen) {
-                e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-                e.currentTarget.style.borderColor = T.accent;
+                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
               }
             }}
             onMouseLeave={(e: any) => {
               if (!exportOpen) {
-                e.currentTarget.style.background = "none";
-                e.currentTarget.style.borderColor = T.border;
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
               }
             }}
           >
-            {Ico.export(exportOpen ? T.accent : T.sec, 11)}
-            {Ico.chevron(exportOpen ? T.accent : T.ter, 8)}
+            {Ico.export(exportOpen ? emerald : "rgba(255,255,255,0.5)", 13)}
+            {Ico.chevron(exportOpen ? emerald : "rgba(255,255,255,0.35)", 10)}
           </button>
+
           {exportOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
                 position: "absolute",
                 right: 0,
-                top: "100%",
-                marginTop: 4,
-                background: T.raised,
-                border: `1px solid ${T.border}`,
-                borderRadius: 8,
+                top: "calc(100% + 6px)",
+                background: "rgba(24,24,27,0.95)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 10,
                 padding: 4,
                 zIndex: 100,
-                minWidth: 130,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+                minWidth: 160,
+                boxShadow: "0 8px 30px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.1)",
               }}
             >
+              {/* SVG Export */}
               <button
                 onClick={() => {
                   onExportSvg();
@@ -281,15 +308,15 @@ function Toolbar({
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  padding: "6px 10px",
-                  borderRadius: 5,
+                  padding: "8px 12px",
+                  borderRadius: 7,
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  fontSize: 11,
-                  color: T.text,
+                  gap: 10,
+                  fontSize: 13,
+                  color: "#e4e4e7",
                   fontFamily: T.f,
-                  transition: "background 0.1s",
+                  transition: "background 0.15s",
                   whiteSpace: "nowrap",
                 }}
                 onMouseEnter={(e: any) => {
@@ -299,9 +326,28 @@ function Toolbar({
                   e.currentTarget.style.background = "none";
                 }}
               >
-                <span style={{ fontSize: 9, fontFamily: T.m, color: T.purple, fontWeight: 600 }}>SVG</span>
+                {Ico.svg(T.purple, 14)}
                 <span>Export SVG</span>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 10,
+                    fontFamily: T.m,
+                    fontWeight: 600,
+                    color: T.purple,
+                    background: T.pD,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  SVG
+                </span>
               </button>
+
+              {/* Separator */}
+              <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "2px 8px" }} />
+
+              {/* JSON Export */}
               <button
                 onClick={() => {
                   onExportJson();
@@ -312,15 +358,15 @@ function Toolbar({
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  padding: "6px 10px",
-                  borderRadius: 5,
+                  padding: "8px 12px",
+                  borderRadius: 7,
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  fontSize: 11,
-                  color: T.text,
+                  gap: 10,
+                  fontSize: 13,
+                  color: "#e4e4e7",
                   fontFamily: T.f,
-                  transition: "background 0.1s",
+                  transition: "background 0.15s",
                   whiteSpace: "nowrap",
                 }}
                 onMouseEnter={(e: any) => {
@@ -330,39 +376,58 @@ function Toolbar({
                   e.currentTarget.style.background = "none";
                 }}
               >
-                <span style={{ fontSize: 9, fontFamily: T.m, color: T.orange, fontWeight: 600 }}>JSON</span>
+                {Ico.json(T.orange, 14)}
                 <span>Export JSON</span>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 10,
+                    fontFamily: T.m,
+                    fontWeight: 600,
+                    color: T.orange,
+                    background: T.oD,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  JSON
+                </span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Flow / List toggle */}
+        {/* Divider */}
+        <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)", marginLeft: 2, marginRight: 2 }} />
+
+        {/* Flow / List segmented control */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             background: "rgba(255,255,255,0.04)",
-            borderRadius: 6,
-            border: `0.5px solid ${T.border}`,
-            height: 22,
-            overflow: "hidden",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.08)",
+            height: 30,
+            padding: 2,
+            gap: 2,
           }}
         >
           <button
             onClick={() => onViewModeChange("flow")}
             title="Flow view"
             style={{
-              background: viewMode === "flow" ? T.aD : "transparent",
+              background: viewMode === "flow" ? emerald : "transparent",
               border: "none",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 28,
+              gap: 5,
               height: "100%",
-              padding: 0,
-              transition: "background 0.12s",
+              padding: "0 10px",
+              borderRadius: 6,
+              transition: "all 0.2s ease",
             }}
             onMouseEnter={(e: any) => {
               if (viewMode !== "flow") e.currentTarget.style.background = "rgba(255,255,255,0.06)";
@@ -371,23 +436,34 @@ function Toolbar({
               if (viewMode !== "flow") e.currentTarget.style.background = "transparent";
             }}
           >
-            {Ico.flow(viewMode === "flow" ? T.accent : T.ter, 12)}
+            {Ico.flow(viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)", 12)}
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: viewMode === "flow" ? "#fff" : "rgba(255,255,255,0.45)",
+                fontFamily: T.f,
+                letterSpacing: "0.01em",
+              }}
+            >
+              Flow
+            </span>
           </button>
-          <div style={{ width: 0.5, height: 12, background: T.border }} />
           <button
             onClick={() => onViewModeChange("list")}
             title="List view"
             style={{
-              background: viewMode === "list" ? T.aD : "transparent",
+              background: viewMode === "list" ? emerald : "transparent",
               border: "none",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 28,
+              gap: 5,
               height: "100%",
-              padding: 0,
-              transition: "background 0.12s",
+              padding: "0 10px",
+              borderRadius: 6,
+              transition: "all 0.2s ease",
             }}
             onMouseEnter={(e: any) => {
               if (viewMode !== "list") e.currentTarget.style.background = "rgba(255,255,255,0.06)";
@@ -396,7 +472,18 @@ function Toolbar({
               if (viewMode !== "list") e.currentTarget.style.background = "transparent";
             }}
           >
-            {Ico.list(viewMode === "list" ? T.accent : T.ter, 12)}
+            {Ico.list(viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)", 12)}
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: viewMode === "list" ? "#fff" : "rgba(255,255,255,0.45)",
+                fontFamily: T.f,
+                letterSpacing: "0.01em",
+              }}
+            >
+              List
+            </span>
           </button>
         </div>
       </div>

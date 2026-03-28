@@ -4,8 +4,8 @@ import { T, TC } from "../lib/theme";
 import { Md } from "../lib/markdown";
 import type { Card, FileChange } from "../types";
 
-export const CW = 272;
-export const CH = 160;
+export const CW = 280;
+export const CH = 140;
 
 export interface CardNodeData {
   card: Card;
@@ -43,14 +43,15 @@ function CopyRef({ card, planTitle }: { card: Card; planTitle: string }) {
         cursor: "pointer",
         padding: "2px 4px",
         borderRadius: 4,
-        color: copied ? T.green : T.ter,
-        fontSize: 10,
+        color: copied ? T.accent : T.ter,
+        fontSize: 11,
         fontFamily: T.m,
         lineHeight: 1,
-        transition: "color 0.2s",
+        opacity: copied ? 1 : 0.6,
+        transition: "color 0.2s, opacity 0.15s",
       }}
     >
-      {copied ? "✓" : "⎘"}
+      {copied ? "\u2713" : "\u2398"}
     </button>
   );
 }
@@ -67,8 +68,8 @@ function ChangeDot({ changeType }: { changeType?: string }) {
     <span
       style={{
         display: "inline-block",
-        width: 5,
-        height: 5,
+        width: 4,
+        height: 4,
         borderRadius: "50%",
         background: color,
         marginRight: 3,
@@ -95,17 +96,17 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
     ? tc.c
     : highlightColor
       ? highlightColor
-      : T.borderGlass;
+      : "rgba(255,255,255,0.06)";
 
   const boxShadow = selected
-    ? `0 0 0 1px ${tc.c}40`
+    ? `0 0 0 1px ${tc.c}33, 0 0 20px ${tc.c}15`
     : highlightColor
-      ? `0 0 12px ${highlightColor}40`
-      : "none";
+      ? `0 0 12px ${highlightColor}25`
+      : "0 1px 2px rgba(0,0,0,0.15)";
 
   const descTruncated =
     card.description && card.description.length > 300
-      ? card.description.slice(0, 300) + "…"
+      ? card.description.slice(0, 300) + "\u2026"
       : card.description || "";
 
   const visibleFiles = card.files.slice(0, 3);
@@ -114,53 +115,63 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
   return (
     <div
       style={{
-        background: "rgba(30,30,30,0.6)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        border: `1.5px solid ${borderColor}`,
-        borderRadius: 8,
+        background: "rgba(255,255,255,0.03)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        border: `1px solid ${borderColor}`,
+        borderRadius: 10,
         width: CW,
         minHeight: CH,
         boxShadow,
-        padding: "10px 12px",
+        padding: "12px 14px",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 8,
         fontFamily: T.f,
         transition: "border-color 0.2s, box-shadow 0.2s",
         cursor: "grab",
+        position: "relative",
       }}
     >
-      {/* ---- Top row: badge + feedback + copy ---- */}
+      {/* ---- Top row: type pill + feedback + copy ---- */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {/* Type badge */}
+        {/* Protocol-style type pill (like GET/POST badges) */}
         <span
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 600,
+            fontFamily: T.m,
             color: tc.c,
             background: tc.bg,
-            padding: "2px 7px",
-            borderRadius: 4,
+            padding: "3px 8px",
+            borderRadius: 6,
             textTransform: "uppercase",
-            letterSpacing: "0.04em",
+            letterSpacing: "0.05em",
             lineHeight: 1,
+            border: `1px solid ${tc.c}20`,
           }}
         >
           {tc.l}
         </span>
 
-        {/* Feedback indicator */}
+        {/* Feedback count badge */}
         {feedbackCount > 0 && (
           <span
             style={{
-              fontSize: 9,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 600,
+              fontFamily: T.m,
               color: T.orange,
               background: T.oD,
-              padding: "2px 6px",
-              borderRadius: 4,
+              minWidth: 18,
+              height: 18,
+              padding: "0 5px",
+              borderRadius: 9,
               lineHeight: 1,
-              fontWeight: 600,
+              border: `1px solid rgba(251,146,60,0.15)`,
             }}
             title={feedbackTypes.join(", ")}
           >
@@ -176,7 +187,7 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
       {/* ---- Title ---- */}
       <div
         style={{
-          fontSize: 12.5,
+          fontSize: 14,
           fontWeight: 600,
           color: T.text,
           lineHeight: 1.35,
@@ -185,6 +196,7 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
           display: "-webkit-box",
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical",
+          letterSpacing: "-0.01em",
         }}
       >
         {card.title}
@@ -194,9 +206,9 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
       {descTruncated && (
         <div
           style={{
-            fontSize: 10.5,
-            color: T.sec,
-            lineHeight: 1.45,
+            fontSize: 13,
+            color: "#a1a1aa",
+            lineHeight: 1.5,
             overflow: "hidden",
             textOverflow: "ellipsis",
             display: "-webkit-box",
@@ -204,7 +216,7 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
             WebkitBoxOrient: "vertical",
           }}
         >
-          <Md text={descTruncated} fontSize={10.5} color={T.sec} compact />
+          <Md text={descTruncated} fontSize={13} color="#a1a1aa" compact />
         </div>
       )}
 
@@ -212,16 +224,30 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
       {card.repo && (
         <div
           style={{
-            fontSize: 9,
+            fontSize: 11,
             fontFamily: T.m,
             color: T.ter,
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            gap: 5,
             marginTop: "auto",
           }}
         >
-          <span style={{ fontSize: 10 }}>📁</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 16 16"
+            fill="none"
+            style={{ flexShrink: 0, opacity: 0.5 }}
+          >
+            <path
+              d="M1.5 3.5c0-.56.44-1 1-1h4.59c.26 0 .52.1.71.29l.7.71h5c.56 0 1 .44 1 1v8c0 .56-.44 1-1 1h-11c-.56 0-1-.44-1-1v-9z"
+              stroke="#71717a"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           <span
             style={{
               overflow: "hidden",
@@ -234,9 +260,9 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
         </div>
       )}
 
-      {/* ---- Files ---- */}
+      {/* ---- File chips (Protocol-style monospace badges like id, username) ---- */}
       {visibleFiles.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 2 }}>
           {visibleFiles.map((f) => {
             const change = card.fileChanges?.[f];
             const fileName = f.split("/").pop() || f;
@@ -251,20 +277,22 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 2,
-                  fontSize: 9,
+                  gap: 3,
+                  fontSize: 11,
                   fontFamily: T.m,
-                  color: T.sec,
+                  fontWeight: 500,
+                  color: "#a1a1aa",
                   background: "rgba(255,255,255,0.04)",
-                  border: `1px solid ${T.borderGlass}`,
-                  borderRadius: 4,
-                  padding: "2px 6px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 6,
+                  padding: "3px 8px",
                   cursor: change ? "pointer" : "default",
                   lineHeight: 1,
-                  maxWidth: 120,
+                  maxWidth: 130,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  transition: "border-color 0.15s, background 0.15s",
                 }}
               >
                 <ChangeDot changeType={change?.changeType} />
@@ -275,9 +303,10 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
           {extraCount > 0 && (
             <span
               style={{
-                fontSize: 9,
+                fontSize: 10,
+                fontFamily: T.m,
                 color: T.ter,
-                padding: "2px 4px",
+                padding: "3px 6px",
                 lineHeight: 1,
                 alignSelf: "center",
               }}
@@ -295,9 +324,10 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
         style={{
           width: 6,
           height: 6,
-          background: `${T.accent}cc`,
-          border: "none",
+          background: "rgba(255,255,255,0.15)",
+          border: "1px solid rgba(255,255,255,0.10)",
           borderRadius: "50%",
+          transition: "background 0.15s, border-color 0.15s",
         }}
       />
       <Handle
@@ -306,9 +336,10 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
         style={{
           width: 6,
           height: 6,
-          background: `${T.accent}cc`,
-          border: "none",
+          background: "rgba(255,255,255,0.15)",
+          border: "1px solid rgba(255,255,255,0.10)",
           borderRadius: "50%",
+          transition: "background 0.15s, border-color 0.15s",
         }}
       />
     </div>

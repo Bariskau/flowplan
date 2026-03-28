@@ -98,9 +98,9 @@ function cardsToEdges(cards: Card[]): Edge[] {
         target: card.id,
         animated: false,
         style: {
-          stroke: "#333",
+          stroke: "#3f3f46",
           strokeDasharray: "4 3",
-          strokeWidth: 1.5,
+          strokeWidth: 1,
         },
       });
     }
@@ -231,25 +231,30 @@ function FlowCanvasInner({
         <Controls
           showInteractive={false}
           style={{
-            background: T.surfaceSolid,
-            border: `1px solid ${T.border}`,
-            borderRadius: 6,
+            background: "rgba(24,24,27,0.80)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 8,
+            backdropFilter: "blur(12px)",
           }}
         />
         <Panel position="bottom-left">
           <button
             onClick={onAddCard}
             style={{
-              background: T.accent,
+              background: "#10b981",
               color: "#fff",
               border: "none",
-              borderRadius: 6,
-              padding: "6px 14px",
-              fontSize: 12,
-              fontWeight: 600,
+              borderRadius: 8,
+              padding: "7px 16px",
+              fontSize: 13,
+              fontWeight: 500,
               fontFamily: T.f,
               cursor: "pointer",
+              letterSpacing: "-0.01em",
+              transition: "background 0.15s",
             }}
+            onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.background = "#059669"; }}
+            onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.background = "#10b981"; }}
           >
             Add Card
           </button>
