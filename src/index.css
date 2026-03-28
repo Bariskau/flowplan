@@ -4,7 +4,7 @@
 /* ── FlowPlan Design System ── */
 @theme {
   /* Background */
-  --color-fp-bg: #09090b;
+  --color-fp-bg: #191A1F;
   --color-fp-surface: rgba(255, 255, 255, 0.03);
   --color-fp-raised: #27272a;
   --color-fp-solid: #18181b;
@@ -46,7 +46,8 @@
 
   /* Spacing */
   --spacing-fp-sidebar: 220px;
-  --spacing-fp-drawer: 340px;
+  --spacing-fp-drawer: 300px;
+  --spacing-fp-history: 340px;
   --spacing-fp-toolbar: 44px;
 
   /* Radius */
@@ -63,7 +64,7 @@
 
 /* ── Base ── */
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
-html, body, #root { width: 100%; height: 100%; overflow: hidden; background: var(--color-fp-bg); color: var(--color-fp-text); }
+html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #191A1F; color: var(--color-fp-text); }
 textarea, input, select, [data-selectable], [data-selectable] * { -webkit-user-select: text; user-select: text; }
 
 /* ── Scrollbar ── */
