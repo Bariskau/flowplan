@@ -198,7 +198,7 @@ function FlowCanvasInner({
   }, [onSelectCard]);
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div className="w-full h-full relative">
       {/* Background gradient is now rendered at App level */}
       <ReactFlow
         nodes={nodes}
@@ -226,22 +226,7 @@ function FlowCanvasInner({
         <Panel position="top-left">
           <button
             onClick={onAddCard}
-            style={{
-              background: "rgba(16,185,129,0.15)",
-              color: "#34d399",
-              border: "1px solid rgba(16,185,129,0.25)",
-              borderRadius: 10,
-              padding: "7px 16px",
-              fontSize: 13,
-              fontWeight: 500,
-              fontFamily: T.f,
-              cursor: "pointer",
-              letterSpacing: "-0.01em",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              boxShadow: "0 0 20px rgba(16,185,129,0.10), inset 0 1px 0 rgba(255,255,255,0.05)",
-              transition: "all 0.2s",
-            }}
+            className="bg-[rgba(16,185,129,0.15)] text-[#34d399] border border-[rgba(16,185,129,0.25)] rounded-[10px] py-[7px] px-4 text-[13px] font-medium font-sans cursor-pointer tracking-[-0.01em] backdrop-blur-[12px] shadow-[0_0_20px_rgba(16,185,129,0.10),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200"
             onMouseEnter={(e) => {
               const el = e.currentTarget;
               el.style.background = "rgba(16,185,129,0.25)";

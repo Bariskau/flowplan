@@ -180,11 +180,56 @@ export default function App() {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: T.bg, fontFamily: T.f, color: T.text, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-      {/* Full-screen gradient background — sits behind everything including sidebar/drawers */}
+    <div style={{ width: "100%", height: "100vh", background: T.bg, fontFamily: T.f, color: T.text, overflow: "hidden", position: "relative" }}>
+
+      {/* Layer 0: Full-screen gradient + dot grid background */}
       <DotGrid />
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", zIndex: 1 }}>
-        {/* Sidebar */}
+
+      {/* Layer 1: Full-window canvas (FlowCanvas or list view or empty state) */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
+        {!plan ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 12 }}>
+            <div style={{ fontSize: 13, color: T.ter, textAlign: "center" }}>{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
+          </div>
+        ) : vm === "flow" ? (
+          <FlowCanvas
+            cards={steps}
+            selectedId={sId}
+            onSelectCard={selectCard}
+            feedbackCounts={fcm}
+            feedbackTypes={ftm}
+            planTitle={plan.title}
+            planId={plan.id}
+            onFileClick={onFileClick}
+            highlightMap={hlMap}
+            savedPositions={savedPositions}
+            onPositionsChange={onPositionsChange}
+            onAddCard={() => setNewCardModal(true)}
+          />
+        ) : (
+          <div style={{ padding: "60px 16px 16px 240px", overflow: "auto", height: "100%" }}>
+            <div style={{ maxWidth: 440, margin: "0 auto" }}>
+              {sortedSteps.map(s => (
+                <div key={s.id} onClick={() => selectCard(s.id)}
+                  style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(16px)", border: `1px solid ${sId === s.id ? T.accent : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: T.sec, lineHeight: 1.5, maxHeight: 40, overflow: "hidden" }}>{s.description.slice(0, 150)}</div>
+                  <div style={{ fontSize: 10, color: T.ter, fontFamily: T.m }}>{s.repo}</div>
+                </div>
+              ))}
+              {steps.length === 0 && (
+                <div style={{ textAlign: "center", padding: 40, color: T.ter, fontSize: 12 }}>
+                  <div>No cards yet</div>
+                  <button onClick={() => setNewCardModal(true)} style={{ marginTop: 12, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 500, color: "#34d399", cursor: "pointer", backdropFilter: "blur(12px)" }}>Add Card</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Layer 2: Sidebar overlay (left, glassy) */}
+      <div style={{ position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 10 }}>
         <Sidebar
           plans={st.plans}
           activeId={aId}
@@ -203,69 +248,28 @@ export default function App() {
           connected={conn}
           feedbackPerPlan={fbp}
         />
+      </div>
 
-        {/* Main */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {plan && (
-            <Toolbar
-              plan={plan}
-              viewMode={vm}
-              onViewModeChange={setVm}
-              onToggleHistory={() => { setHistOpen(h => !h); setSId(null); setHistIdx(null); setOldCard(null); }}
-              historyOpen={histOpen}
-              onExportSvg={exportSvg}
-              onExportJson={exportJson}
-              planTitle={plan.title}
-              planId={plan.id}
-            />
-          )}
-
-          <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-            {!plan ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 12 }}>
-                <div style={{ fontSize: 12, color: T.ter, textAlign: "center" }}>{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
-              </div>
-            ) : vm === "flow" ? (
-              <FlowCanvas
-                cards={steps}
-                selectedId={sId}
-                onSelectCard={selectCard}
-                feedbackCounts={fcm}
-                feedbackTypes={ftm}
-                planTitle={plan.title}
-                planId={plan.id}
-                onFileClick={onFileClick}
-                highlightMap={hlMap}
-                savedPositions={savedPositions}
-                onPositionsChange={onPositionsChange}
-                onAddCard={() => setNewCardModal(true)}
-              />
-            ) : (
-              <div style={{ padding: 16, overflow: "auto", height: "100%" }}>
-                <div style={{ maxWidth: 440, margin: "0 auto" }}>
-                  {sortedSteps.map(s => (
-                    <div key={s.id} onClick={() => selectCard(s.id)}
-                      style={{ background: T.surface, backdropFilter: "blur(12px)", border: `1.5px solid ${sId === s.id ? T.accent : T.borderGlass}`, borderRadius: 8, padding: "11px 13px", cursor: "default", fontFamily: T.f, display: "flex", flexDirection: "column", gap: 5, marginBottom: 6 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{s.title}</div>
-                      <div style={{ fontSize: 10.5, color: T.sec, lineHeight: 1.5, maxHeight: 40, overflow: "hidden" }}>{s.description.slice(0, 150)}</div>
-                      <div style={{ fontSize: 9, color: T.ter, fontFamily: T.m }}>{s.repo}</div>
-                    </div>
-                  ))}
-                  {steps.length === 0 && (
-                    <div style={{ textAlign: "center", padding: 40, color: T.ter, fontSize: 12 }}>
-                      <div>No cards yet</div>
-                      <button onClick={() => setNewCardModal(true)} style={{ marginTop: 12, background: T.accent, border: "none", borderRadius: 6, padding: "6px 16px", fontSize: 11, fontWeight: 600, color: "#fff", cursor: "pointer" }}>Add Card</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+      {/* Layer 3: Toolbar overlay (top, glassy) */}
+      {plan && (
+        <div style={{ position: "fixed", top: 0, left: 220, right: 0, zIndex: 10 }}>
+          <Toolbar
+            plan={plan}
+            viewMode={vm}
+            onViewModeChange={setVm}
+            onToggleHistory={() => { setHistOpen(h => !h); setSId(null); setHistIdx(null); setOldCard(null); }}
+            historyOpen={histOpen}
+            onExportSvg={exportSvg}
+            onExportJson={exportJson}
+            planTitle={plan.title}
+            planId={plan.id}
+          />
         </div>
+      )}
 
         {/* Old card drawer (history) */}
         {histOpen && oldCard && (
-          <div style={{ position: "fixed", top: 0, right: 380, width: 380, height: "100vh", background: "rgba(24,24,27,0.65)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 51, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ position: "fixed", top: 0, right: 380, width: 380, height: "100vh", background: "rgba(255,255,255,0.03)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 51, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <DetailDrawer card={oldCard} feedbacks={st.feedbacks} onClose={() => setOldCard(null)}
               onAddFeedback={async () => {}} onDeleteFeedback={async () => {}}
               planTitle="Old Version" planId="" onFileClick={onFileClick}
@@ -275,7 +279,7 @@ export default function App() {
 
         {/* Right drawer */}
         {(histOpen || (!histOpen && sId && ss)) && (
-          <div style={{ position: "fixed", top: 0, right: 0, width: 380, height: "100vh", background: "rgba(24,24,27,0.65)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 50, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ position: "fixed", top: 0, right: 0, width: 380, height: "100vh", background: "rgba(255,255,255,0.03)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 50, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {histOpen ? (
               <HistoryPanel entries={history} selectedIdx={histIdx}
                 onSelect={(idx) => {
@@ -309,7 +313,6 @@ export default function App() {
             ) : null}
           </div>
         )}
-      </div>
 
       {cv && <CodeViewer path={cv.path} change={cv.change} onClose={() => setCv(null)} />}
 
