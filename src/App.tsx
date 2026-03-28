@@ -180,16 +180,16 @@ export default function App() {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: T.bg, fontFamily: T.f, color: T.text, overflow: "hidden", position: "relative" }}>
+    <div className="w-full h-screen bg-[#09090b] font-sans text-[#fafafa] overflow-hidden relative">
 
       {/* Layer 0: Full-screen gradient + dot grid background */}
       <DotGrid />
 
       {/* Layer 1: Full-window canvas (FlowCanvas or list view or empty state) */}
-      <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
+      <div className="absolute inset-0 z-[1]">
         {!plan ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 13, color: T.ter, textAlign: "center" }}>{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
+          <div className="flex items-center justify-center h-full flex-col gap-3">
+            <div className="text-[13px] text-[#71717a] text-center">{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
           </div>
         ) : vm === "flow" ? (
           <FlowCanvas
@@ -207,20 +207,21 @@ export default function App() {
             onAddCard={() => setNewCardModal(true)}
           />
         ) : (
-          <div style={{ padding: "60px 16px 16px 240px", overflow: "auto", height: "100%" }}>
-            <div style={{ maxWidth: 440, margin: "0 auto" }}>
+          <div className="pt-[60px] pr-4 pb-4 pl-[240px] overflow-auto h-full">
+            <div className="max-w-[440px] mx-auto">
               {sortedSteps.map(s => (
                 <div key={s.id} onClick={() => selectCard(s.id)}
-                  style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(16px)", border: `1px solid ${sId === s.id ? T.accent : "rgba(255,255,255,0.06)"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{s.title}</div>
-                  <div style={{ fontSize: 11, color: T.sec, lineHeight: 1.5, maxHeight: 40, overflow: "hidden" }}>{s.description.slice(0, 150)}</div>
-                  <div style={{ fontSize: 10, color: T.ter, fontFamily: T.m }}>{s.repo}</div>
+                  className="bg-[rgba(255,255,255,0.03)] backdrop-blur-[16px] rounded-[10px] py-3 px-[14px] cursor-pointer flex flex-col gap-[5px] mb-2"
+                  style={{ border: `1px solid ${sId === s.id ? T.accent : "rgba(255,255,255,0.06)"}` }}>
+                  <div className="text-[13px] font-semibold text-[#fafafa]">{s.title}</div>
+                  <div className="text-[11px] text-[#a1a1aa] leading-[1.5] max-h-[40px] overflow-hidden">{s.description.slice(0, 150)}</div>
+                  <div className="text-[10px] text-[#71717a] font-mono">{s.repo}</div>
                 </div>
               ))}
               {steps.length === 0 && (
-                <div style={{ textAlign: "center", padding: 40, color: T.ter, fontSize: 12 }}>
+                <div className="text-center p-10 text-[#71717a] text-xs">
                   <div>No cards yet</div>
-                  <button onClick={() => setNewCardModal(true)} style={{ marginTop: 12, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 500, color: "#34d399", cursor: "pointer", backdropFilter: "blur(12px)" }}>Add Card</button>
+                  <button onClick={() => setNewCardModal(true)} className="mt-3 bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.25)] rounded-lg py-[7px] px-4 text-xs font-medium text-[#34d399] cursor-pointer backdrop-blur-[12px]">Add Card</button>
                 </div>
               )}
             </div>
@@ -229,7 +230,7 @@ export default function App() {
       </div>
 
       {/* Layer 2: Sidebar overlay (left, glassy) */}
-      <div style={{ position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 10 }}>
+      <div className="fixed top-0 left-0 h-screen z-10">
         <Sidebar
           plans={st.plans}
           activeId={aId}
@@ -252,7 +253,7 @@ export default function App() {
 
       {/* Layer 3: Toolbar overlay (top, glassy) */}
       {plan && (
-        <div style={{ position: "fixed", top: 0, left: 220, right: 0, zIndex: 10 }}>
+        <div className="fixed top-0 left-[220px] right-0 z-10">
           <Toolbar
             plan={plan}
             viewMode={vm}
@@ -269,7 +270,7 @@ export default function App() {
 
         {/* Old card drawer (history) */}
         {histOpen && oldCard && (
-          <div style={{ position: "fixed", top: 0, right: 380, width: 380, height: "100vh", background: "rgba(255,255,255,0.03)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 51, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div className="fixed top-0 right-[380px] w-[380px] h-screen bg-[rgba(255,255,255,0.03)] backdrop-blur-[40px] border-l border-[rgba(255,255,255,0.06)] z-[51] flex flex-col overflow-hidden">
             <DetailDrawer card={oldCard} feedbacks={st.feedbacks} onClose={() => setOldCard(null)}
               onAddFeedback={async () => {}} onDeleteFeedback={async () => {}}
               planTitle="Old Version" planId="" onFileClick={onFileClick}
@@ -279,7 +280,7 @@ export default function App() {
 
         {/* Right drawer */}
         {(histOpen || (!histOpen && sId && ss)) && (
-          <div style={{ position: "fixed", top: 0, right: 0, width: 380, height: "100vh", background: "rgba(255,255,255,0.03)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderLeft: `1px solid ${T.borderGlass}`, zIndex: 50, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div className="fixed top-0 right-0 w-[380px] h-screen bg-[rgba(255,255,255,0.03)] backdrop-blur-[40px] border-l border-[rgba(255,255,255,0.06)] z-50 flex flex-col overflow-hidden">
             {histOpen ? (
               <HistoryPanel entries={history} selectedIdx={histIdx}
                 onSelect={(idx) => {
@@ -333,12 +334,20 @@ export default function App() {
       )}
 
       {toast && (
-        <div className="toast-enter" style={{ position: "fixed", bottom: 20, right: 20, background: T.surfaceSolid, border: `1px solid ${toast.error ? T.red : T.border}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, zIndex: 1100, boxShadow: "0 8px 24px rgba(0,0,0,0.3)", maxWidth: 320 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: toast.error ? T.red : T.text }}>{toast.text}</div>
-            {toast.file && <div style={{ fontSize: 10, color: T.sec, fontFamily: T.m }}>{toast.file}</div>}
+        <div
+          className="toast-enter fixed bottom-5 right-5 bg-[#18181b] rounded-[10px] py-[10px] px-[14px] flex items-center gap-[10px] z-[1100] shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[320px]"
+          style={{ border: `1px solid ${toast.error ? T.red : T.border}` }}
+        >
+          <div className="flex-1">
+            <div
+              className="text-[11px] font-semibold"
+              style={{ color: toast.error ? T.red : T.text }}
+            >
+              {toast.text}
+            </div>
+            {toast.file && <div className="text-[10px] text-[#a1a1aa] font-mono">{toast.file}</div>}
           </div>
-          <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: T.ter, cursor: "pointer", fontSize: 12, padding: "2px 4px" }}>{"\u2715"}</button>
+          <button onClick={() => setToast(null)} className="bg-none border-none text-[#71717a] cursor-pointer text-xs py-[2px] px-1">{"\u2715"}</button>
         </div>
       )}
     </div>

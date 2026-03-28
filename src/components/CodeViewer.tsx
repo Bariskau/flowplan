@@ -233,85 +233,37 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
     /* ---- Overlay ---- */
     <div
       onClick={startClose}
+      className="fixed inset-0 bg-[rgba(0,0,0,0.6)] backdrop-blur-[12px] flex items-center justify-center z-[1000]"
       style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
         animation: closing ? "cv-overlay-out 160ms ease-in forwards" : "cv-overlay-in 200ms ease-out",
       }}
     >
       {/* ---- Modal Panel ---- */}
       <div
         onClick={(e) => e.stopPropagation()}
+        className="w-[88vw] max-w-[940px] h-[86vh] bg-[rgba(24,24,27,0.92)] backdrop-blur-[24px] rounded-2xl border border-[rgba(255,255,255,0.08)] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_64px_rgba(0,0,0,0.5),0_8px_20px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden"
         style={{
-          width: "88vw",
-          maxWidth: 940,
-          height: "86vh",
-          background: P.panelBg,
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          borderRadius: 16,
-          border: `1px solid ${P.ring}`,
-          boxShadow: "0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
           animation: closing ? "cv-panel-out 160ms ease-in forwards" : "cv-panel-in 250ms cubic-bezier(0.16,1,0.3,1)",
         }}
       >
         {/* ---- Header ---- */}
-        <div
-          style={{
-            padding: "0 20px",
-            height: 48,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: `1px solid ${P.separator}`,
-            background: P.headerBg,
-            flexShrink: 0,
-          }}
-        >
+        <div className="px-5 h-12 flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] shrink-0">
           {/* Left: file path + change badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+          <div className="flex items-center gap-[10px] min-w-0 flex-1">
             {/* Change type pill (Protocol method badge style) */}
             <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                fontFamily: T.m,
-                color: cs.color,
-                background: cs.bg,
-                padding: "3px 8px",
-                borderRadius: 6,
-                letterSpacing: "0.06em",
-                lineHeight: 1,
-                flexShrink: 0,
-              }}
+              className="text-[10px] font-bold font-mono py-[3px] px-2 rounded-md tracking-[0.06em] leading-none shrink-0"
+              style={{ color: cs.color, background: cs.bg }}
             >
               {cs.label}
             </span>
 
             {/* Dot separator */}
-            <span style={{ color: P.ghost, fontSize: 11, flexShrink: 0 }}>·</span>
+            <span className="text-[#52525b] text-[11px] shrink-0">·</span>
 
             {/* File path in monospace (like Protocol endpoint path) */}
             <span
-              style={{
-                fontSize: 12.5,
-                fontFamily: T.m,
-                color: P.muted,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                minWidth: 0,
-              }}
+              className="text-[12.5px] font-mono text-[#a1a1aa] overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
               title={path}
             >
               {path}
@@ -319,22 +271,10 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
           </div>
 
           {/* Right: language badge + copy + close */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 12 }}>
+          <div className="flex items-center gap-2 shrink-0 ml-3">
             {/* Language badge */}
             {langLabel && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontFamily: T.m,
-                  color: P.dimmed,
-                  background: "rgba(255,255,255,0.05)",
-                  padding: "3px 8px",
-                  borderRadius: 6,
-                  fontWeight: 500,
-                  letterSpacing: "0.03em",
-                  lineHeight: 1,
-                }}
-              >
+              <span className="text-[10px] font-mono text-[#71717a] bg-[rgba(255,255,255,0.05)] py-[3px] px-2 rounded-md font-medium tracking-[0.03em] leading-none">
                 {langLabel}
               </span>
             )}
@@ -343,21 +283,11 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             <button
               onClick={handleCopy}
               title="Copy to clipboard"
+              className="flex items-center gap-[5px] rounded-full py-1 pl-2 pr-3 cursor-pointer transition-all duration-150 ease-in-out text-xs font-mono font-medium leading-none"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
                 background: copied ? P.emeraldDim : "rgba(255,255,255,0.025)",
                 border: `1px solid ${copied ? "rgba(16,185,129,0.25)" : P.ring}`,
-                borderRadius: 9999,
-                padding: "4px 12px 4px 8px",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
                 color: copied ? P.emerald : P.muted,
-                fontSize: 12,
-                fontFamily: T.m,
-                fontWeight: 500,
-                lineHeight: 1,
               }}
               onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                 if (!copied) {
@@ -382,20 +312,7 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             <button
               onClick={startClose}
               title="Close (Esc)"
-              style={{
-                background: "transparent",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                transition: "all 0.12s ease",
-                color: P.dimmed,
-              }}
+              className="bg-transparent border-none rounded-lg cursor-pointer w-7 h-7 flex items-center justify-center p-0 transition-all duration-[120ms] ease-in-out text-[#71717a]"
               onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                 e.currentTarget.style.background = "rgba(255,255,255,0.08)";
                 (e.currentTarget.firstChild as any)?.querySelector?.("path")?.setAttribute?.("stroke", P.white);
@@ -411,49 +328,29 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
         </div>
 
         {/* ---- Content Area ---- */}
-        <div
-          style={{
-            flex: 1,
-            overflow: "auto",
-            background: P.codeBg,
-          }}
-        >
+        <div className="flex-1 overflow-auto bg-[#111113]">
           {isMarkdown ? (
             /* ---- Markdown Mode ---- */
-            <div style={{ padding: "24px 32px" }}>
+            <div className="py-6 px-8">
               <Md text={change.content} fontSize={14} color={P.muted} lineHeight={1.8} />
             </div>
           ) : isDiff && diffLines ? (
             /* ---- Diff Mode ---- */
-            <div
-              style={{
-                fontFamily: T.m,
-                fontSize: 13,
-                lineHeight: "24px",
-              }}
-            >
+            <div className="font-mono text-[13px] leading-[24px]">
               {diffLines.map((dl, i) => (
                 <div
                   key={i}
+                  className="flex min-h-[24px]"
                   style={{
-                    display: "flex",
                     background: diffLineBg[dl.type],
                     borderLeft: `2px solid ${diffLineBorder[dl.type]}`,
-                    minHeight: 24,
                   }}
                 >
                   {/* Line number gutter */}
                   <div
+                    className="w-14 text-right pr-3 text-[11px] select-none shrink-0 font-mono leading-[24px]"
                     style={{
-                      width: 56,
-                      textAlign: "right",
-                      paddingRight: 12,
                       color: dl.type === "hunk" ? P.hunkText : P.ghost,
-                      fontSize: 11,
-                      userSelect: "none",
-                      flexShrink: 0,
-                      fontFamily: T.m,
-                      lineHeight: "24px",
                       opacity: dl.lineNum != null ? 1 : 0.5,
                     }}
                   >
@@ -462,30 +359,18 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
 
                   {/* Diff marker */}
                   <div
-                    style={{
-                      width: 20,
-                      textAlign: "center",
-                      color: diffLineColor[dl.type],
-                      fontWeight: 700,
-                      userSelect: "none",
-                      flexShrink: 0,
-                      lineHeight: "24px",
-                      fontSize: 12,
-                    }}
+                    className="w-5 text-center font-bold select-none shrink-0 leading-[24px] text-xs"
+                    style={{ color: diffLineColor[dl.type] }}
                   >
                     {dl.type === "add" ? "+" : dl.type === "remove" ? "\u2212" : dl.type === "hunk" ? "@@" : ""}
                   </div>
 
                   {/* Code content */}
                   <div
+                    className="flex-1 pr-4 pl-2 whitespace-pre-wrap break-all leading-[24px]"
                     style={{
-                      flex: 1,
-                      padding: "0 16px 0 8px",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-all",
                       color: diffLineColor[dl.type],
                       fontStyle: dl.type === "hunk" ? "italic" : "normal",
-                      lineHeight: "24px",
                     }}
                   >
                     {dl.text}
@@ -495,54 +380,18 @@ function CodeViewer({ path, change, onClose }: CodeViewerProps) {
             </div>
           ) : (
             /* ---- Code Mode with line numbers ---- */
-            <div
-              style={{
-                display: "flex",
-                fontFamily: T.m,
-                fontSize: 13,
-                lineHeight: "24px",
-              }}
-            >
+            <div className="flex font-mono text-[13px] leading-[24px]">
               {/* Line numbers gutter */}
-              <div
-                style={{
-                  textAlign: "right",
-                  padding: "16px 0",
-                  paddingRight: 16,
-                  paddingLeft: 16,
-                  color: P.ghost,
-                  fontSize: 12,
-                  userSelect: "none",
-                  borderRight: `1px solid ${P.separator}`,
-                  flexShrink: 0,
-                  fontFamily: T.m,
-                  lineHeight: "24px",
-                  minWidth: 56,
-                  background: "rgba(255,255,255,0.01)",
-                }}
-              >
+              <div className="text-right p-4 pr-4 pl-4 text-[#52525b] text-xs select-none border-r border-[rgba(255,255,255,0.06)] shrink-0 font-mono leading-[24px] min-w-[56px] bg-[rgba(255,255,255,0.01)]">
                 {change.content.split("\n").map((_, i) => (
-                  <div key={i} style={{ lineHeight: "24px" }}>
+                  <div key={i} className="leading-[24px]">
                     {i + 1}
                   </div>
                 ))}
               </div>
 
               {/* Code content */}
-              <pre
-                style={{
-                  margin: 0,
-                  padding: "16px 20px",
-                  flex: 1,
-                  overflow: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
-                  color: P.white,
-                  fontFamily: T.m,
-                  fontSize: 13,
-                  lineHeight: "24px",
-                }}
-              >
+              <pre className="m-0 py-4 px-5 flex-1 overflow-auto whitespace-pre-wrap break-all text-white font-mono text-[13px] leading-[24px]">
                 <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
               </pre>
             </div>

@@ -13,16 +13,15 @@ interface HistoryPanelProps {
 
 /* Protocol emerald */
 const emerald = "#10b981";
-const emeraldDim = "rgba(16,185,129,0.12)";
 
 /* ---- Action badge colors (Protocol-style method badges) ---- */
 const actionStyle: Record<string, { color: string; bg: string; label: string }> = {
-  add:     { color: emerald,  bg: emeraldDim,                 label: "ADD" },
+  add:     { color: emerald,  bg: "rgba(16,185,129,0.12)",                 label: "ADD" },
   remove:  { color: "#f43f5e", bg: "rgba(244,63,94,0.12)",    label: "REMOVE" },
   update:  { color: "#f59e0b", bg: "rgba(245,158,11,0.12)",   label: "UPDATE" },
   reorder: { color: "#a78bfa", bg: "rgba(167,139,250,0.12)",  label: "REORDER" },
   clear:   { color: "#f43f5e", bg: "rgba(244,63,94,0.12)",    label: "CLEAR" },
-  create:  { color: emerald,  bg: emeraldDim,                 label: "CREATE" },
+  create:  { color: emerald,  bg: "rgba(16,185,129,0.12)",                 label: "CREATE" },
 };
 
 function getActionBadge(action: string) {
@@ -80,76 +79,25 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
   }, [entries]);
 
   return (
-    <div
-      style={{
-        width: 280,
-        height: "100%",
-        background: "rgba(24,24,27,0.85)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderLeft: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        flexDirection: "column",
-        flexShrink: 0,
-        overflow: "hidden",
-      }}
-    >
+    <div className="w-[280px] h-full bg-[rgba(24,24,27,0.85)] backdrop-blur-[20px] border-l border-[rgba(255,255,255,0.06)] flex flex-col shrink-0 overflow-hidden">
       {/* ---- Header ---- */}
-      <div
-        style={{
-          padding: "14px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="px-4 py-[14px] flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] shrink-0">
+        <div className="flex items-center gap-2">
           {Ico.history("rgba(255,255,255,0.5)", 15)}
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#f4f4f5",
-              letterSpacing: "-0.01em",
-            }}
-          >
+          <span className="text-[14px] font-semibold text-[#f4f4f5] tracking-[-0.01em]">
             History
           </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontFamily: T.m,
-              color: "rgba(255,255,255,0.4)",
-              background: "rgba(255,255,255,0.06)",
-              padding: "2px 7px",
-              borderRadius: 6,
-              fontWeight: 500,
-            }}
-          >
+          <span className="text-[11px] font-mono text-[rgba(255,255,255,0.4)] bg-[rgba(255,255,255,0.06)] px-[7px] py-[2px] rounded-md font-medium">
             {entries.length}
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="flex items-center gap-[6px]">
           {entries.length > 0 && (
             <button
               onClick={onClear}
               title="Clear history"
-              style={{
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 6,
-                cursor: "pointer",
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                transition: "all 0.2s ease",
-              }}
+              className="bg-transparent border border-[rgba(255,255,255,0.1)] rounded-md cursor-pointer w-7 h-7 flex items-center justify-center p-0 transition-all duration-200 ease-in-out"
               onMouseEnter={(e: any) => {
                 e.currentTarget.style.background = "rgba(244,63,94,0.12)";
                 e.currentTarget.style.borderColor = "rgba(244,63,94,0.3)";
@@ -165,19 +113,7 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
           <button
             onClick={onClose}
             title="Close history"
-            style={{
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 6,
-              cursor: "pointer",
-              width: 28,
-              height: 28,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              transition: "all 0.2s ease",
-            }}
+            className="bg-transparent border border-[rgba(255,255,255,0.1)] rounded-md cursor-pointer w-7 h-7 flex items-center justify-center p-0 transition-all duration-200 ease-in-out"
             onMouseEnter={(e: any) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";
               e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
@@ -193,10 +129,10 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
       </div>
 
       {/* ---- Entries List ---- */}
-      <div style={{ flex: 1, overflow: "auto", padding: "8px 10px" }}>
+      <div className="flex-1 overflow-auto py-2 px-[10px]">
         {entries.length === 0 && (
-          <div style={{ padding: 32, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>
+          <div className="p-8 text-center">
+            <div className="text-xs text-[rgba(255,255,255,0.3)] leading-[1.6]">
               No history entries yet
             </div>
           </div>
@@ -211,15 +147,10 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
             <div
               key={entry.id}
               onClick={() => onSelect(selected ? null : idx)}
+              className="py-[10px] px-3 rounded-lg cursor-pointer mb-1 transition-all duration-200 ease-in-out relative"
               style={{
-                padding: "10px 12px",
-                borderRadius: 8,
-                cursor: "pointer",
-                marginBottom: 4,
                 background: selected ? "rgba(255,255,255,0.04)" : "transparent",
                 borderLeft: selected ? `2px solid ${emerald}` : "2px solid transparent",
-                transition: "all 0.2s ease",
-                position: "relative",
               }}
               onMouseEnter={(e: any) => {
                 if (!selected) e.currentTarget.style.background = "rgba(255,255,255,0.03)";
@@ -229,72 +160,43 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
               }}
             >
               {/* Top row: badge + timestamp */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div className="flex items-center justify-between mb-[6px]">
                 <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: T.m,
-                    color: badge.color,
-                    background: badge.bg,
-                    padding: "2px 7px",
-                    borderRadius: 5,
-                    letterSpacing: "0.05em",
-                    lineHeight: 1.4,
-                  }}
+                  className="text-[10px] font-bold font-mono py-[2px] px-[7px] rounded-[5px] tracking-[0.05em] leading-[1.4]"
+                  style={{ color: badge.color, background: badge.bg }}
                 >
                   {badge.label}
                 </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(255,255,255,0.3)",
-                    fontFamily: T.m,
-                    fontWeight: 400,
-                  }}
-                >
+                <span className="text-[10px] text-[rgba(255,255,255,0.3)] font-mono font-normal">
                   {formatTime(entry.timestamp)}
                 </span>
               </div>
 
               {/* Description */}
               <div
-                style={{
-                  fontSize: 12.5,
-                  color: selected ? "#e4e4e7" : "rgba(255,255,255,0.6)",
-                  lineHeight: 1.5,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  transition: "color 0.2s ease",
-                }}
+                className="text-[12.5px] leading-[1.5] overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-200 ease-in-out"
+                style={{ color: selected ? "#e4e4e7" : "rgba(255,255,255,0.6)" }}
               >
                 {entry.description}
               </div>
 
               {/* Card count + diff summary */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(255,255,255,0.3)",
-                    fontFamily: T.m,
-                  }}
-                >
+              <div className="flex items-center gap-2 mt-[6px]">
+                <span className="text-[10px] text-[rgba(255,255,255,0.3)] font-mono">
                   {entry.cards.length} card{entry.cards.length !== 1 ? "s" : ""}
                 </span>
                 {diff && diff.added.length > 0 && (
-                  <span style={{ fontSize: 10, color: emerald, fontFamily: T.m, fontWeight: 600 }}>
+                  <span className="text-[10px] text-[#10b981] font-mono font-semibold">
                     +{diff.added.length}
                   </span>
                 )}
                 {diff && diff.removed.length > 0 && (
-                  <span style={{ fontSize: 10, color: "#f43f5e", fontFamily: T.m, fontWeight: 600 }}>
+                  <span className="text-[10px] text-[#f43f5e] font-mono font-semibold">
                     -{diff.removed.length}
                   </span>
                 )}
                 {diff && diff.modified.length > 0 && (
-                  <span style={{ fontSize: 10, color: "#f59e0b", fontFamily: T.m, fontWeight: 600 }}>
+                  <span className="text-[10px] text-[#f59e0b] font-mono font-semibold">
                     ~{diff.modified.length}
                   </span>
                 )}
@@ -302,16 +204,7 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
 
               {/* Subtle separator between entries */}
               {idx !== reversed[reversed.length - 1]?.idx && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: -2,
-                    left: 12,
-                    right: 12,
-                    height: 1,
-                    background: "rgba(255,255,255,0.04)",
-                  }}
-                />
+                <div className="absolute -bottom-[2px] left-3 right-3 h-px bg-[rgba(255,255,255,0.04)]" />
               )}
             </div>
           );
@@ -319,25 +212,11 @@ function HistoryPanel({ entries, selectedIdx, onSelect, onClose, onClear }: Hist
       </div>
 
       {/* ---- Footer ---- */}
-      <div
-        style={{
-          padding: "10px 16px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.3)",
-            fontFamily: T.m,
-            textAlign: "center",
-            lineHeight: 1.5,
-          }}
-        >
+      <div className="py-[10px] px-4 border-t border-[rgba(255,255,255,0.06)] shrink-0">
+        <div className="text-[11px] text-[rgba(255,255,255,0.3)] font-mono text-center leading-[1.5]">
           {selectedIdx !== null ? (
             <span>
-              Viewing entry <span style={{ color: emerald, fontWeight: 600 }}>#{selectedIdx + 1}</span>
+              Viewing entry <span className="text-[#10b981] font-semibold">#{selectedIdx + 1}</span>
             </span>
           ) : (
             "Click entry to preview"

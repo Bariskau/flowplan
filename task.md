@@ -216,3 +216,10 @@ https://protocol.tailwindui.com/
 bu siteye git tasarımları bu siteden örnek alarak yapmalısın.  playwright ile açabilirsin.
 plan sayfası yandaki menü gibi olsun animasyonlu geçişi vs iyi. chipler ekrandakiler gibi olsun. kod gösterme vs kısmıda var gibi.
 suanki hali glassy ui değil her yer glassy olmalı. 
+
+
+
+drawer'lar card'lar hepsi glasy olmalı arkasındaki kısım blurlu gözükmeli. mordern ama abartılı değil.
+bg'deki dot kısmı biraz sorunlu zoom yapınca çok ayrık duruyor kötü oluyor. 
+referans sitedkine benzer bir gradient bg harika olur. 
+add card butonuda sol üstte ve glassy olmalı

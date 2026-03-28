@@ -10,31 +10,6 @@ interface NewPlanModalProps {
 /* Protocol emerald */
 const emerald = "#10b981";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "rgba(24,24,27,1)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 8,
-  padding: "10px 12px",
-  fontSize: 13,
-  color: "#f4f4f5",
-  fontFamily: T.f,
-  boxSizing: "border-box",
-  outline: "none",
-  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 500,
-  color: "rgba(255,255,255,0.4)",
-  fontFamily: T.m,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.05em",
-  marginBottom: 6,
-  display: "block",
-};
-
 export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) {
   const [icon, setIcon] = useState("\u{1F4CB}");
   const [title, setTitle] = useState("");
@@ -64,68 +39,33 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
 
   return (
     <div
-      className="cv-backdrop"
+      className="cv-backdrop fixed inset-0 bg-[rgba(0,0,0,0.5)] backdrop-blur-[8px] z-[1000] flex items-center justify-center font-sans"
       onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: T.f,
-      }}
     >
       <div
-        className="cv-modal"
+        className="cv-modal w-[420px] bg-[rgba(24,24,27,0.9)] backdrop-blur-[24px] border border-[rgba(255,255,255,0.08)] rounded-2xl p-7 shadow-[0_24px_80px_rgba(0,0,0,0.6),0_0_1px_rgba(255,255,255,0.1)]"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 420,
-          background: "rgba(24,24,27,0.9)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 16,
-          padding: 28,
-          boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.1)",
-        }}
       >
         {/* Modal title */}
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: "#f4f4f5",
-            marginBottom: 24,
-            letterSpacing: "-0.02em",
-          }}
-        >
+        <div className="text-lg font-semibold text-[#f4f4f5] mb-6 tracking-[-0.02em]">
           New Plan
         </div>
 
         {/* Icon + Title row */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: "0 0 56px" }}>
-            <label style={labelStyle}>Icon</label>
+        <div className="flex gap-3 mb-4">
+          <div className="flex-[0_0_56px]">
+            <label className="text-[11px] font-medium text-[rgba(255,255,255,0.4)] font-mono uppercase tracking-[0.05em] mb-[6px] block">Icon</label>
             <input
               value={icon}
               onChange={(e) => setIcon(e.target.value)}
               maxLength={4}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
-              style={{
-                ...inputStyle,
-                fontSize: 20,
-                padding: "10px 8px",
-                textAlign: "center",
-              }}
+              className="w-full bg-[rgba(24,24,27,1)] border border-[rgba(255,255,255,0.1)] rounded-lg text-xl text-[#f4f4f5] font-sans box-border outline-none transition-[border-color,box-shadow] duration-200 ease-in-out py-[10px] px-2 text-center"
             />
           </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Title</label>
+          <div className="flex-1">
+            <label className="text-[11px] font-medium text-[rgba(255,255,255,0.4)] font-mono uppercase tracking-[0.05em] mb-[6px] block">Title</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -136,14 +76,14 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
               onKeyDown={(e) => {
                 if (e.key === "Enter") submit();
               }}
-              style={inputStyle}
+              className="w-full bg-[rgba(24,24,27,1)] border border-[rgba(255,255,255,0.1)] rounded-lg py-[10px] px-3 text-[13px] text-[#f4f4f5] font-sans box-border outline-none transition-[border-color,box-shadow] duration-200 ease-in-out"
             />
           </div>
         </div>
 
         {/* Description */}
-        <div style={{ marginBottom: 24 }}>
-          <label style={labelStyle}>Description</label>
+        <div className="mb-6">
+          <label className="text-[11px] font-medium text-[rgba(255,255,255,0.4)] font-mono uppercase tracking-[0.05em] mb-[6px] block">Description</label>
           <textarea
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
@@ -157,31 +97,16 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
               e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
               e.currentTarget.style.boxShadow = "none";
             }}
-            style={{
-              ...inputStyle,
-              resize: "none",
-              lineHeight: 1.6,
-            }}
+            className="w-full bg-[rgba(24,24,27,1)] border border-[rgba(255,255,255,0.1)] rounded-lg py-[10px] px-3 text-[13px] text-[#f4f4f5] font-sans box-border outline-none transition-[border-color,box-shadow] duration-200 ease-in-out resize-none leading-[1.6]"
           />
         </div>
 
         {/* Buttons */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <div className="flex justify-end gap-[10px]">
           {/* Cancel - Protocol secondary button (bordered) */}
           <button
             onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 8,
-              padding: "8px 18px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "rgba(255,255,255,0.6)",
-              cursor: "pointer",
-              fontFamily: T.f,
-              transition: "all 0.2s ease",
-            }}
+            className="bg-transparent border border-[rgba(255,255,255,0.12)] rounded-lg py-2 px-[18px] text-[13px] font-medium text-[rgba(255,255,255,0.6)] cursor-pointer font-sans transition-all duration-200 ease-in-out"
             onMouseEnter={(e: any) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.05)";
               e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
@@ -200,17 +125,11 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
           <button
             onClick={submit}
             disabled={!title.trim() || saving}
+            className="border-none rounded-lg py-2 px-5 text-[13px] font-semibold font-sans transition-all duration-200 ease-in-out"
             style={{
               background: title.trim() ? emerald : "rgba(255,255,255,0.06)",
-              border: "none",
-              borderRadius: 8,
-              padding: "8px 20px",
-              fontSize: 13,
-              fontWeight: 600,
               color: title.trim() ? "#fff" : "rgba(255,255,255,0.3)",
               cursor: title.trim() ? "pointer" : "default",
-              fontFamily: T.f,
-              transition: "all 0.2s ease",
               opacity: saving ? 0.7 : 1,
             }}
             onMouseEnter={(e: any) => {
@@ -225,22 +144,12 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
             }}
           >
             {saving ? (
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span
-                  style={{
-                    width: 12,
-                    height: 12,
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderTopColor: "#fff",
-                    borderRadius: "50%",
-                    display: "inline-block",
-                    animation: "spin 0.6s linear infinite",
-                  }}
-                />
+              <span className="flex items-center gap-[6px]">
+                <span className="w-3 h-3 border-2 border-[rgba(255,255,255,0.3)] border-t-white rounded-full inline-block animate-spin" />
                 Creating...
               </span>
             ) : (
-              <>Create <span style={{ marginLeft: 2 }}>{"\u2192"}</span></>
+              <>Create <span className="ml-[2px]">{"\u2192"}</span></>
             )}
           </button>
         </div>
