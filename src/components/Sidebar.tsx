@@ -1,7 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Plan } from "../types";
-import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
+import DropdownMenu, { DropdownItem } from "./ui/DropdownMenu";
+import {
+  Plus,
+  PushPin,
+  PushPinSimple,
+  Trash,
+  DotsThreeVertical,
+  DownloadSimple,
+  CloudCheck,
+  CloudSlash,
+} from "@phosphor-icons/react";
 
 interface SidebarProps {
   plans: Plan[];
@@ -33,91 +43,32 @@ const Logo = ({ size = 20 }: { size?: number }) => (
   </div>
 );
 
-/* ---- Inline SVG Icons ---- */
-const Ico = {
-  plus: (s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-  pin: (s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M9.5 2.5L13.5 6.5L10 10L9 13L3 7L6 6Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 13L6 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
-  pinFill: (s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M9.5 2.5L13.5 6.5L10 10L9 13L3 7L6 6Z" fill="currentColor" opacity="0.6" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M3 13L6 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
-  trash: (s = 12) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v8.5a1 1 0 001 1h4a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  dots: (s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="12.5" r="1.2" fill="currentColor"/></svg>,
-  download: (s = 14) => <svg width={s} height={s} viewBox="0 0 16 16" fill="none"><path d="M8 2v8.5M4.5 7.5 8 11l3.5-3.5M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-};
-
 /* ---- Sidebar Component ---- */
 function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, onNewPlan, connected, feedbackPerPlan }: SidebarProps) {
-  const [addMenu, setAddMenu] = useState(false);
-  const [planMenu, setPlanMenu] = useState<string | null>(null);
-
-  /* Close menus on outside click */
-  const closeMenus = useCallback(() => {
-    setAddMenu(false);
-    setPlanMenu(null);
-  }, []);
-
-  useEffect(() => {
-    if (!addMenu && !planMenu) return;
-    const handler = () => closeMenus();
-    window.addEventListener("click", handler);
-    return () => window.removeEventListener("click", handler);
-  }, [addMenu, planMenu, closeMenus]);
-
   /* Sort plans: pinned first, then by creation date descending */
   const sorted = [...plans].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   const pinned = sorted.filter(p => p.pinned);
   const unpinned = sorted.filter(p => !p.pinned);
 
-  /* Dropdown menu component */
-  const DropdownMenu = ({ children }: { children: React.ReactNode }) => (
-    <div
-      onClick={e => e.stopPropagation()}
-      className="bg-fp-solid border border-fp-border-hover rounded-fp-md p-1 min-w-[160px] shadow-[0_8px_30px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-fp-panel"
-    >
-      {children}
-    </div>
-  );
-
-  const DropdownItem = ({
-    onClick,
-    icon,
-    label,
-    danger,
-  }: {
-    onClick: () => void;
-    icon: React.ReactNode;
-    label: string;
-    danger?: boolean;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`w-full bg-transparent border-none cursor-pointer py-[7px] px-3 rounded-fp-sm flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-colors duration-150 hover:bg-fp-glass-hover ${
-        danger ? "text-fp-danger hover:bg-fp-danger-dim" : "text-fp-text"
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-
   /* Render a single plan row */
   const PlanItem = ({ p }: { p: Plan }) => {
     const act = p.id === activeId;
     const nc = feedbackPerPlan[p.id] || 0;
-    const menuOpen = planMenu === p.id;
 
     return (
       <li className="relative plan-row">
         <div
           onClick={() => onSelect(p.id)}
-          className={`flex items-center gap-2 py-2 px-3 cursor-pointer rounded-fp-sm transition-all duration-150 ${
+          className={`flex items-center gap-2 py-2 px-4 cursor-pointer rounded-fp-sm transition-all duration-150 ${
             act
-              ? "border-l-2 border-l-fp-accent bg-fp-glass-hover"
-              : "border-l-2 border-l-transparent hover:bg-fp-glass-hover"
+              ? "bg-fp-glass-active"
+              : "hover:bg-fp-glass-hover"
           }`}
         >
           {/* Pin icon for pinned plans */}
           {p.pinned && (
-            <span className="shrink-0 flex items-center text-fp-accent">
-              {Ico.pinFill(10)}
+            <span className="shrink-0 flex items-center text-fp-muted">
+              <PushPinSimple size={12} weight="fill" />
             </span>
           )}
 
@@ -147,36 +98,34 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
               {p.steps.length}
             </span>
 
-            {/* Three dots menu button */}
-            <IconButton
-              variant="ghost"
-              size="sm"
-              icon={Ico.dots(14)}
-              label="Plan options"
-              onClick={e => { e.stopPropagation(); setPlanMenu(menuOpen ? null : p.id); setAddMenu(false); }}
-              className={`${menuOpen ? "opacity-100 bg-fp-glass-hover" : "opacity-0"} plan-actions`}
-            />
-          </div>
-        </div>
-
-        {/* Context menu dropdown */}
-        {menuOpen && (
-          <div className="absolute right-1 top-[34px] z-[100]">
-            <DropdownMenu>
+            {/* Three dots menu */}
+            <DropdownMenu
+              align="right"
+              trigger={
+                <IconButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<DotsThreeVertical size={14} />}
+                  label="Plan options"
+                  onClick={e => e.stopPropagation()}
+                  className="opacity-0 plan-actions"
+                />
+              }
+            >
               <DropdownItem
-                onClick={() => { onTogglePin(p.id); setPlanMenu(null); }}
-                icon={<span className="text-fp-accent">{p.pinned ? Ico.pinFill(13) : Ico.pin(13)}</span>}
+                onClick={() => onTogglePin(p.id)}
+                icon={<span className="text-fp-muted">{p.pinned ? <PushPinSimple size={14} weight="fill" /> : <PushPin size={14} />}</span>}
                 label={p.pinned ? "Unpin" : "Pin to top"}
               />
               <DropdownItem
-                onClick={() => { onDelete(p.id); setPlanMenu(null); }}
-                icon={<span className="text-fp-danger">{Ico.trash(13)}</span>}
+                onClick={() => onDelete(p.id)}
+                icon={<span className="text-fp-danger"><Trash size={14} /></span>}
                 label="Delete plan"
                 danger
               />
             </DropdownMenu>
           </div>
-        )}
+        </div>
       </li>
     );
   };
@@ -184,7 +133,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
   return (
     <div className="w-[--spacing-fp-sidebar] h-screen fp-glass border-r border-r-fp-border flex flex-col shrink-0 font-sans">
       {/* ---- Header ---- */}
-      <div className="py-1.5 px-3.5 flex items-center justify-between border-b border-b-fp-border">
+      <div className="py-3 px-4 flex items-center justify-between border-b border-b-fp-border">
         <div className="flex items-center gap-2">
           <Logo size={22} />
           <span className="text-sm font-semibold text-fp-text tracking-[-0.01em]">
@@ -201,44 +150,36 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
                 : "bg-fp-glass border-fp-border text-fp-dim"
             }`}
           >
-            <div
-              className={`w-[5px] h-[5px] rounded-full transition-all duration-300 ${
-                connected
-                  ? "bg-fp-accent shadow-[0_0_6px_rgba(16,185,129,0.5)]"
-                  : "bg-fp-dim shadow-none"
-              }`}
-            />
+            {connected
+              ? <CloudCheck size={12} weight="fill" />
+              : <CloudSlash size={12} />
+            }
             <span>MCP</span>
           </div>
 
-          {/* Add button */}
-          <div className="relative">
-            <IconButton
-              variant="glassy"
-              size="md"
-              icon={<span className={addMenu ? "text-fp-accent" : ""}>{Ico.plus(14)}</span>}
-              label="Add plan"
-              onClick={e => { e.stopPropagation(); setAddMenu(!addMenu); setPlanMenu(null); }}
-              className={addMenu ? "border-fp-accent/30" : ""}
+          {/* Add button with dropdown */}
+          <DropdownMenu
+            align="right"
+            trigger={
+              <IconButton
+                variant="glassy"
+                size="md"
+                icon={<Plus size={14} />}
+                label="Add plan"
+              />
+            }
+          >
+            <DropdownItem
+              onClick={() => onNewPlan()}
+              icon={<span className="text-fp-accent"><Plus size={14} /></span>}
+              label="New Plan"
             />
-
-            {addMenu && (
-              <div className="absolute right-0 top-full mt-1 z-[100]">
-                <DropdownMenu>
-                  <DropdownItem
-                    onClick={() => { onNewPlan(); setAddMenu(false); }}
-                    icon={<span className="text-fp-accent">{Ico.plus(14)}</span>}
-                    label="New Plan"
-                  />
-                  <DropdownItem
-                    onClick={() => { onImport(); setAddMenu(false); }}
-                    icon={<span className="text-fp-accent">{Ico.download(14)}</span>}
-                    label="Import JSON"
-                  />
-                </DropdownMenu>
-              </div>
-            )}
-          </div>
+            <DropdownItem
+              onClick={() => onImport()}
+              icon={<span className="text-fp-accent"><DownloadSimple size={14} /></span>}
+              label="Import JSON"
+            />
+          </DropdownMenu>
         </div>
       </div>
 
@@ -258,7 +199,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
         {plans.length > 0 && (
           <>
             {/* Section header */}
-            <div className="text-[11px] font-mono uppercase tracking-wider text-fp-dim pt-1 px-2.5 pb-2">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-fp-dim pt-1 px-4 pb-2">
               Plans
             </div>
 
@@ -270,7 +211,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
 
               {/* Separator between pinned and unpinned */}
               {pinned.length > 0 && unpinned.length > 0 && (
-                <li className="py-1 px-2.5">
+                <li className="py-1 px-4">
                   <div className="h-px bg-fp-border" />
                 </li>
               )}
@@ -285,7 +226,7 @@ function Sidebar({ plans, activeId, onSelect, onDelete, onTogglePin, onImport, o
       </nav>
 
       {/* ---- Footer ---- */}
-      <div className="py-2.5 px-3.5 border-t border-t-fp-border shrink-0">
+      <div className="py-2.5 px-4 border-t border-t-fp-border shrink-0">
         <div className="text-xs text-fp-dim font-mono text-center leading-[1.5]">
           {plans.length} {plans.length === 1 ? "plan" : "plans"}
         </div>

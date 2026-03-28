@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { X, Plus } from "@phosphor-icons/react";
 import * as api from "../lib/api";
 import Button from "./ui/Button";
+import IconButton from "./ui/IconButton";
 
 interface NewPlanModalProps {
   onClose: () => void;
@@ -30,59 +32,72 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
       onClick={onClose}
     >
       <div
-        className="bg-fp-solid border border-fp-border rounded-fp-xl p-6 w-[400px] animate-slide-up shadow-2xl"
+        className="bg-fp-solid rounded-fp-xl border border-fp-border shadow-2xl w-[420px] p-6 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal title */}
-        <div className="text-lg font-semibold text-fp-text mb-6 tracking-[-0.02em]">
-          New Plan
-        </div>
-
-        {/* Icon + Title row */}
-        <div className="flex gap-3 mb-4">
-          <div className="flex-[0_0_56px]">
-            <label className="fp-label">Icon</label>
-            <input
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              maxLength={4}
-              className="fp-input text-xl text-center !px-2"
-            />
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-lg font-semibold text-fp-text tracking-[-0.02em]">
+            New Plan
           </div>
-          <div className="flex-1">
-            <label className="fp-label">Title</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Plan title"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submit();
-              }}
-              className="fp-input"
-            />
-          </div>
-        </div>
-
-        {/* Description */}
-        <div className="mb-6">
-          <label className="fp-label">Description</label>
-          <textarea
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="Brief description (optional)"
-            rows={3}
-            className="fp-input resize-none leading-[1.6]"
+          <IconButton
+            variant="ghost"
+            size="sm"
+            icon={<X size={14} />}
+            label="Close"
+            onClick={onClose}
           />
         </div>
 
+        {/* Fields */}
+        <div className="flex flex-col gap-4">
+          {/* Icon + Title row */}
+          <div className="flex gap-3">
+            <div className="flex-[0_0_56px]">
+              <label className="fp-label">Icon</label>
+              <input
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                maxLength={4}
+                className="fp-input text-xl text-center !px-2"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="fp-label">Title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Plan title"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit();
+                }}
+                className="fp-input"
+              />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="fp-label">Description</label>
+            <textarea
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Brief description (optional)"
+              rows={3}
+              className="fp-input resize-none leading-[1.6]"
+            />
+          </div>
+        </div>
+
         {/* Buttons */}
-        <div className="flex justify-end gap-2.5">
+        <div className="flex justify-end gap-2.5 mt-6">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button
             variant="accent"
+            icon={<Plus size={14} weight="bold" />}
             onClick={submit}
             disabled={!title.trim() || saving}
             loading={saving}
