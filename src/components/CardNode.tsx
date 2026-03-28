@@ -12,10 +12,11 @@ import {
   Plus,
   PencilSimple,
   Flask,
+  Trash,
 } from "@phosphor-icons/react";
 
-export const CW = 280;
-export const CH = 150;
+export const CW = 240;
+export const CH = 120;
 
 const TYPE_ICON: Record<string, React.ElementType> = {
   research: MagnifyingGlass,
@@ -113,7 +114,7 @@ function ContextMenu({
   return (
     <div
       ref={ref}
-      className="fixed z-[9999] min-w-[140px] fp-glass border border-fp-border rounded-fp-lg p-1 shadow-[0_8px_30px_rgba(0,0,0,0.4)] animate-fade-in"
+      className="fixed z-[9999] min-w-[120px] fp-glass border border-fp-border rounded-fp-md p-0.5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] animate-fade-in"
       style={{ left: x, top: y }}
     >
       <button
@@ -122,9 +123,9 @@ function ContextMenu({
           onEdit();
           onClose();
         }}
-        className="w-full bg-transparent border-none cursor-pointer py-2 px-3 rounded-fp-sm flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-colors duration-150 text-fp-text hover:bg-fp-glass-hover"
+        className="w-full bg-transparent border-none cursor-pointer py-1.5 px-2.5 rounded-fp-sm flex items-center gap-2 text-[12px] font-sans whitespace-nowrap transition-colors duration-150 text-fp-text hover:bg-fp-glass-hover"
       >
-        <PencilSimple size={14} className="shrink-0 text-fp-muted" />
+        <PencilSimple size={13} className="shrink-0 text-fp-muted" />
         <span>Edit</span>
       </button>
       <button
@@ -133,9 +134,9 @@ function ContextMenu({
           onDelete();
           onClose();
         }}
-        className="w-full bg-transparent border-none cursor-pointer py-2 px-3 rounded-fp-sm flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-colors duration-150 text-fp-danger hover:bg-fp-danger-dim"
+        className="w-full bg-transparent border-none cursor-pointer py-1.5 px-2.5 rounded-fp-sm flex items-center gap-2 text-[12px] font-sans whitespace-nowrap transition-colors duration-150 text-fp-danger hover:bg-fp-danger-dim"
       >
-        <File size={14} className="shrink-0" />
+        <Trash size={13} className="shrink-0" />
         <span>Delete</span>
       </button>
     </div>
@@ -180,7 +181,7 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
     <>
       <div
         onContextMenu={handleContextMenu}
-        className={`fp-glass-card border rounded-fp-lg flex flex-col gap-2 p-3.5 cursor-grab relative transition-all duration-200
+        className={`border rounded-fp-md flex flex-col gap-1.5 p-3 cursor-grab relative transition-all duration-200 bg-[rgba(25,26,31,0.75)] backdrop-blur-[4px]
           ${selected
             ? "border-fp-border-hover shadow-[0_0_0_1px_rgba(255,255,255,0.1)]"
             : highlightColor
@@ -201,24 +202,24 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
         }}
       >
         {/* ---- Top row: type pill + feedback + copy ---- */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {/* Type pill */}
           <span
-            className="text-[10px] font-semibold px-2 py-1 rounded-fp-sm uppercase tracking-[0.05em] leading-none font-mono inline-flex items-center gap-1"
+            className="text-[9px] font-semibold px-1.5 py-[3px] rounded-fp-sm uppercase tracking-[0.05em] leading-none font-mono inline-flex items-center gap-1"
             style={{
               color: tc.c,
               background: tc.bg,
               border: `1px solid ${tc.c}20`,
             }}
           >
-            {TypeIcon && <TypeIcon size={10} weight="bold" />}
+            {TypeIcon && <TypeIcon size={9} weight="bold" />}
             {tc.l}
           </span>
 
           {/* Feedback count badge */}
           {feedbackCount > 0 && (
             <span
-              className="inline-flex items-center justify-center text-[10px] font-semibold font-mono min-w-[18px] h-[18px] px-[5px] rounded-fp-pill leading-none bg-fp-orange-dim text-fp-orange border border-fp-orange/15"
+              className="inline-flex items-center justify-center text-[9px] font-semibold font-mono min-w-[16px] h-4 px-1 rounded-fp-pill leading-none bg-fp-orange-dim text-fp-orange border border-fp-orange/15"
               title={feedbackTypes.join(", ")}
             >
               {feedbackCount}
@@ -231,21 +232,21 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
         </div>
 
         {/* ---- Title ---- */}
-        <div className="text-sm font-semibold text-fp-text leading-[1.35] overflow-hidden text-ellipsis [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [display:-webkit-box] tracking-[-0.01em]">
+        <div className="text-[12px] font-semibold text-fp-text leading-[1.35] overflow-hidden text-ellipsis [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [display:-webkit-box] tracking-[-0.01em]">
           {card.title}
         </div>
 
         {/* ---- Description (markdown, compact, max 2 lines) ---- */}
         {descTruncated && (
-          <div className="text-xs text-fp-muted leading-normal overflow-hidden text-ellipsis [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [display:-webkit-box]">
-            <Md text={descTruncated} fontSize={12} color="#a1a1aa" compact />
+          <div className="text-[11px] text-fp-muted leading-normal overflow-hidden text-ellipsis [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [display:-webkit-box]">
+            <Md text={descTruncated} fontSize={11} color="#a1a1aa" compact />
           </div>
         )}
 
         {/* ---- Repo ---- */}
         {card.repo && (
-          <div className="text-[11px] font-mono text-fp-dim flex items-center gap-[5px] mt-auto">
-            <Folders size={12} weight="duotone" className="shrink-0 opacity-50" />
+          <div className="text-[10px] font-mono text-fp-dim flex items-center gap-1 mt-auto">
+            <Folders size={10} weight="duotone" className="shrink-0 opacity-50" />
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">
               {card.repo}
             </span>
@@ -254,7 +255,7 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
 
         {/* ---- File chips ---- */}
         {visibleFiles.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-0.5">
+          <div className="flex flex-wrap gap-0.5 mt-0.5">
             {visibleFiles.map((f) => {
               const change = card.fileChanges?.[f];
               const fileName = f.split("/").pop() || f;
@@ -266,18 +267,18 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
                     if (change) onFileClick(f, change);
                   }}
                   title={f}
-                  className={`inline-flex items-center gap-[3px] bg-fp-glass border border-fp-border rounded-fp-sm px-2 py-0.5 text-[10px] font-mono text-fp-muted leading-none max-w-[130px] overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 hover:border-fp-border-hover hover:bg-fp-glass-hover ${
+                  className={`inline-flex items-center gap-[2px] bg-fp-glass border border-fp-border rounded-fp-sm px-1.5 py-[2px] text-[9px] font-mono text-fp-muted leading-none max-w-[110px] overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-150 hover:border-fp-border-hover hover:bg-fp-glass-hover ${
                     change ? "cursor-pointer" : "cursor-default"
                   }`}
                 >
                   <ChangeDot changeType={change?.changeType} />
-                  <File size={10} className="shrink-0 opacity-50" />
+                  <File size={9} className="shrink-0 opacity-50" />
                   {fileName}
                 </button>
               );
             })}
             {extraCount > 0 && (
-              <span className="text-[10px] font-mono text-fp-dim px-1.5 py-[3px] leading-none self-center">
+              <span className="text-[9px] font-mono text-fp-dim px-1 py-[2px] leading-none self-center">
                 +{extraCount}
               </span>
             )}
@@ -288,12 +289,12 @@ function CardNode({ data, selected }: NodeProps & { data: CardNodeData }) {
         <Handle
           type="target"
           position={Position.Left}
-          className="!w-1.5 !h-1.5 !bg-white/15 !border !border-white/10 !rounded-full"
+          className="!w-1 !h-1 !bg-white/15 !border !border-white/10 !rounded-full"
         />
         <Handle
           type="source"
           position={Position.Right}
-          className="!w-1.5 !h-1.5 !bg-white/15 !border !border-white/10 !rounded-full"
+          className="!w-1 !h-1 !bg-white/15 !border !border-white/10 !rounded-full"
         />
       </div>
 

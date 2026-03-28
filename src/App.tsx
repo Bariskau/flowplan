@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { AppState, Card, Feedback, FileChange, HistoryEntry } from "./types";
 import * as api from "./lib/api";
 import { computeDiff } from "./lib/diff";
@@ -12,7 +12,6 @@ import HistoryPanel from "./components/HistoryPanel";
 import CodeViewer from "./components/CodeViewer";
 import NewPlanModal from "./components/NewPlanModal";
 import NewCardModal from "./components/NewCardModal";
-import DotGrid from "./components/DotGrid";
 import Button from "./components/ui/Button";
 
 export default function App() {
@@ -29,7 +28,6 @@ export default function App() {
   const [newPlanModal, setNewPlanModal] = useState(false);
   const [newCardModal, setNewCardModal] = useState(false);
   const [toast, setToast] = useState<{ text: string; file: string; error?: boolean } | null>(null);
-  const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 });
 
   // Disable right-click
   useEffect(() => {
@@ -38,20 +36,24 @@ export default function App() {
     return () => document.removeEventListener("contextmenu", prevent);
   }, []);
 
-  // Poll state
+  // Poll state - only update if data actually changed
+  const prevStRef = useRef("");
   useEffect(() => {
     let alive = true;
     const poll = async () => {
       try {
         const s = await api.fetchState();
-        if (alive) {
+        if (!alive) return;
+        const hash = JSON.stringify(s);
+        if (hash !== prevStRef.current) {
+          prevStRef.current = hash;
           setSt(s);
-          setConn(true);
-          if (s.plans.length) {
-            if (!aId || !s.plans.some(p => p.id === aId)) setAId(s.plans[0].id);
-          } else {
-            setAId(null);
-          }
+        }
+        setConn(true);
+        if (s.plans.length) {
+          if (!aId || !s.plans.some(p => p.id === aId)) setAId(s.plans[0].id);
+        } else {
+          setAId(null);
         }
       } catch {
         if (alive) setConn(false);
@@ -176,16 +178,49 @@ export default function App() {
     exportJson();
   }, [exportJson]);
 
-  const showToast = (text: string, file: string, error = false) => {
+  const showToast = useCallback((text: string, file: string, error = false) => {
     setToast({ text, file, error });
     setTimeout(() => setToast(null), 4000);
-  };
+  }, []);
+
+  // Stable callbacks for Sidebar
+  const handleDeletePlan = useCallback(async (id: string) => {
+    setSt(prev => ({ ...prev, plans: prev.plans.filter(p => p.id !== id) }));
+    setAId(prev => prev === id ? null : prev);
+    api.deletePlan(id).catch(() => {});
+  }, []);
+
+  const handleTogglePin = useCallback(async (id: string) => {
+    setSt(prev => ({ ...prev, plans: prev.plans.map(p => p.id === id ? { ...p, pinned: !p.pinned } : p) }));
+    api.togglePin(id).catch(() => {});
+  }, []);
+
+  const handleNewPlan = useCallback(() => setNewPlanModal(true), []);
+  const handleNewCard = useCallback(() => setNewCardModal(true), []);
+
+  // Stable callbacks for Toolbar
+  const handleToggleHistory = useCallback(() => {
+    setHistOpen(h => !h); setSId(null); setHistIdx(null); setOldCard(null);
+  }, []);
+
+  // Stable callbacks for FlowCanvas
+  const handleEditCard = useCallback((cardId: string) => setSId(cardId), []);
+
+  const aIdRef = useRef(aId);
+  aIdRef.current = aId;
+  const sIdRef = useRef(sId);
+  sIdRef.current = sId;
+
+  const handleDeleteCard = useCallback(async (cardId: string) => {
+    const currentAId = aIdRef.current;
+    if (currentAId) {
+      try { await api.deleteCard(currentAId, cardId); } catch {}
+      if (sIdRef.current === cardId) setSId(null);
+    }
+  }, []);
 
   return (
     <div className="w-full h-screen bg-fp-bg font-sans text-fp-text overflow-hidden relative">
-
-      {/* Layer 0: Full-screen gradient + dot grid background */}
-      <DotGrid zoom={viewport.zoom} panX={viewport.x} panY={viewport.y} />
 
       {/* Layer 1: Full-window canvas (FlowCanvas or list view or empty state) */}
       <div className="absolute inset-0 z-[1]">
@@ -194,7 +229,7 @@ export default function App() {
             <div className="text-[13px] text-fp-dim text-center">{conn ? "Select a plan or create a new one" : "Waiting for MCP..."}</div>
           </div>
         ) : vm === "flow" ? (
-          <div className="absolute inset-0 pl-[--spacing-fp-sidebar]">
+          <div className="absolute inset-0" style={{ paddingLeft: 'calc(var(--spacing-fp-sidebar) + var(--spacing-fp-gap) * 2)' }}>
             <FlowCanvas
               cards={steps}
               selectedId={sId}
@@ -207,12 +242,13 @@ export default function App() {
               highlightMap={hlMap}
               savedPositions={savedPositions}
               onPositionsChange={onPositionsChange}
-              onAddCard={() => setNewCardModal(true)}
-              onViewportChange={setViewport}
+              onAddCard={handleNewCard}
+              onEditCard={handleEditCard}
+              onDeleteCard={handleDeleteCard}
             />
           </div>
         ) : (
-          <div className="overflow-auto h-full" style={{ paddingTop: "calc(var(--spacing-fp-toolbar) + 16px)", paddingLeft: "calc(var(--spacing-fp-sidebar) + 16px)", paddingRight: "16px", paddingBottom: "16px" }}>
+          <div className="overflow-auto h-full" style={{ paddingTop: "calc(var(--spacing-fp-toolbar) + var(--spacing-fp-gap) * 3)", paddingLeft: "calc(var(--spacing-fp-sidebar) + var(--spacing-fp-gap) * 3)", paddingRight: "calc(var(--spacing-fp-gap) * 2)", paddingBottom: "calc(var(--spacing-fp-gap) * 2)" }}>
             <div className="max-w-[440px] mx-auto">
               {sortedSteps.map(s => (
                 <div key={s.id} onClick={() => selectCard(s.id)}
@@ -242,39 +278,33 @@ export default function App() {
         )}
       </div>
 
-      {/* Layer 2: Sidebar overlay (left, glassy) */}
-      <div className="fixed top-0 left-0 h-screen z-10">
+      {/* Layer 2: Sidebar overlay (left, floating) */}
+      <div className="fixed z-10" style={{ top: 'var(--spacing-fp-gap)', left: 'var(--spacing-fp-gap)', bottom: 'var(--spacing-fp-gap)' }}>
         <Sidebar
           plans={st.plans}
           activeId={aId}
           onSelect={setAId}
-          onDelete={async (id) => {
-            setSt(prev => ({ ...prev, plans: prev.plans.filter(p => p.id !== id) }));
-            if (aId === id) setAId(null);
-            api.deletePlan(id).catch(() => {});
-          }}
-          onTogglePin={async (id) => {
-            setSt(prev => ({ ...prev, plans: prev.plans.map(p => p.id === id ? { ...p, pinned: !p.pinned } : p) }));
-            api.togglePin(id).catch(() => {});
-          }}
+          onDelete={handleDeletePlan}
+          onTogglePin={handleTogglePin}
           onImport={importPlan}
-          onNewPlan={() => setNewPlanModal(true)}
+          onNewPlan={handleNewPlan}
           connected={conn}
           feedbackPerPlan={fbp}
         />
       </div>
 
-      {/* Layer 3: Toolbar overlay (top, glassy) */}
+      {/* Layer 3: Toolbar overlay (top, floating, centered) */}
       {plan && (
-        <div className="fixed top-0 left-[--spacing-fp-sidebar] right-0 z-10">
+        <div className="fixed z-10 flex justify-start" style={{ top: 'var(--spacing-fp-gap)', left: 'calc(var(--spacing-fp-sidebar) + var(--spacing-fp-gap) * 2)' }}>
           <Toolbar
             plan={plan}
             viewMode={vm}
             onViewModeChange={setVm}
-            onToggleHistory={() => { setHistOpen(h => !h); setSId(null); setHistIdx(null); setOldCard(null); }}
+            onToggleHistory={handleToggleHistory}
             historyOpen={histOpen}
             onExportSvg={exportSvg}
             onExportJson={exportJson}
+            onAddCard={handleNewCard}
             planTitle={plan.title}
             planId={plan.id}
           />
@@ -283,7 +313,8 @@ export default function App() {
 
         {/* Old card drawer (history) */}
         {histOpen && oldCard && (
-          <div className="fixed top-0 right-[--spacing-fp-drawer] w-[--spacing-fp-drawer] h-screen fp-glass border-l border-fp-border z-[51] flex flex-col overflow-hidden">
+          <div className="fixed fp-glass border border-fp-border rounded-[16px] z-[51] flex flex-col overflow-hidden"
+            style={{ top: 'var(--spacing-fp-gap)', bottom: 'var(--spacing-fp-gap)', right: 'calc(var(--spacing-fp-history) + var(--spacing-fp-gap) + var(--spacing-fp-gap))', width: 'var(--spacing-fp-drawer)' }}>
             <DetailDrawer card={oldCard} feedbacks={st.feedbacks} onClose={() => setOldCard(null)}
               onAddFeedback={async () => {}} onDeleteFeedback={async () => {}}
               planTitle="Old Version" planId="" onFileClick={onFileClick}
@@ -293,7 +324,8 @@ export default function App() {
 
         {/* Right drawer */}
         {(histOpen || (!histOpen && sId && ss)) && (
-          <div className="fixed top-0 right-0 w-[--spacing-fp-drawer] h-screen fp-glass border-l border-fp-border z-50 flex flex-col overflow-hidden">
+          <div className={`fixed fp-glass border border-fp-border rounded-[16px] z-50 flex flex-col overflow-hidden ${histOpen ? "w-[var(--spacing-fp-history)]" : "w-[var(--spacing-fp-drawer)]"}`}
+            style={{ top: 'var(--spacing-fp-gap)', bottom: 'var(--spacing-fp-gap)', right: 'var(--spacing-fp-gap)' }}>
             {histOpen ? (
               <HistoryPanel entries={history} selectedIdx={histIdx}
                 onSelect={(idx) => {
@@ -348,20 +380,20 @@ export default function App() {
 
       {toast && (
         <div
-          className={`animate-toast fixed bottom-5 right-5 bg-fp-solid rounded-fp-lg py-2.5 px-3.5 flex items-center gap-2.5 z-[1100] shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[320px] border ${
+          className={`animate-toast fixed bottom-4 right-4 fp-glass-card rounded-fp-md py-2 px-3 flex items-center gap-2 z-[1100] shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[280px] border ${
             toast.error ? "border-fp-danger" : "border-fp-border"
           }`}
         >
           <div className="flex-1">
             <div
-              className={`text-[11px] font-semibold ${toast.error ? "text-fp-danger" : "text-fp-text"}`}
+              className={`text-[10px] font-semibold ${toast.error ? "text-fp-danger" : "text-fp-text"}`}
             >
               {toast.text}
             </div>
-            {toast.file && <div className="text-[10px] text-fp-muted font-mono">{toast.file}</div>}
+            {toast.file && <div className="text-[9px] text-fp-muted font-mono">{toast.file}</div>}
           </div>
           <button onClick={() => setToast(null)} className="bg-transparent border-none text-fp-dim cursor-pointer p-0.5 hover:text-fp-muted transition-colors duration-150">
-            <X size={12} />
+            <X size={10} />
           </button>
         </div>
       )}

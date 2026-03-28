@@ -74,3 +74,8 @@ export async function updateCard(planId: string, cardId: string, updates: Record
   const r = await fetch(`${BASE}/plans/${planId}/cards/${cardId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
   if (!r.ok) throw new Error("update card failed");
 }
+
+export async function deleteCard(planId: string, cardId: string): Promise<void> {
+  const r = await fetch(`${BASE}/plans/${planId}/cards/${cardId}`, { method: "DELETE" });
+  if (!r.ok) throw new Error("delete card failed");
+}
