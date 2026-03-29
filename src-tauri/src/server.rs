@@ -52,7 +52,10 @@ pub async fn run_server(shared: SharedState, ct: CancellationToken) -> anyhow::R
         .route("/api/plans/create", post(create_plan_rest))
         .route("/api/plans/import", post(import_plan))
         .route("/api/plans/{plan_id}/positions", post(save_positions))
-        .route("/api/plans/{plan_id}/cards/{card_id}", post(update_card_rest))
+        .route(
+            "/api/plans/{plan_id}/cards/{card_id}",
+            post(update_card_rest).delete(delete_card_rest),
+        )
         .route("/api/plans/{plan_id}/cards", post(add_card_rest))
         .route("/api/plans/{plan_id}", delete(delete_plan))
         .route("/api/plans/{plan_id}/pin", post(toggle_pin))
@@ -187,6 +190,26 @@ async fn import_plan(
     let mut s = st.write().await;
     plan.id = state::gen_id("plan");
     plan.created_at = state::now_millis();
+    let imported_ids: HashMap<String, String> = plan
+        .steps
+        .iter()
+        .map(|card| (card.id.clone(), state::gen_id("card")))
+        .collect();
+    for card in plan.steps.iter_mut() {
+        if let Some(new_id) = imported_ids.get(&card.id) {
+            card.id = new_id.clone();
+        }
+        card.dependencies = card
+            .dependencies
+            .iter()
+            .map(|dep| {
+                imported_ids
+                    .get(dep)
+                    .cloned()
+                    .unwrap_or_else(|| dep.clone())
+            })
+            .collect();
+    }
     let id = plan.id.clone();
     let title = plan.title.clone();
     s.plans.insert(0, plan);
@@ -302,8 +325,12 @@ async fn update_card_rest(
     let mut s = st.write().await;
     if let Some(plan) = s.plans.iter_mut().find(|p| p.id == plan_id) {
         if let Some(card) = plan.steps.iter_mut().find(|c| c.id == card_id) {
-            if let Some(v) = input.title { card.title = v; }
-            if let Some(v) = input.description { card.description = v; }
+            if let Some(v) = input.title {
+                card.title = v;
+            }
+            if let Some(v) = input.description {
+                card.description = v;
+            }
             if let Some(v) = input.card_type {
                 card.card_type = match v.as_str() {
                     "research" => CardType::Research,
@@ -313,10 +340,18 @@ async fn update_card_rest(
                     _ => CardType::Edit,
                 };
             }
-            if let Some(v) = input.repo { card.repo = v; }
-            if let Some(v) = input.files { card.files = v; }
-            if let Some(v) = input.dependencies { card.dependencies = v; }
-            if let Some(v) = input.file_changes { card.file_changes = v; }
+            if let Some(v) = input.repo {
+                card.repo = v;
+            }
+            if let Some(v) = input.files {
+                card.files = v;
+            }
+            if let Some(v) = input.dependencies {
+                card.dependencies = v;
+            }
+            if let Some(v) = input.file_changes {
+                card.file_changes = v;
+            }
             // Manual edits don't record history
             state::save_state_no_history(&s);
             Json(serde_json::json!({ "ok": true }))
@@ -326,4 +361,39 @@ async fn update_card_rest(
     } else {
         Json(serde_json::json!({ "error": "Plan not found" }))
     }
+}
+
+async fn delete_card_rest(
+    AxumState(st): AxumState<SharedState>,
+    Path((plan_id, card_id)): Path<(String, String)>,
+) -> Json<serde_json::Value> {
+    let mut s = st.write().await;
+    let Some(plan_index) = s.plans.iter().position(|p| p.id == plan_id) else {
+        return Json(serde_json::json!({ "error": "Plan not found" }));
+    };
+
+    let removed = {
+        let plan = &mut s.plans[plan_index];
+        let before = plan.steps.len();
+        plan.steps.retain(|card| card.id != card_id);
+        if plan.steps.len() == before {
+            false
+        } else {
+            for card in plan.steps.iter_mut() {
+                card.dependencies.retain(|dep| dep != &card_id);
+            }
+            true
+        }
+    };
+
+    if !removed {
+        return Json(serde_json::json!({ "error": "Card not found" }));
+    }
+
+    if let Some(plan_positions) = s.positions.get_mut(&plan_id) {
+        plan_positions.remove(&card_id);
+    }
+    s.feedbacks.retain(|feedback| feedback.card_id != card_id);
+    state::save_state(&s);
+    Json(serde_json::json!({ "ok": true }))
 }

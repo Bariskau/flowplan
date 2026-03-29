@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import {
   Folders,
   File,
@@ -20,6 +20,8 @@ import { Md } from "../lib/markdown";
 import type { Card, Feedback, FileChange } from "../types";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
+import Chip, { type ChipVariant } from "./ui/Chip";
+import { TYPE_CHIP, TYPE_GRADIENT } from "../lib/cardTypes";
 
 /* ---- Props ---- */
 interface DetailDrawerProps {
@@ -39,113 +41,171 @@ interface DetailDrawerProps {
 
 /* ---- Type icon helper ---- */
 function typeIcon(type: string) {
-  const props = { size: 11, weight: "bold" as const };
+  const props = { size: 12, weight: "regular" as const };
   switch (type) {
-    case "research": return <ChatCircleDots {...props} />;
-    case "planning": return <Folders {...props} />;
-    case "create": return <Lightning {...props} />;
-    case "edit": return <PencilSimple {...props} />;
-    case "test": return <CheckCircle {...props} />;
-    default: return null;
+    case "research":
+      return <ChatCircleDots {...props} />;
+    case "planning":
+      return <Folders {...props} />;
+    case "create":
+      return <Lightning {...props} />;
+    case "edit":
+      return <PencilSimple {...props} />;
+    case "test":
+      return <CheckCircle {...props} />;
+    default:
+      return null;
   }
 }
 
-/* ---- Change type badge colors ---- */
-const CHANGE_BADGE: Record<string, { label: string; cls: string }> = {
-  create: { label: "CREATE", cls: "text-fp-success bg-fp-success-dim" },
-  edit: { label: "EDIT", cls: "text-fp-warning bg-fp-warning-dim" },
-  delete: { label: "DELETE", cls: "text-fp-danger bg-fp-danger-dim" },
+/* ---- Change type → Chip variant ---- */
+const CHANGE_CHIP: Record<string, { label: string; variant: ChipVariant }> = {
+  create: { label: "CREATE", variant: "success" },
+  edit: { label: "EDIT", variant: "warning" },
+  delete: { label: "DELETE", variant: "danger" },
 };
 
-/* ---- Feedback accent color map (Protocol-style glassy cards) ---- */
-const FB_ACCENT: Record<string, { text: string; bg: string; border: string; hoverBorder: string; hoverBg: string; ring: string }> = {
-  question: { text: "text-fp-info", bg: "bg-fp-glass", border: "border-fp-border", hoverBorder: "hover:border-fp-info/30", hoverBg: "hover:bg-fp-info/[0.04]", ring: "group-hover:ring-fp-info/10" },
-  directive: { text: "text-fp-warning", bg: "bg-fp-glass", border: "border-fp-border", hoverBorder: "hover:border-fp-warning/30", hoverBg: "hover:bg-fp-warning/[0.04]", ring: "group-hover:ring-fp-warning/10" },
-  issue: { text: "text-fp-danger", bg: "bg-fp-glass", border: "border-fp-border", hoverBorder: "hover:border-fp-danger/30", hoverBg: "hover:bg-fp-danger/[0.04]", ring: "group-hover:ring-fp-danger/10" },
+/* ---- Feedback Protocol card colors ---- */
+const FB_CARD: Record<string, { gradientFrom: string; gradientTo: string; color: string }> = {
+  question: { gradientFrom: "rgba(66,133,244,0.03)", gradientTo: "rgba(66,133,244,0.015)", color: "#4285f4" },
+  directive: { gradientFrom: "rgba(251,188,4,0.03)", gradientTo: "rgba(251,188,4,0.015)", color: "#fbbc04" },
+  issue: { gradientFrom: "rgba(234,67,53,0.03)", gradientTo: "rgba(234,67,53,0.015)", color: "#ea4335" },
 };
 
-/* ---- FeedbackItem sub-component ---- */
+/* ---- Feedback type → Chip variant ---- */
+const FB_CHIP: Record<string, ChipVariant> = {
+  question: "info",
+  directive: "warning",
+  issue: "danger",
+};
+
+/* ---- FeedbackItem sub-component (Protocol-style card) ---- */
 function FeedbackItem({
-  fb, onDelete, readOnly,
+  fb,
+  onDelete,
+  readOnly,
 }: {
   fb: Feedback;
   onDelete: (id: string) => void;
   readOnly?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
   const style = FB[fb.type] || FB.question;
-  const accent = FB_ACCENT[fb.type] || FB_ACCENT.question;
+  const fc = FB_CARD[fb.type] || FB_CARD.question;
   const isAnswered = fb.type === "question" && fb.answer;
   const isAcknowledged = fb.type !== "question" && fb.read;
 
-  const fbIcon = fb.type === "question"
-    ? <ChatCircleDots size={11} weight="bold" />
-    : fb.type === "directive"
-      ? <Lightning size={11} weight="bold" />
-      : <Warning size={11} weight="bold" />;
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const mask = `radial-gradient(180px at ${x}px ${y}px, white, transparent)`;
+    if (glowRef.current) glowRef.current.style.maskImage = mask;
+    if (overlayRef.current) overlayRef.current.style.maskImage = mask;
+  }, []);
+
+  const fbIcon =
+    fb.type === "question" ? (
+      <ChatCircleDots size={11} weight="bold" />
+    ) : fb.type === "directive" ? (
+      <Lightning size={11} weight="bold" />
+    ) : (
+      <Warning size={11} weight="bold" />
+    );
 
   return (
     <div
+      className="group relative flex rounded-2xl mb-2.5"
+      onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`group rounded-fp-lg border p-3 mb-2 relative overflow-hidden transition-all duration-200 backdrop-blur-fp-card ${accent.bg} ${accent.border} ${accent.hoverBorder} ${accent.hoverBg}`}
     >
-      {/* Header row */}
-      <div className="flex items-center gap-1.5 mb-1.5">
-        {/* Type icon */}
-        <span className={`${accent.text} shrink-0`}>{fbIcon}</span>
+      {/* ── Effects layer ── */}
+      <div className="pointer-events-none">
+        <div
+          ref={glowRef}
+          className="absolute inset-0 rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100"
+          style={{
+            background: `linear-gradient(to right, ${fc.gradientFrom}, ${fc.gradientTo})`,
+            maskImage: "radial-gradient(180px at 0px 0px, white, transparent)",
+          }}
+        />
+      </div>
 
-        {/* Type label */}
-        <span className={`text-[10px] font-semibold uppercase tracking-wider leading-none ${accent.text}`}>
-          {style.label}
-        </span>
+      {/* Ring border — type-colored on hover */}
+      <div
+        className="absolute inset-0 rounded-2xl transition duration-300 pointer-events-none"
+        style={{ boxShadow: `inset 0 0 0 1px ${hovered ? fc.color + "22" : "rgba(255,255,255,0.1)"}` }}
+      />
 
-        {/* Status dot */}
-        <span className={`text-[9px] font-medium inline-flex items-center gap-1 ${(isAnswered || isAcknowledged) ? "text-fp-success" : "text-fp-dim"}`}>
-          <span className={`w-1 h-1 rounded-full inline-block ${(isAnswered || isAcknowledged) ? "bg-fp-success" : "bg-fp-dim/40"}`} />
-          {fb.type === "question"
-            ? (isAnswered ? "Answered" : "Pending")
-            : (isAcknowledged ? "Ack" : "Pending")}
-        </span>
+      {/* ── Content ── */}
+      <div className="relative rounded-2xl px-3.5 py-3 w-full">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-1.5">
+          {/* Type chip */}
+          <Chip variant={FB_CHIP[fb.type] || "default"} size="xs" icon={fbIcon}>
+            {style.label}
+          </Chip>
 
-        <span className="flex-1" />
-        {!readOnly && (
-          <IconButton
-            variant="danger"
-            size="sm"
-            icon={<Trash size={11} weight="bold" />}
-            label="Delete feedback"
-            onClick={() => onDelete(fb.id)}
-            className={`transition-opacity duration-150 ${hovered ? "opacity-100" : "opacity-0"}`}
-          />
+          {/* Status */}
+          <span
+            className={`text-[9px] font-medium inline-flex items-center gap-1 ${isAnswered || isAcknowledged ? "text-fp-success" : "text-fp-dim"}`}
+          >
+            <span
+              className={`w-1 h-1 rounded-full inline-block ${isAnswered || isAcknowledged ? "bg-fp-success" : "bg-fp-dim/40"}`}
+            />
+            {fb.type === "question" ? (isAnswered ? "Answered" : "Pending") : isAcknowledged ? "Ack" : "Pending"}
+          </span>
+
+          <span className="flex-1" />
+
+          {!readOnly && (
+            <IconButton
+              variant="danger"
+              size="sm"
+              icon={<Trash size={11} weight="bold" />}
+              label="Delete feedback"
+              onClick={() => onDelete(fb.id)}
+              className={`transition-opacity duration-150 ${hovered ? "opacity-100" : "opacity-0"}`}
+            />
+          )}
+        </div>
+
+        {/* Text */}
+        <p className="text-[12px] text-zinc-400 leading-relaxed">{fb.text}</p>
+
+        {/* Answer section */}
+        {isAnswered && (
+          <div className="mt-2 pt-2 border-t border-white/[0.06]">
+            <div className="text-[9px] font-semibold mb-1 uppercase tracking-wider text-fp-success inline-flex items-center gap-1">
+              <CheckCircle size={9} weight="bold" />
+              Answer
+            </div>
+            <p className="text-[11px] text-fp-dim leading-relaxed">{fb.answer}</p>
+          </div>
         )}
       </div>
-
-      {/* Content */}
-      <div className="text-[12px] text-fp-muted leading-relaxed">
-        {fb.text}
-      </div>
-
-      {/* Answer section */}
-      {isAnswered && (
-        <div className="mt-2 pt-2 border-t border-fp-border">
-          <div className="text-[9px] font-semibold mb-1 uppercase tracking-wider text-fp-success inline-flex items-center gap-1">
-            <CheckCircle size={9} weight="bold" />
-            Answer
-          </div>
-          <div className="text-[11px] text-fp-dim leading-relaxed">
-            {fb.answer}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 /* ---- Main DetailDrawer ---- */
 function DetailDrawer({
-  card, feedbacks, planTitle, planId, allCards, readOnly,
-  onClose, onAddFeedback, onDeleteFeedback, onFileClick, onSelectCard, onEditCard,
+  card,
+  feedbacks,
+  planTitle,
+  planId,
+  allCards,
+  readOnly,
+  onClose,
+  onAddFeedback,
+  onDeleteFeedback,
+  onFileClick,
+  onSelectCard,
+  onEditCard,
 }: DetailDrawerProps) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
@@ -155,6 +215,7 @@ function DetailDrawer({
   const [editFiles, setEditFiles] = useState(card.files.join("\n"));
   const [editDeps, setEditDeps] = useState<string[]>(card.dependencies);
 
+  const [descPreview, setDescPreview] = useState(false);
   const [fbTab, setFbTab] = useState<"question" | "directive" | "issue">("question");
   const [fbText, setFbText] = useState("");
 
@@ -163,8 +224,8 @@ function DetailDrawer({
 
   /* Deps mapped to card titles */
   const depCards = useMemo(() => {
-    const byId = new Map(allCards.map(c => [c.id, c]));
-    return (editing ? editDeps : card.dependencies).map(id => byId.get(id)).filter(Boolean) as Card[];
+    const byId = new Map(allCards.map((c) => [c.id, c]));
+    return (editing ? editDeps : card.dependencies).map((id) => byId.get(id)).filter(Boolean) as Card[];
   }, [card.dependencies, editDeps, allCards, editing]);
 
   /* Start editing */
@@ -181,7 +242,10 @@ function DetailDrawer({
   /* Save edits */
   const saveEdit = useCallback(() => {
     if (!onEditCard) return;
-    const files = editFiles.split("\n").map(f => f.trim()).filter(Boolean);
+    const files = editFiles
+      .split("\n")
+      .map((f) => f.trim())
+      .filter(Boolean);
     onEditCard(planId, card.id, {
       title: editTitle,
       description: editDesc,
@@ -197,17 +261,20 @@ function DetailDrawer({
   const cancelEdit = useCallback(() => setEditing(false), []);
 
   /* Move dependency */
-  const moveDep = useCallback((idx: number, dir: -1 | 1) => {
-    const next = [...editDeps];
-    const target = idx + dir;
-    if (target < 0 || target >= next.length) return;
-    [next[idx], next[target]] = [next[target], next[idx]];
-    setEditDeps(next);
-  }, [editDeps]);
+  const moveDep = useCallback(
+    (idx: number, dir: -1 | 1) => {
+      const next = [...editDeps];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      setEditDeps(next);
+    },
+    [editDeps],
+  );
 
   /* Remove dependency */
   const removeDep = useCallback((idx: number) => {
-    setEditDeps(prev => prev.filter((_, i) => i !== idx));
+    setEditDeps((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   /* Add feedback */
@@ -217,44 +284,23 @@ function DetailDrawer({
     setFbText("");
   }, [onAddFeedback, card.id, fbTab, fbText]);
 
-  /* Type color mapping to tailwind classes */
-  const typeColorCls = (type: string) => {
-    switch (type) {
-      case "research": return { text: "text-fp-accent", bg: "bg-fp-accent-dim", border: "border-fp-accent/20" };
-      case "planning": return { text: "text-fp-purple", bg: "bg-fp-purple-dim", border: "border-fp-purple/20" };
-      case "create": return { text: "text-fp-info", bg: "bg-fp-info-dim", border: "border-fp-info/20" };
-      case "edit": return { text: "text-fp-warning", bg: "bg-fp-warning-dim", border: "border-fp-warning/20" };
-      case "test": return { text: "text-fp-teal", bg: "bg-fp-teal-dim", border: "border-fp-teal/20" };
-      default: return { text: "text-fp-accent", bg: "bg-fp-accent-dim", border: "border-fp-accent/20" };
-    }
-  };
-
-  const typeCls = typeColorCls(card.type);
-
-  /* Feedback tab variant mapping */
-  const fbTabVariant = (type: "question" | "directive" | "issue") => {
-    if (fbTab !== type) return "ghost" as const;
-    switch (type) {
-      case "question": return "info" as const;
-      case "directive": return "warning" as const;
-      case "issue": return "danger" as const;
-    }
-  };
+  const activeType = editing ? editType : card.type;
 
   return (
-    <div className="h-full w-full flex flex-col bg-transparent overflow-hidden">
+    <div className="h-full w-full flex flex-col bg-transparent overflow-hidden relative">
+      {/* Type gradient tint */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-all duration-500 ease-out blur-2xl"
+        style={{ background: TYPE_GRADIENT[activeType] || TYPE_GRADIENT.edit }}
+      />
       {/* ---- Header ---- */}
       <div className="p-3 flex items-center gap-2 border-b border-fp-border shrink-0">
-        {/* Type badge pill */}
-        <span className={`text-[9px] font-semibold py-[3px] px-2 rounded-fp-pill uppercase tracking-wider leading-none inline-flex items-center gap-1 border ${typeCls.text} ${typeCls.bg} ${typeCls.border}`}>
-          {typeIcon(card.type)}
+        <Chip variant={TYPE_CHIP[card.type] || "default"} size="sm" icon={typeIcon(card.type)}>
           {tc.l}
-        </span>
+        </Chip>
 
         {/* Title */}
-        <span className="text-[13px] font-semibold text-fp-text truncate flex-1">
-          {card.title}
-        </span>
+        <span className="text-[13px] font-semibold text-fp-text truncate flex-1">{card.title}</span>
 
         {/* Edit button */}
         {!readOnly && onEditCard && !editing && (
@@ -268,334 +314,277 @@ function DetailDrawer({
         )}
 
         {/* Close button */}
-        <IconButton
-          variant="ghost"
-          size="sm"
-          icon={<X size={12} weight="bold" />}
-          label="Close"
-          onClick={onClose}
-        />
+        <IconButton variant="ghost" size="sm" icon={<X size={12} weight="bold" />} label="Close" onClick={onClose} />
       </div>
 
       {/* ---- Scrollable content ---- */}
-      <div className="flex-1 overflow-y-auto">
-        {/* ---- Edit mode: Title ---- */}
-        {editing && (
-          <div className="p-3 border-b border-fp-border">
-            <label className="fp-label">Title</label>
-            <input
-              value={editTitle}
-              onChange={e => setEditTitle(e.target.value)}
-              className="fp-input text-lg font-semibold"
-            />
-          </div>
-        )}
-
-        {/* ---- Edit mode: Type select ---- */}
-        {editing && (
-          <div className="p-3 border-b border-fp-border">
-            <label className="fp-label">Type</label>
-            <select
-              value={editType}
-              onChange={e => setEditType(e.target.value as Card["type"])}
-              className="fp-input cursor-pointer font-semibold appearance-none"
-              style={{ color: editTc.c }}
-            >
-              {Object.entries(TC).map(([k, v]) => (
-                <option key={k} value={k}>{v.l}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* ---- Description ---- */}
-        <div className="p-3 border-b border-fp-border">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Description</div>
-          {editing ? (
-            <textarea
-              value={editDesc}
-              onChange={e => setEditDesc(e.target.value)}
-              rows={8}
-              className="fp-input resize-y font-mono text-xs leading-relaxed"
-            />
-          ) : (
-            <div className="text-[13px]">
-              <Md
-                text={card.description || "*No description*"}
-                fontSize={13}
-                color="rgba(255,255,255,0.55)"
-                lineHeight={1.7}
-              />
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+        {editing ? (
+          /* ======== EDIT MODE — modal-style form ======== */
+          <div className="p-4 flex flex-col gap-4">
+            {/* Title */}
+            <div>
+              <label className="fp-label">Title</label>
+              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="fp-input" />
             </div>
-          )}
-        </div>
 
-        {/* ---- Repository ---- */}
-        <div className="p-3 border-b border-fp-border">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Repository</div>
-          {editing ? (
-            <div className="flex flex-col gap-3">
-              <label className="fp-label">Repo path</label>
+            {/* Type — Chip selector */}
+            <div>
+              <label className="fp-label">Type</label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(TC).map(([k, v]) => (
+                  <Chip
+                    key={k}
+                    variant={TYPE_CHIP[k] || "default"}
+                    size="sm"
+                    icon={typeIcon(k)}
+                    onClick={() => setEditType(k as Card["type"])}
+                    className={`!normal-case ${editType !== k ? "opacity-40" : ""}`}
+                  >
+                    {v.l}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="fp-label !mb-0">Description</label>
+                <div
+                  role="radiogroup"
+                  className="flex gap-0.5 p-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]"
+                >
+                  {([false, true] as const).map((isPreview) => (
+                    <button
+                      key={String(isPreview)}
+                      role="radio"
+                      aria-checked={descPreview === isPreview}
+                      onClick={() => setDescPreview(isPreview)}
+                      className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium border-none cursor-pointer transition-all duration-150 ${descPreview === isPreview ? "bg-white/[0.08] text-white/80" : "bg-transparent text-white/30 hover:text-white/50"}`}
+                    >
+                      {isPreview ? "Preview" : "Edit"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {descPreview ? (
+                <div className="fp-input min-h-[100px] overflow-y-auto">
+                  {editDesc.trim() ? (
+                    <Md text={editDesc} fontSize={13} color="rgba(255,255,255,0.55)" lineHeight={1.7} />
+                  ) : (
+                    <span className="text-fp-dim text-xs italic">Nothing to preview</span>
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  rows={6}
+                  placeholder="Description (markdown supported)"
+                  className="fp-input resize-y text-xs leading-relaxed"
+                />
+              )}
+            </div>
+
+            {/* Repository */}
+            <div>
+              <label className="fp-label">Repository</label>
               <input
                 value={editRepo}
-                onChange={e => setEditRepo(e.target.value)}
-                placeholder="e.g. org/repo"
+                onChange={(e) => setEditRepo(e.target.value)}
+                placeholder="/path/to/repo"
                 className="fp-input font-mono text-xs"
               />
             </div>
-          ) : card.repo ? (
-            <div className="flex items-center gap-2">
-              <span className="text-fp-dim flex items-center"><Folders size={14} /></span>
-              <span className="bg-fp-glass rounded-fp-md px-2.5 py-1.5 font-mono text-xs text-fp-text border border-fp-border">
-                {card.repo}
-              </span>
-            </div>
-          ) : (
-            <div className="text-xs text-fp-dim italic">No repository specified</div>
-          )}
-        </div>
 
-        {/* ---- Files ---- */}
-        <div className="p-3 border-b border-fp-border">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
-            Files
-            {!editing && card.files.length > 0 && (
-              <span className="ml-1.5 text-fp-dim/50">({card.files.length})</span>
-            )}
-          </div>
-          {editing ? (
-            <div className="flex flex-col gap-3">
-              <label className="fp-label">File paths (one per line)</label>
+            {/* Files */}
+            <div>
+              <label className="fp-label">
+                Files <span className="normal-case font-normal opacity-60">(one per line)</span>
+              </label>
               <textarea
                 value={editFiles}
-                onChange={e => setEditFiles(e.target.value)}
-                rows={5}
-                placeholder="One file path per line"
+                onChange={(e) => setEditFiles(e.target.value)}
+                rows={4}
+                placeholder="src/main.ts&#10;src/utils.ts"
                 className="fp-input resize-y font-mono text-xs leading-relaxed"
               />
             </div>
-          ) : card.files.length > 0 ? (
-            <div className="flex flex-col">
-              {card.files.map((f, idx) => {
-                const change = card.fileChanges?.[f];
-                const fileName = f.split("/").pop() || f;
-                const dirPath = f.includes("/") ? f.substring(0, f.lastIndexOf("/")) : "";
-                const badge = change ? CHANGE_BADGE[change.changeType] || CHANGE_BADGE.edit : null;
-
-                return (
-                  <button
-                    key={f}
-                    onClick={() => { if (change) onFileClick(f, change); }}
-                    title={f}
-                    className={`flex items-center gap-2 py-2.5 bg-transparent border-none border-b border-fp-border last:border-0 text-left w-full transition-colors duration-150 ${change ? "cursor-pointer hover:bg-fp-glass-hover" : "cursor-default"}`}
-                  >
-                    {/* File icon */}
-                    <span className="text-fp-dim flex items-center shrink-0"><File size={13} /></span>
-
-                    {/* Filename mono chip */}
-                    <span className="bg-fp-glass rounded-fp-md px-2.5 py-1.5 font-mono text-xs text-fp-text border border-fp-border">
-                      {fileName}
-                    </span>
-
-                    {/* Directory path */}
-                    {dirPath ? (
-                      <span className="text-[11px] text-fp-dim font-mono flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {dirPath}
-                      </span>
-                    ) : (
-                      <span className="flex-1" />
-                    )}
-
-                    {/* Change type badge pill */}
-                    {badge && (
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-fp-pill tracking-wider leading-none shrink-0 ${badge.cls}`}>
-                        {badge.label}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-xs text-fp-dim italic">No files</div>
-          )}
-        </div>
-
-        {/* ---- Dependencies ---- */}
-        <div className="p-3 border-b border-fp-border">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
-            Dependencies
-            {!editing && card.dependencies.length > 0 && (
-              <span className="ml-1.5 text-fp-dim/50">({card.dependencies.length})</span>
-            )}
           </div>
-          {depCards.length > 0 ? (
-            <div className="flex flex-col">
-              {depCards.map((dep, idx) => {
-                const dCls = typeColorCls(dep.type);
-                const dtc = TC[dep.type] || { l: dep.type, c: "#10b981", bg: "rgba(16,185,129,0.10)" };
-                return (
-                  <div
-                    key={dep.id}
-                    className={`flex items-center gap-2 py-2.5 transition-colors duration-150 hover:bg-fp-glass-hover border-b border-fp-border last:border-0`}
-                  >
-                    {/* Type chip */}
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-fp-sm uppercase tracking-wider leading-none shrink-0 ${dCls.text} ${dCls.bg}`}>
-                      {dtc.l}
-                    </span>
-
-                    {/* Title */}
-                    <span className="text-xs text-fp-muted flex-1 overflow-hidden text-ellipsis whitespace-nowrap leading-snug">
-                      {dep.title}
-                    </span>
-
-                    {/* Action buttons */}
-                    {editing ? (
-                      <div className="flex gap-0.5 shrink-0">
-                        <IconButton
-                          variant="ghost"
-                          size="sm"
-                          icon={<CaretUp size={11} weight="bold" />}
-                          label="Move up"
-                          onClick={() => moveDep(idx, -1)}
-                          disabled={idx === 0}
-                        />
-                        <IconButton
-                          variant="ghost"
-                          size="sm"
-                          icon={<CaretDown size={11} weight="bold" />}
-                          label="Move down"
-                          onClick={() => moveDep(idx, 1)}
-                          disabled={idx === depCards.length - 1}
-                        />
-                        <IconButton
-                          variant="danger"
-                          size="sm"
-                          icon={<X size={11} weight="bold" />}
-                          label="Remove dependency"
-                          onClick={() => removeDep(idx)}
-                        />
-                      </div>
-                    ) : (
-                      <IconButton
-                        variant="ghost"
-                        size="sm"
-                        icon={<ArrowRight size={11} weight="bold" />}
-                        label="Go to card"
-                        onClick={() => onSelectCard(dep.id)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-xs text-fp-dim italic">No dependencies</div>
-          )}
-        </div>
-
-        {/* ---- Save / Cancel buttons (edit mode) — sticky bottom ---- */}
-        {editing && (
-          <div className="p-3 border-t border-fp-border flex gap-2 shrink-0 sticky bottom-0 bg-fp-solid/80 backdrop-blur-fp-card z-10">
-            <Button
-              variant="accent"
-              size="md"
-              icon={<CheckCircle size={12} weight="bold" />}
-              onClick={saveEdit}
-              className="flex-1"
-            >
-              Save changes
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
-              onClick={cancelEdit}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
-
-        {/* ---- Feedback Section ---- */}
-        <div className="p-3">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
-            Feedback
-            {feedbacks.length > 0 && (
-              <span className="ml-1.5 text-fp-dim/50">({feedbacks.length})</span>
-            )}
-          </div>
-
-          {/* Feedback list */}
-          {feedbacks.length > 0 ? (
-            <div className="mb-3.5">
-              {feedbacks.map(fb => (
-                <FeedbackItem key={fb.id} fb={fb} onDelete={onDeleteFeedback} readOnly={readOnly} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-xs text-fp-dim italic mb-3.5">No feedback yet</div>
-          )}
-
-          {/* Add feedback form */}
-          {!readOnly && (
-            <div className="border border-fp-border rounded-fp-lg overflow-hidden">
-              {/* Tab bar */}
-              <div className="flex items-center gap-0 border-b border-fp-border">
-                {(["question", "directive", "issue"] as const).map(type => {
-                  const s = FB[type];
-                  const icon = type === "question"
-                    ? <ChatCircleDots size={11} weight="bold" />
-                    : type === "directive"
-                      ? <Lightning size={11} weight="bold" />
-                      : <Warning size={11} weight="bold" />;
-                  return (
-                    <Button
-                      key={type}
-                      variant={fbTabVariant(type)}
-                      size="sm"
-                      icon={icon}
-                      onClick={() => setFbTab(type)}
-                      className="rounded-none flex-1 capitalize"
-                    >
-                      {s.label}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {/* Textarea + send */}
-              <div className="p-3">
-                <textarea
-                  value={fbText}
-                  onChange={e => setFbText(e.target.value)}
-                  placeholder={`Add a ${fbTab}...`}
-                  rows={3}
-                  className="fp-input resize-y text-xs leading-relaxed"
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault();
-                      handleAddFeedback();
-                    }
-                  }}
+        ) : (
+          /* ======== VIEW MODE ======== */
+          <>
+            {/* Description */}
+            <div className="p-3 border-b border-fp-border">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Description</div>
+              <div className="text-[13px]">
+                <Md
+                  text={card.description || "*No description*"}
+                  fontSize={13}
+                  color="rgba(255,255,255,0.55)"
+                  lineHeight={1.7}
                 />
-
-                <div className="flex justify-end mt-2">
-                  <Button
-                    variant={fbText.trim() ? "accent" : "ghost"}
-                    size="sm"
-                    icon={<PaperPlaneTilt size={11} weight="bold" />}
-                    onClick={handleAddFeedback}
-                    disabled={!fbText.trim()}
-                  >
-                    Send
-                  </Button>
-                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Repository */}
+            <div className="p-3 border-b border-fp-border">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Repository</div>
+              {card.repo ? (
+                <div className="flex items-center gap-2 py-2 px-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <Folders size={14} className="text-white/30 shrink-0" />
+                  <span className="text-[13px] font-mono text-white/60 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {card.repo}
+                  </span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(card.repo)}
+                    className="shrink-0 text-white/20 hover:text-white/50 transition-colors bg-transparent border-none cursor-pointer p-0"
+                  >
+                    <Copy size={13} />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-xs text-fp-dim italic">No repository specified</div>
+              )}
+            </div>
+
+            {/* Files */}
+            <div className="p-3 border-b border-fp-border">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">
+                Files
+                {card.files.length > 0 && <span className="ml-1.5 text-fp-dim/50">({card.files.length})</span>}
+              </div>
+              {card.files.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {card.files.map((f) => {
+                    const change = card.fileChanges?.[f];
+                    const fileName = f.split("/").pop() || f;
+                    const chipVariant = change
+                      ? (CHANGE_CHIP[change.changeType] || CHANGE_CHIP.edit).variant
+                      : ("default" as ChipVariant);
+                    return (
+                      <Chip
+                        key={f}
+                        variant={chipVariant}
+                        size="sm"
+                        icon={<File size={12} />}
+                        onClick={change ? () => onFileClick(f, change) : undefined}
+                        className="!lowercase !tracking-normal font-mono max-w-[200px]"
+                      >
+                        {fileName}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-xs text-fp-dim italic">No files</div>
+              )}
+            </div>
+
+            {/* Feedback Section */}
+            <div className="p-3">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-2">
+                Feedback
+                {feedbacks.length > 0 && <span className="ml-1.5 text-fp-dim/50">({feedbacks.length})</span>}
+              </div>
+
+              {feedbacks.length > 0 && (
+                <div className="mb-3">
+                  {feedbacks.map((fb) => (
+                    <FeedbackItem key={fb.id} fb={fb} onDelete={onDeleteFeedback} readOnly={readOnly} />
+                  ))}
+                </div>
+              )}
+
+              {!readOnly && (
+                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+                  {/* Tab selector */}
+                  <div className="flex gap-1 p-1.5">
+                    {(["question", "directive", "issue"] as const).map((type) => {
+                      const active = fbTab === type;
+                      const icon =
+                        type === "question" ? (
+                          <ChatCircleDots size={13} />
+                        ) : type === "directive" ? (
+                          <Lightning size={13} />
+                        ) : (
+                          <Warning size={13} />
+                        );
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setFbTab(type)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[12px] font-medium border-none cursor-pointer transition-all duration-150
+                            ${
+                              active
+                                ? "bg-white/[0.06] text-white/80"
+                                : "bg-transparent text-white/30 hover:text-white/50 hover:bg-white/[0.03]"
+                            }`}
+                        >
+                          {icon}
+                          <span className="mt-px">{FB[type].label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Input area */}
+                  <div className="px-3 pb-3">
+                    <textarea
+                      value={fbText}
+                      onChange={(e) => setFbText(e.target.value)}
+                      placeholder={`Add a ${fbTab}...`}
+                      rows={2}
+                      className="w-full bg-transparent border-none outline-none resize-none text-[13px] text-white/70 leading-relaxed placeholder:text-white/20"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          handleAddFeedback();
+                        }
+                      }}
+                    />
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-white/20">Ctrl+Enter to send</span>
+                      <button
+                        onClick={handleAddFeedback}
+                        disabled={!fbText.trim()}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border-none cursor-pointer transition-all duration-150
+                          ${
+                            fbText.trim()
+                              ? "bg-white/10 text-white/80 hover:bg-white/15"
+                              : "bg-transparent text-white/15 cursor-not-allowed"
+                          }`}
+                      >
+                        <PaperPlaneTilt size={12} />
+                        <span className="mt-px">Send</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
+
+      {/* ---- Edit mode: sticky footer ---- */}
+      {editing && (
+        <div className="px-4 py-3 shrink-0 border-t border-fp-border flex flex-col gap-2">
+          <Button
+            variant="glassy"
+            size="md"
+            icon={<CheckCircle size={12} weight="bold" />}
+            onClick={saveEdit}
+            className="w-full"
+          >
+            Save changes
+          </Button>
+          <Button variant="ghost" size="md" onClick={cancelEdit} className="w-full">
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,10 +8,18 @@ interface DropdownMenuProps {
 
 export default function DropdownMenu({ trigger, children, align = "left" }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
+  const [above, setAbove] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    // Determine if menu should open above or below
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setAbove(spaceBelow < 280);
+    }
     const close = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
@@ -21,14 +29,33 @@ export default function DropdownMenu({ trigger, children, align = "left" }: Drop
 
   return (
     <div ref={ref} className="relative">
-      <div onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{trigger}</div>
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+      >
+        {trigger}
+      </div>
       {open && (
         <div
-          className={`absolute top-full mt-1.5 z-[100] min-w-[180px] fp-glass border border-fp-border rounded-fp-lg p-1 shadow-[0_8px_30px_rgba(0,0,0,0.4)] ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
+          ref={menuRef}
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute z-[100] min-w-[160px] overflow-hidden rounded-[16px] border border-white/8 bg-[rgba(32,33,36,0.55)] backdrop-blur-[40px] animate-dropdown-in origin-[var(--origin)]
+            ${align === "right" ? "right-0" : "left-0"}
+            ${above ? "bottom-full mb-2" : "top-full mt-2"}
+          `}
+          style={
+            {
+              "--origin": above
+                ? `${align === "right" ? "100%" : "0%"} 100%`
+                : `${align === "right" ? "100%" : "0%"} 0%`,
+            } as React.CSSProperties
+          }
         >
-          {typeof children === "function" ? (children as any)(() => setOpen(false)) : children}
+          <div className="flex flex-col py-2 px-1" onClick={() => setOpen(false)}>
+            {typeof children === "function" ? (children as any)(() => setOpen(false)) : children}
+          </div>
         </div>
       )}
     </div>
@@ -45,15 +72,23 @@ interface DropdownItemProps {
 export function DropdownItem({ onClick, icon, label, danger }: DropdownItemProps) {
   return (
     <button
-      onClick={onClick}
-      className={`w-full bg-transparent border-none cursor-pointer py-2 px-3 rounded-fp-sm flex items-center gap-2.5 text-[13px] font-sans whitespace-nowrap transition-colors duration-150 ${
-        danger
-          ? "text-fp-danger hover:bg-fp-danger-dim"
-          : "text-fp-text hover:bg-fp-glass-hover"
-      }`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`relative flex w-full items-center gap-2 bg-transparent px-3 py-1.5 text-left text-xs whitespace-nowrap cursor-pointer select-none border-none outline-none
+        before:absolute before:inset-x-1 before:inset-y-0 before:rounded-md before:transition-colors before:duration-100
+        hover:before:bg-white/[0.05] active:before:bg-white/8
+        ${danger ? "text-fp-danger" : "text-white/80"}`}
     >
-      {icon && <span className="shrink-0 flex items-center w-4 h-4">{icon}</span>}
-      <span>{label}</span>
+      {icon && (
+        <span
+          className={`relative z-[1] flex shrink-0 items-center justify-center ${danger ? "text-fp-danger" : "text-white/50"}`}
+        >
+          {icon}
+        </span>
+      )}
+      <span className="relative z-[1] flex-1">{label}</span>
     </button>
   );
 }

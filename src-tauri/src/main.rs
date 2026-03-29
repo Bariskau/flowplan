@@ -18,32 +18,16 @@ fn show_dialog<R: tauri::Runtime>(app: &tauri::AppHandle<R>, title: &str, messag
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
-
     let Ok(title_json) = serde_json::to_string(title) else {
         return;
     };
     let Ok(msg_json) = serde_json::to_string(message) else {
         return;
     };
-
-    // Injects style once, reuses for subsequent dialogs
     let _ = window.eval(&format!(
-        r#"(function(t,m){{
-            var old=document.getElementById('__fp_dialog');if(old)old.remove();
-            if(!document.getElementById('__fp_ds')){{var s=document.createElement('style');s.id='__fp_ds';s.textContent='@keyframes __fp_fade{{from{{opacity:0}}to{{opacity:1}}}}@keyframes __fp_pop{{from{{opacity:0;transform:scale(.96) translateY(8px)}}to{{opacity:1;transform:scale(1) translateY(0)}}}}';document.head.appendChild(s)}}
-            var o=document.createElement('div');o.id='__fp_dialog';
-            o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:99999;animation:__fp_fade .15s ease-out;font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif;backdrop-filter:blur(4px)';
-            o.innerHTML='<div style="background:rgba(30,30,30,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#ececec;border-radius:14px;padding:28px 32px;min-width:320px;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,0.08);animation:__fp_pop .2s cubic-bezier(.16,1,.3,1)"><div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#ececec"></div><div style="font-size:12px;white-space:pre-line;color:#999;line-height:1.6"></div><button style="margin-top:22px;padding:7px 28px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(255,255,255,.06);color:#ececec;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s">OK</button></div>';
-            var d=o.firstChild,ti=d.children[0],mi=d.children[1],b=d.children[2];
-            ti.textContent=t;mi.textContent=m;
-            b.onmouseenter=function(){{b.style.background='rgba(255,255,255,.12)'}};
-            b.onmouseleave=function(){{b.style.background='rgba(255,255,255,.06)'}};
-            var close=function(){{o.style.opacity='0';o.style.transition='opacity .15s';setTimeout(function(){{o.remove()}},150)}};
-            b.onclick=close;o.onclick=function(e){{if(e.target===o)close()}};
-            document.body.append(o);b.focus();
-        }})({title},{msg})"#,
-        title = title_json,
-        msg = msg_json,
+        "window.dispatchEvent(new CustomEvent('fp-dialog',{{detail:{{title:{t},message:{m}}}}}));",
+        t = title_json,
+        m = msg_json
     ));
 }
 
@@ -156,7 +140,7 @@ fn main() {
                 MenuItemBuilder::with_id(MENU_CHECK_FOR_UPDATES, "Check for Updates...")
                     .build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").accelerator("CmdOrCtrl+Q").build(app)?;
-            let app_submenu = SubmenuBuilder::new(app, "FlowPlan")
+            let app_submenu = SubmenuBuilder::new(app, "About")
                 .item(&about)
                 .separator()
                 .item(&check_for_updates)
@@ -182,7 +166,7 @@ fn main() {
 
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = server::run_server(server_state, server_ct).await {
-                    eprintln!("[PVP] Server error: {}", e);
+                    eprintln!("[FlowPlan] Server error: {}", e);
                 }
             });
 

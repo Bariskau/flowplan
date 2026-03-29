@@ -41,13 +41,15 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
           ${variantClasses[variant]}
           ${sizeClasses[size]}
           ${className}
-        `.trim().replace(/\s+/g, " ")}
+        `
+          .trim()
+          .replace(/\s+/g, " ")}
         {...props}
       >
         {icon}
       </button>
     );
-  }
+  },
 );
 
 IconButton.displayName = "IconButton";

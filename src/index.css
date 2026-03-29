@@ -1,39 +1,46 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
-/* ── FlowPlan Design System ── */
+/* ── FlowPlan Design System (Stitch palette) ── */
 @theme {
-  /* Background */
-  --color-fp-bg: #191A1F;
+  /* Background & Surfaces */
+  --color-fp-bg: #191a1f;
   --color-fp-surface: rgba(255, 255, 255, 0.03);
+  --color-fp-surface-container: rgba(34, 35, 42, 0.82);
   --color-fp-raised: #27272a;
   --color-fp-solid: #18181b;
 
   /* Text */
   --color-fp-text: #fafafa;
   --color-fp-muted: #a1a1aa;
-  --color-fp-dim: #71717a;
+  --color-fp-dim: #616161;
 
   /* Borders */
   --color-fp-border: rgba(255, 255, 255, 0.06);
   --color-fp-border-hover: rgba(255, 255, 255, 0.12);
+  --color-fp-secondary: #404040;
 
-  /* Accent (emerald) */
+  /* Primary (blue - Stitch accent) */
+  --color-fp-primary: #4d90fe;
+  --color-fp-primary-dim: rgba(77, 144, 254, 0.12);
+  --color-fp-primary-hover: #357ae8;
+
+  /* Accent (emerald - action) */
   --color-fp-accent: #10b981;
   --color-fp-accent-dim: rgba(16, 185, 129, 0.12);
   --color-fp-accent-hover: #059669;
 
   /* Semantic */
-  --color-fp-success: #34d399;
-  --color-fp-success-dim: rgba(52, 211, 153, 0.12);
-  --color-fp-warning: #fbbf24;
-  --color-fp-warning-dim: rgba(251, 191, 36, 0.12);
-  --color-fp-danger: #f87171;
-  --color-fp-danger-dim: rgba(248, 113, 113, 0.12);
-  --color-fp-info: #38bdf8;
-  --color-fp-info-dim: rgba(56, 189, 248, 0.12);
-  --color-fp-purple: #a78bfa;
-  --color-fp-purple-dim: rgba(167, 139, 250, 0.12);
+  --color-fp-success: #34a853;
+  --color-fp-success-dim: rgba(52, 168, 83, 0.12);
+  --color-fp-warning: #fbbc04;
+  --color-fp-warning-dim: rgba(251, 188, 4, 0.12);
+  --color-fp-danger: #ea4335;
+  --color-fp-danger-dim: rgba(234, 67, 53, 0.12);
+  --color-fp-info: #4285f4;
+  --color-fp-info-dim: rgba(66, 133, 244, 0.12);
+  --color-fp-purple: #a855f7;
+  --color-fp-purple-dim: rgba(168, 85, 247, 0.12);
   --color-fp-teal: #2dd4bf;
   --color-fp-teal-dim: rgba(45, 212, 191, 0.12);
   --color-fp-orange: #fb923c;
@@ -44,91 +51,290 @@
   --color-fp-glass-hover: rgba(255, 255, 255, 0.06);
   --color-fp-glass-active: rgba(255, 255, 255, 0.08);
 
+  /* Shadows */
+  --shadow-fp-glass:
+    0 18px 44px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+
   /* Spacing */
-  --spacing-fp-sidebar: 220px;
-  --spacing-fp-drawer: 300px;
-  --spacing-fp-history: 340px;
+  --spacing-fp-sidebar: 250px;
+  --spacing-fp-drawer: 450px;
+  --spacing-fp-history: 320px;
   --spacing-fp-toolbar: 44px;
   --spacing-fp-gap: 10px;
 
   /* Radius */
   --radius-fp-sm: 6px;
   --radius-fp-md: 8px;
-  --radius-fp-lg: 12px;
-  --radius-fp-xl: 16px;
+  --radius-fp-lg: 16px;
+  --radius-fp-xl: 22px;
   --radius-fp-pill: 9999px;
 
   /* Blur */
-  --blur-fp-panel: 40px;
+  --blur-fp-panel: 24px;
   --blur-fp-card: 16px;
+  --blur-fp-glass: 20px;
 }
 
-/* ── Base — MUST be in @layer base so Tailwind utilities can override ── */
+/* ── Base ── */
 @layer base {
-  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; }
-  html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #191A1F; color: var(--color-fp-text); }
-  textarea, input, select, [data-selectable], [data-selectable] * { -webkit-user-select: text; user-select: text; }
+  * {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #191a1f;
+    color: var(--color-fp-text);
+  }
+  textarea,
+  input,
+  select,
+  [data-selectable],
+  [data-selectable] * {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+  ::-webkit-scrollbar {
+    width: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
 }
 
 /* ── Animations ── */
-@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slide-up { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.01) translateY(-1px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modal-overlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-in {
+  0% {
+    opacity: 0;
+    transform: translateX(24px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes sidebar-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-16px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toolbar-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes dropdown-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes zoom-controls-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ctx-menu-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 @layer components {
-  .animate-fade-in { animation: fade-in 0.18s ease-out; }
-  .animate-slide-up { animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-  .animate-toast { animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-
-  /* Glass panel base */
-  .fp-glass {
-    background: rgba(25, 26, 31, 0.65);
-    backdrop-filter: blur(var(--blur-fp-panel));
-    -webkit-backdrop-filter: blur(var(--blur-fp-panel));
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
   }
-
-  .fp-glass-card {
-    background: var(--color-fp-glass);
-    backdrop-filter: blur(var(--blur-fp-card));
-    -webkit-backdrop-filter: blur(var(--blur-fp-card));
+  .animate-modal-in {
+    animation: modal-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
-
-  /* Sidebar */
-  .plan-actions { opacity: 0; transition: opacity 0.12s !important; }
-  .plan-row:hover .plan-actions { opacity: 1 !important; }
+  .animate-modal-overlay {
+    animation: modal-overlay 0.3s ease-out forwards;
+  }
+  .animate-drawer-in {
+    animation: drawer-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-sidebar-in {
+    animation: sidebar-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-toolbar-in {
+    animation: toolbar-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .animate-toast {
+    animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-dropdown-in {
+    animation: dropdown-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-zoom-in {
+    animation: zoom-controls-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-ctx-menu {
+    animation: ctx-menu-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-slide-up {
+    animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
   /* React Flow */
-  .react-flow { --xy-background-color: transparent; --xy-node-border-radius: 8px; }
-  .react-flow__node { padding: 0 !important; border: none !important; background: none !important; }
-  .react-flow__edge-path { stroke: #3f3f46; stroke-width: 1; stroke-dasharray: 4 3; }
-  .react-flow__controls { background: var(--color-fp-glass); backdrop-filter: blur(12px); border: 1px solid var(--color-fp-border); border-radius: var(--radius-fp-md); }
-  .react-flow__controls-button { background: transparent; border-bottom-color: var(--color-fp-border); fill: var(--color-fp-muted); }
-  .react-flow__controls-button:hover { background: var(--color-fp-accent-dim); fill: var(--color-fp-accent); }
+  .react-flow {
+    --xy-background-color: transparent;
+    --xy-node-border-radius: 8px;
+  }
+  .react-flow__node {
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+  }
+  .react-flow__node:focus-visible {
+    outline: none;
+  }
+  .react-flow__node.selected .card-node {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.07),
+      0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+  .react-flow__node:focus-visible .card-node {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.12),
+      0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+  .react-flow__edge-path {
+    stroke: #404040;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    transition: stroke 0.15s;
+    cursor: pointer;
+  }
+  .react-flow__edge:hover .react-flow__edge-path {
+    stroke: var(--color-fp-danger) !important;
+  }
+  .react-flow__controls {
+    display: none;
+  }
 
   /* Input base */
   .fp-input {
     width: 100%;
     background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--color-fp-border);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-fp-md);
     padding: 8px 12px;
     font-size: 13px;
     color: var(--color-fp-text);
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
   }
   .fp-input:focus {
-    border-color: rgba(16, 185, 129, 0.3);
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+    border-color: rgba(77, 144, 254, 0.4);
+    box-shadow: 0 0 0 2px rgba(77, 144, 254, 0.12);
   }
-  .fp-input::placeholder { color: var(--color-fp-dim); }
+  .fp-input::placeholder {
+    color: var(--color-fp-dim);
+  }
 
   .fp-label {
     display: block;
