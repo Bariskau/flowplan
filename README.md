@@ -5,11 +5,11 @@ A visual plan board for AI coding agents. FlowPlan connects to Claude Code, Code
 **[Website](https://bariskau.github.io/flowplan)**
 
 <p align="center">
-  <img src="assets/og-image.png" width="100%" alt="FlowPlan — Plan board with card detail drawer and feedback" />
+  <img src="docs/og-image.png" width="100%" alt="FlowPlan — Plan board with card detail drawer and feedback" />
 </p>
 <p align="center">
-  <img src="assets/img-2.png" width="49%" alt="FlowPlan — Card with file changes and directives" />
-  <img src="assets/img-3.png" width="49%" alt="FlowPlan — Issue feedback and state machine card" />
+  <img src="docs/img-2.png" width="49%" alt="FlowPlan — Card with file changes and directives" />
+  <img src="docs/img-3.png" width="49%" alt="FlowPlan — Issue feedback and state machine card" />
 </p>
 
 ## Features
