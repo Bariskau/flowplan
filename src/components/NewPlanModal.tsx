@@ -10,7 +10,6 @@ interface NewPlanModalProps {
 }
 
 export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) {
-  const [icon, setIcon] = useState("\u{1F4CB}");
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [saving, setSaving] = useState(false);
@@ -19,7 +18,7 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
     if (!title.trim() || saving) return;
     setSaving(true);
     try {
-      const result = await api.createPlan(title.trim(), icon, desc.trim());
+      const result = await api.createPlan(title.trim(), "", desc.trim());
       onCreated(result.id);
     } catch {
       setSaving(false);
@@ -28,54 +27,44 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] flex items-center justify-center animate-fade-in"
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[1000] flex items-center justify-center animate-modal-overlay"
       onClick={onClose}
     >
       <div
-        className="fp-glass-card border border-fp-border shadow-2xl w-[380px] max-h-[80vh] flex flex-col animate-slide-up rounded-fp-xl overflow-hidden"
+        className="relative w-[400px] max-h-[80vh] flex flex-col animate-modal-in rounded-xl overflow-hidden border border-white/[0.08] bg-[rgba(32,33,36,0.95)]"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close button — absolute top-right */}
+        <IconButton
+          variant="ghost"
+          size="sm"
+          icon={<X size={14} />}
+          label="Close"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10"
+        />
+
         {/* Header — sticky */}
-        <div className="px-5 pt-4 pb-3 flex items-center justify-between shrink-0 border-b border-fp-border">
-          <div className="text-[14px] font-semibold text-fp-text tracking-[-0.02em]">
-            New Plan
-          </div>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            icon={<X size={12} />}
-            label="Close"
-            onClick={onClose}
-          />
+        <div className="px-6 pt-6 pb-4 shrink-0">
+          <h1 className="text-[16px] font-semibold text-fp-text tracking-[-0.02em] pr-8">New Plan</h1>
         </div>
 
-        {/* Body — scrollable */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex flex-col gap-4">
-            {/* Icon + Title row */}
-            <div className="flex gap-2.5">
-              <div className="flex-[0_0_48px]">
-                <label className="fp-label">Icon</label>
-                <input
-                  value={icon}
-                  onChange={(e) => setIcon(e.target.value)}
-                  maxLength={4}
-                  className="fp-input text-lg text-center !px-1.5"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="fp-label">Title</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Plan title"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") submit();
-                  }}
-                  className="fp-input"
-                />
-              </div>
+            {/* Title */}
+            <div>
+              <label className="fp-label">Title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Plan title"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit();
+                }}
+                className="fp-input"
+              />
             </div>
 
             {/* Description */}
@@ -93,19 +82,20 @@ export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) 
         </div>
 
         {/* Footer — sticky */}
-        <div className="px-5 pb-4 pt-3 flex justify-end gap-2 shrink-0 border-t border-fp-border">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
+        <div className="px-6 pt-4 pb-6 shrink-0 flex flex-col gap-2">
           <Button
-            variant="accent"
-            size="sm"
-            icon={<Plus size={12} weight="bold" />}
+            variant="glassy"
+            size="md"
+            icon={<Plus size={13} weight="bold" />}
             onClick={submit}
             disabled={!title.trim() || saving}
             loading={saving}
+            className="w-full"
           >
             {saving ? "Creating..." : "Create"}
+          </Button>
+          <Button variant="ghost" size="md" onClick={onClose} className="w-full">
+            Cancel
           </Button>
         </div>
       </div>

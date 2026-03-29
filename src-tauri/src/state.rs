@@ -45,7 +45,7 @@ pub struct Plan {
     pub pinned: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FileChange {
     pub content: String,
@@ -160,8 +160,10 @@ pub fn save_state(state: &AppState) {
                     if old_c.title != c.title
                         || old_c.description != c.description
                         || old_c.card_type != c.card_type
+                        || old_c.repo != c.repo
                         || old_c.files != c.files
                         || old_c.dependencies != c.dependencies
+                        || old_c.file_changes != c.file_changes
                         || old_c.order != c.order
                     {
                         actions.push(("update_card".into(), format!("Updated card: {}", c.title)));
@@ -171,7 +173,10 @@ pub fn save_state(state: &AppState) {
         }
         for old_c in old_steps {
             if !new_map.contains_key(old_c.id.as_str()) {
-                actions.push(("remove_card".into(), format!("Removed card: {}", old_c.title)));
+                actions.push((
+                    "remove_card".into(),
+                    format!("Removed card: {}", old_c.title),
+                ));
             }
         }
         if !actions.is_empty() {
@@ -179,16 +184,20 @@ pub fn save_state(state: &AppState) {
                 actions[0].0.clone()
             } else {
                 let types: Vec<&str> = actions.iter().map(|a| a.0.as_str()).collect();
-                if types.iter().all(|t| *t == "add_card") { "add_cards".into() }
-                else if types.iter().all(|t| *t == "remove_card") { "clear_plan".into() }
-                else { "update_card".into() }
+                if types.iter().all(|t| *t == "add_card") {
+                    "add_cards".into()
+                } else if types.iter().all(|t| *t == "remove_card") {
+                    "remove_cards".into()
+                } else {
+                    "update_card".into()
+                }
             };
             let desc = if actions.len() == 1 {
                 actions[0].1.clone()
             } else {
                 format!("{} changes", actions.len())
             };
-            record_snapshot(plan, &action, &desc);
+            record_snapshot(plan, old_steps, &action, &desc);
         }
     }
 }
@@ -220,7 +229,11 @@ pub struct HistoryEntry {
     pub timestamp: u64,
     pub action: String,
     pub description: String,
+    #[serde(default)]
+    pub previous_cards: Vec<CardSummary>,
     pub cards: Vec<CardSummary>,
+    #[serde(default)]
+    pub previous_full_cards: Vec<Card>,
     #[serde(default)]
     pub full_cards: Vec<Card>,
 }
@@ -288,14 +301,16 @@ pub fn delete_history(plan_id: &str) {
 const MAX_HISTORY_ENTRIES: usize = 30;
 const MAX_FULL_CARD_ENTRIES: usize = 10;
 
-pub fn record_snapshot(plan: &Plan, action: &str, description: &str) {
+pub fn record_snapshot(plan: &Plan, previous_steps: &[Card], action: &str, description: &str) {
     let mut history = load_history(&plan.id);
     let entry = HistoryEntry {
         id: gen_id("hist"),
         timestamp: now_millis(),
         action: action.to_string(),
         description: description.to_string(),
+        previous_cards: previous_steps.iter().map(|c| c.to_summary()).collect(),
         cards: plan.steps.iter().map(|c| c.to_summary()).collect(),
+        previous_full_cards: previous_steps.to_vec(),
         full_cards: plan.steps.clone(),
     };
     history.entries.push(entry);
@@ -307,6 +322,7 @@ pub fn record_snapshot(plan: &Plan, action: &str, description: &str) {
     let len = history.entries.len();
     if len > MAX_FULL_CARD_ENTRIES {
         for entry in history.entries[..len - MAX_FULL_CARD_ENTRIES].iter_mut() {
+            entry.previous_full_cards.clear();
             entry.full_cards.clear();
         }
     }

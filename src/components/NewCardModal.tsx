@@ -1,10 +1,21 @@
-import { useState } from "react";
-import { X, Plus } from "@phosphor-icons/react";
+import React, { useState, useMemo } from "react";
+import { X, Plus, ChatCircleDots, Folders, Lightning, PencilSimple, CheckCircle } from "@phosphor-icons/react";
 import { TC } from "../lib/theme";
 import * as api from "../lib/api";
 import type { Card } from "../types";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
+import Chip, { type ChipVariant } from "./ui/Chip";
+import { Md } from "../lib/markdown";
+import { TYPE_CHIP, TYPE_GRADIENT } from "../lib/cardTypes";
+
+const TYPE_ICON: Record<string, React.ReactNode> = {
+  research: <ChatCircleDots size={12} weight="regular" />,
+  planning: <Folders size={12} weight="regular" />,
+  create: <Lightning size={12} weight="regular" />,
+  edit: <PencilSimple size={12} weight="regular" />,
+  test: <CheckCircle size={12} weight="regular" />,
+};
 
 interface NewCardModalProps {
   planId: string;
@@ -18,9 +29,10 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
   const [desc, setDesc] = useState("");
   const [cardType, setCardType] = useState("edit");
   const [repo, setRepo] = useState("");
-  const [filesStr, setFilesStr] = useState("");
-  const [deps, setDeps] = useState<string[]>([]);
+  const filesStr = "";
+  const deps: string[] = [];
   const [saving, setSaving] = useState(false);
+  const [descPreview, setDescPreview] = useState(false);
 
   const submit = async () => {
     if (!title.trim() || saving) return;
@@ -46,29 +58,36 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] flex items-center justify-center animate-fade-in"
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[1000] flex items-center justify-center animate-modal-overlay"
       onClick={onClose}
     >
       <div
-        className="fp-glass-card border border-fp-border shadow-2xl w-[440px] max-h-[80vh] flex flex-col animate-slide-up rounded-fp-xl overflow-hidden"
+        className="relative w-[400px] max-h-[80vh] flex flex-col animate-modal-in rounded-xl overflow-hidden border border-white/[0.08] bg-[rgba(32,33,36,0.95)]"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Type gradient tint */}
+        <div
+          className="absolute inset-0 rounded-xl pointer-events-none transition-all duration-500 ease-out blur-2xl"
+          style={{ background: TYPE_GRADIENT[cardType] || TYPE_GRADIENT.edit }}
+        />
+
+        {/* Close button — absolute top-right */}
+        <IconButton
+          variant="ghost"
+          size="sm"
+          icon={<X size={14} />}
+          label="Close"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10"
+        />
+
         {/* Header — sticky */}
-        <div className="px-5 pt-4 pb-3 flex items-center justify-between shrink-0 border-b border-fp-border">
-          <div className="text-[14px] font-semibold text-fp-text tracking-[-0.02em]">
-            New Card
-          </div>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            icon={<X size={12} />}
-            label="Close"
-            onClick={onClose}
-          />
+        <div className="px-6 pt-6 pb-4 shrink-0">
+          <h1 className="text-[16px] font-semibold text-fp-text tracking-[-0.02em] pr-8">New Card</h1>
         </div>
 
-        {/* Body — scrollable */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex flex-col gap-4">
             {/* Title */}
             <div>
@@ -82,52 +101,63 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
               />
             </div>
 
-            {/* Card Type Selector — styled mini-buttons */}
+            {/* Card Type Selector */}
             <div>
               <label className="fp-label">Type</label>
               <div className="flex flex-wrap gap-1.5">
-                {Object.entries(TC).map(([k, v]) => {
-                  const active = cardType === k;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setCardType(k)}
-                      className={`
-                        inline-flex items-center gap-1 text-[10px] font-semibold font-mono
-                        py-1 px-2.5 rounded-full tracking-[0.03em] leading-none
-                        cursor-pointer transition-all duration-150
-                        ${active
-                          ? "ring-1 ring-inset ring-current shadow-[0_0_8px_rgba(255,255,255,0.04)]"
-                          : "opacity-50 hover:opacity-80"
-                        }
-                      `.trim().replace(/\s+/g, " ")}
-                      style={{
-                        color: v.c,
-                        background: active ? v.bg : "transparent",
-                      }}
-                    >
-                      <span
-                        className="w-1 h-1 rounded-full shrink-0"
-                        style={{ background: v.c }}
-                      />
-                      {v.l}
-                    </button>
-                  );
-                })}
+                {Object.entries(TC).map(([k, v]) => (
+                  <Chip
+                    key={k}
+                    variant={TYPE_CHIP[k] || "default"}
+                    size="sm"
+                    icon={TYPE_ICON[k]}
+                    onClick={() => setCardType(k)}
+                    className={`!normal-case ${cardType !== k ? "opacity-40" : ""}`}
+                  >
+                    {v.l}
+                  </Chip>
+                ))}
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <label className="fp-label">Description</label>
-              <textarea
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="Description (markdown supported)"
-                rows={4}
-                className="fp-input resize-y leading-[1.6]"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="fp-label !mb-0">Description</label>
+                <div
+                  role="radiogroup"
+                  className="flex gap-0.5 p-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]"
+                >
+                  {([false, true] as const).map((isPreview) => (
+                    <button
+                      key={String(isPreview)}
+                      role="radio"
+                      aria-checked={descPreview === isPreview}
+                      onClick={() => setDescPreview(isPreview)}
+                      className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium border-none cursor-pointer transition-all duration-150 ${descPreview === isPreview ? "bg-white/[0.08] text-white/80" : "bg-transparent text-white/30 hover:text-white/50"}`}
+                    >
+                      {isPreview ? "Preview" : "Edit"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {descPreview ? (
+                <div className="fp-input min-h-[100px] overflow-y-auto">
+                  {desc.trim() ? (
+                    <Md text={desc} fontSize={13} color="rgba(255,255,255,0.55)" lineHeight={1.7} />
+                  ) : (
+                    <span className="text-fp-dim text-xs italic">Nothing to preview</span>
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Description (markdown supported)"
+                  rows={4}
+                  className="fp-input resize-y leading-[1.6]"
+                />
+              )}
             </div>
 
             {/* Repository */}
@@ -140,85 +170,24 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
                 className="fp-input font-mono !text-xs"
               />
             </div>
-
-            {/* Files */}
-            <div>
-              <label className="fp-label">
-                Files <span className="normal-case font-normal opacity-60">(one per line)</span>
-              </label>
-              <textarea
-                value={filesStr}
-                onChange={(e) => setFilesStr(e.target.value)}
-                placeholder={"src/main.ts\nsrc/utils.ts"}
-                rows={3}
-                className="fp-input !text-xs font-mono resize-y leading-[1.6]"
-              />
-            </div>
-
-            {/* Dependencies */}
-            {existingCards.length > 0 && (
-              <div>
-                <label className="fp-label">
-                  Dependencies <span className="normal-case font-normal opacity-60">(optional)</span>
-                </label>
-                <div className="max-h-[120px] overflow-y-auto flex flex-col gap-0.5 p-1 rounded-fp-md" style={{ background: "rgba(0,0,0,0.15)", border: "1px solid var(--color-fp-border)" }}>
-                  {existingCards.map((s) => {
-                    const checked = deps.includes(s.id);
-                    const stc = TC[s.type] || TC.research;
-                    return (
-                      <label
-                        key={s.id}
-                        className={`flex items-center gap-1.5 py-1.5 px-2 rounded-fp-sm cursor-pointer transition-all duration-150
-                          ${checked
-                            ? "bg-fp-accent-dim ring-1 ring-inset ring-fp-accent/20"
-                            : "hover:bg-fp-glass-hover"
-                          }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            setDeps((d) =>
-                              checked ? d.filter((x) => x !== s.id) : [...d, s.id]
-                            )
-                          }
-                          className="w-3 h-3 cursor-pointer accent-fp-accent"
-                        />
-                        <span
-                          className="text-[9px] font-bold py-[2px] px-1.5 rounded-full font-mono tracking-[0.03em] shrink-0"
-                          style={{ color: stc.c, background: stc.bg }}
-                        >
-                          {stc.l}
-                        </span>
-                        <span
-                          className={`text-[11px] overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150
-                            ${checked ? "text-fp-text" : "text-fp-muted"}`}
-                        >
-                          {s.title}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Footer — sticky */}
-        <div className="px-5 pb-4 pt-3 flex justify-end gap-2 shrink-0 border-t border-fp-border">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
+        <div className="px-6 pt-4 pb-6 shrink-0 flex flex-col gap-2">
           <Button
-            variant="accent"
-            size="sm"
-            icon={<Plus size={12} weight="bold" />}
+            variant="glassy"
+            size="md"
+            icon={<Plus size={13} weight="bold" />}
             onClick={submit}
             disabled={!title.trim() || saving}
             loading={saving}
+            className="w-full"
           >
             {saving ? "Adding..." : "Add Card"}
+          </Button>
+          <Button variant="ghost" size="md" onClick={onClose} className="w-full">
+            Cancel
           </Button>
         </div>
       </div>
