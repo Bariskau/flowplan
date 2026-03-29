@@ -18,37 +18,16 @@ fn show_dialog<R: tauri::Runtime>(app: &tauri::AppHandle<R>, title: &str, messag
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
-
     let Ok(title_json) = serde_json::to_string(title) else {
         return;
     };
     let Ok(msg_json) = serde_json::to_string(message) else {
         return;
     };
-
     let _ = window.eval(&format!(
-        r#"(function(){{
-            var old=document.getElementById('__fp_dialog');if(old)old.remove();
-            var s=document.createElement('style');
-            s.textContent='@keyframes __fp_fade{{from{{opacity:0}}to{{opacity:1}}}}@keyframes __fp_pop{{from{{opacity:0;transform:scale(.96) translateY(8px)}}to{{opacity:1;transform:scale(1) translateY(0)}}}}';
-            document.head.appendChild(s);
-            var o=document.createElement('div');o.id='__fp_dialog';
-            o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:99999;animation:__fp_fade .18s ease-out;font-family:-apple-system,BlinkMacSystemFont,Helvetica Neue,sans-serif';
-            var d=document.createElement('div');
-            d.style.cssText='background:#1e1e1e;color:#ececec;border-radius:12px;padding:28px 32px;min-width:320px;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid #333;animation:__fp_pop .2s cubic-bezier(.16,1,.3,1)';
-            var t=document.createElement('div');t.style.cssText='font-size:14px;font-weight:600;margin-bottom:10px;color:#ececec';t.textContent={title};
-            var m=document.createElement('div');m.style.cssText='font-size:12px;white-space:pre-line;color:#999;line-height:1.6';m.textContent={msg};
-            var b=document.createElement('button');b.textContent='OK';
-            b.style.cssText='margin-top:22px;padding:6px 24px;border:1px solid #333;border-radius:6px;background:rgba(255,255,255,.06);color:#ececec;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s';
-            b.onmouseenter=function(){{b.style.background='rgba(255,255,255,.12)'}};
-            b.onmouseleave=function(){{b.style.background='rgba(255,255,255,.06)'}};
-            b.onclick=function(){{o.style.opacity='0';o.style.transition='opacity .15s';setTimeout(function(){{o.remove();s.remove()}},150)}};
-            d.append(t,m,b);o.append(d);
-            o.onclick=function(e){{if(e.target===o)b.click()}};
-            document.body.append(o);b.focus();
-        }})()"#,
-        title = title_json,
-        msg = msg_json,
+        "window.dispatchEvent(new CustomEvent('fp-dialog',{{detail:{{title:{t},message:{m}}}}}));",
+        t = title_json,
+        m = msg_json
     ));
 }
 
@@ -161,7 +140,7 @@ fn main() {
                 MenuItemBuilder::with_id(MENU_CHECK_FOR_UPDATES, "Check for Updates...")
                     .build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").accelerator("CmdOrCtrl+Q").build(app)?;
-            let app_submenu = SubmenuBuilder::new(app, "FlowPlan")
+            let app_submenu = SubmenuBuilder::new(app, "About")
                 .item(&about)
                 .separator()
                 .item(&check_for_updates)
@@ -187,7 +166,7 @@ fn main() {
 
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = server::run_server(server_state, server_ct).await {
-                    eprintln!("[PVP] Server error: {}", e);
+                    eprintln!("[FlowPlan] Server error: {}", e);
                 }
             });
 

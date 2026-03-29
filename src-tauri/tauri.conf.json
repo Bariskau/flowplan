@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicholasgasior/tauri-schema/refs/heads/main/tauri.conf.json.schema.json",
   "productName": "FlowPlan",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "identifier": "com.flowplan.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -19,6 +19,7 @@
         "minWidth": 900,
         "minHeight": 600,
         "theme": "Dark",
+        "backgroundColor": "#202124",
         "zoomHotkeysEnabled": false
       }
     ]

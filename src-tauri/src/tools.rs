@@ -32,22 +32,30 @@ struct CreatePlanParams {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct CardEntry {
-    #[schemars(description = "Card title")]
+    #[schemars(
+        description = "Short, descriptive title (3-8 words). E.g., 'Add user authentication middleware'"
+    )]
     title: String,
-    #[schemars(description = "Card description (markdown supported)")]
+    #[schemars(
+        description = "Detailed description in markdown. Use headers, bullet lists, code blocks. Explain: what this card does, why, key decisions, and expected outcomes."
+    )]
     description: String,
-    #[schemars(description = "Type: research, planning, create, edit, or test")]
+    #[schemars(
+        description = "Card type: 'research' (investigation/analysis), 'planning' (design/architecture), 'create' (new files/features), 'edit' (modify existing code), 'test' (testing/validation)"
+    )]
     card_type: CardType,
-    #[schemars(description = "Repository or project path")]
+    #[schemars(description = "Full repository or project path. E.g., '/home/user/projects/myapp'")]
     repo: String,
-    #[schemars(description = "File paths relevant to this card")]
+    #[schemars(
+        description = "Full file paths this card touches. E.g., ['src/auth/middleware.ts', 'src/types/user.ts']"
+    )]
     files: Vec<String>,
     #[schemars(
-        description = "IDs of cards this depends on. REQUIRED except for the first card — without dependencies cards appear disconnected."
+        description = "IDs of cards this depends on. REQUIRED for all cards except the very first one in a plan. Without dependencies, cards appear disconnected in the flow view. Use IDs returned by previous add_cards calls."
     )]
     dependencies: Vec<String>,
     #[schemars(
-        description = "Proposed code changes per file: [{path, content, language?, changeType?}]. Users preview these in the UI."
+        description = "Code changes per file for the user to preview. Each entry: {path (file path), content (diff/full code/markdown with code blocks), language? (auto-detected from extension if omitted), changeType? ('create'|'edit'|'delete', defaults to 'edit')}. STRONGLY RECOMMENDED — without file_changes, the user cannot preview your proposed code."
     )]
     file_changes: Option<Vec<FileChangeEntry>>,
 }
@@ -56,7 +64,9 @@ struct CardEntry {
 struct AddCardsParams {
     #[schemars(description = "Plan ID")]
     plan_id: String,
-    #[schemars(description = "Cards to add (single or multiple). IDs returned in order so later cards can reference earlier ones as dependencies.")]
+    #[schemars(
+        description = "Array of cards to add. Cards are processed in order, so later cards can depend on earlier ones. Use '$0', '$1', etc. in dependencies to reference cards in THIS batch by their array index. You can also reference existing card IDs from the plan."
+    )]
     cards: Vec<CardEntry>,
 }
 
@@ -226,7 +236,9 @@ fn card_summary_json(card: &Card) -> serde_json::Value {
 
 #[tool_router]
 impl PlannerHandler {
-    #[tool(description = "Create a new plan board. Returns planId for adding cards.")]
+    #[tool(
+        description = "Create a new plan board. Returns planId — use it immediately with add_cards to populate. Keep title short (3-6 words), icon as single emoji, description as one sentence summarizing the plan's goal."
+    )]
     async fn create_plan(
         &self,
         Parameters(params): Parameters<CreatePlanParams>,
@@ -250,7 +262,7 @@ impl PlannerHandler {
     }
 
     #[tool(
-        description = "Add cards to a plan. Works for single or batch. Returns cardIds in order — use earlier IDs as dependencies for later cards. Every card except the first MUST have dependencies. Include file_changes for each file so users can preview code."
+        description = "Add one or more cards (tasks/steps) to a plan. Accepts a single card or a batch — cards are processed in order so later cards can depend on earlier ones.\n\nBATCH DEPENDENCIES: Use '$0', '$1', etc. to reference cards within the same batch by array index. These are resolved to real IDs automatically.\n\nRULES:\n1. Every card except the FIRST in the plan must have at least one dependency — cards without dependencies appear disconnected.\n2. Include file_changes for every file the card modifies so the user can preview diffs in the UI.\n3. Set card_type accurately: 'research' for investigation, 'planning' for design, 'create' for new files, 'edit' for modifications, 'test' for testing.\n4. Description supports full markdown — use headers, lists, code blocks for clarity.\n\nExample batch with internal refs:\n[{title: 'Setup auth', ...dependencies: []}, {title: 'Add middleware', ...dependencies: ['$0']}, {title: 'Write tests', ...dependencies: ['$1']}]"
     )]
     async fn add_cards(
         &self,
@@ -260,31 +272,75 @@ impl PlannerHandler {
         let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
         match plan {
             Some(plan) => {
-                let mut ids = Vec::new();
-                let mut next_order = plan.steps.len() as u32;
-                for entry in params.cards {
+                if params.cards.is_empty() {
+                    return Ok(CallToolResult::error(vec![Content::text(
+                        "No cards provided. Pass at least one card in the 'cards' array.",
+                    )]));
+                }
+
+                // Pre-generate IDs for all cards so batch refs ($0, $1, ...) can be resolved
+                let generated_ids: Vec<String> = (0..params.cards.len())
+                    .map(|_| state::gen_id("card"))
+                    .collect();
+
+                let mut card_ids = Vec::new();
+
+                for (i, entry) in params.cards.into_iter().enumerate() {
+                    let has_existing_cards = !plan.steps.is_empty() || i > 0;
+                    // Resolve dependencies: replace $N refs with generated IDs
+                    let resolved_deps: Vec<String> = entry
+                        .dependencies
+                        .into_iter()
+                        .map(|dep| {
+                            if let Some(idx_str) = dep.strip_prefix('$') {
+                                if let Ok(idx) = idx_str.parse::<usize>() {
+                                    if idx < generated_ids.len() {
+                                        return generated_ids[idx].clone();
+                                    }
+                                }
+                            }
+                            dep
+                        })
+                        .collect();
+
+                    if has_existing_cards && resolved_deps.is_empty() {
+                        let mut available: Vec<String> = plan
+                            .steps
+                            .iter()
+                            .map(|c| format!("{} ({})", c.id, c.title))
+                            .collect();
+                        for (j, id) in generated_ids.iter().enumerate().take(i) {
+                            available.push(format!("{} (batch ${})", id, j));
+                        }
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "DEPENDENCY_REQUIRED: Card '{}' (index {}) needs at least one dependency. Use '$N' to reference cards in this batch, or use these existing IDs: [{}].",
+                            entry.title, i, available.join(", ")
+                        ))]));
+                    }
+
                     let fc = entry
                         .file_changes
                         .map(build_file_changes)
                         .unwrap_or_default();
+                    let next_order = plan.steps.len() as u32;
                     let card = Card {
-                        id: state::gen_id("card"),
+                        id: generated_ids[i].clone(),
                         title: entry.title,
                         description: entry.description,
                         card_type: entry.card_type,
                         repo: entry.repo,
                         files: entry.files,
-                        dependencies: entry.dependencies,
+                        dependencies: resolved_deps,
                         file_changes: fc,
                         order: next_order,
                     };
-                    next_order += 1;
-                    ids.push(card.id.clone());
+                    card_ids.push(card.id.clone());
                     plan.steps.push(card);
                 }
+
                 state::save_state(&st);
                 Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::json!({ "cardIds": ids }).to_string(),
+                    serde_json::json!({ "cardIds": card_ids }).to_string(),
                 )]))
             }
             None => Ok(CallToolResult::error(vec![Content::text(format!(
@@ -294,7 +350,9 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(description = "Remove a card by ID.")]
+    #[tool(
+        description = "Remove a card by ID. Automatically cleans up dangling dependency references in other cards."
+    )]
     async fn remove_card(
         &self,
         Parameters(params): Parameters<RemoveCardParams>,
@@ -311,6 +369,10 @@ impl PlannerHandler {
                         params.card_id, params.plan_id
                     ))]))
                 } else {
+                    // Clean up dangling dependency references
+                    for card in plan.steps.iter_mut() {
+                        card.dependencies.retain(|d| d != &params.card_id);
+                    }
                     state::save_state(&st);
                     Ok(CallToolResult::success(vec![Content::text("Card removed")]))
                 }
@@ -323,7 +385,7 @@ impl PlannerHandler {
     }
 
     #[tool(
-        description = "Get cards from a plan. Returns card metadata without file_changes content (use update_card to modify file_changes). Supports pagination."
+        description = "Get cards from a plan with pagination. Returns card metadata WITHOUT file_changes content to save tokens. Use offset/limit for large plans (e.g., offset=0, limit=10). Each card includes: id, title, description, type, repo, files, dependencies, hasFileChanges flag, order."
     )]
     async fn get_cards(
         &self,
@@ -362,7 +424,9 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(description = "List all plans with IDs, titles, and card counts.")]
+    #[tool(
+        description = "List all plans. Returns id, title, icon, and cardCount for each. Use this to find the right plan_id before calling other tools."
+    )]
     async fn list_plans(
         &self,
         Parameters(_params): Parameters<ListPlansParams>,
@@ -385,7 +449,9 @@ impl PlannerHandler {
         )]))
     }
 
-    #[tool(description = "Get a plan with all cards (without file_changes content). Use get_cards with pagination for large plans.")]
+    #[tool(
+        description = "Get a plan's full structure with all cards (without file_changes). For plans with many cards, prefer get_cards with pagination to save tokens. Returns: id, title, icon, description, and cards array."
+    )]
     async fn get_plan(
         &self,
         Parameters(params): Parameters<GetPlanParams>,
@@ -414,7 +480,9 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(description = "Remove all cards from a plan.")]
+    #[tool(
+        description = "Remove ALL cards from a plan. This is destructive — use remove_card for single deletions. The plan itself remains; only its cards are cleared."
+    )]
     async fn clear_plan(
         &self,
         Parameters(params): Parameters<ClearPlanParams>,
@@ -435,7 +503,7 @@ impl PlannerHandler {
     }
 
     #[tool(
-        description = "Get pending feedback (unread questions, directives, issues). Answer questions with answer_feedback, acknowledge directives/issues with acknowledge_feedback."
+        description = "Get pending feedback from the user. Returns unread questions, directives, and issues.\n\nAction required per type:\n- question: Answer with answer_feedback (provide the feedback_id and your answer)\n- directive: Read and follow the instruction, then acknowledge with acknowledge_feedback\n- issue: Address the reported problem, then acknowledge with acknowledge_feedback\n\nCheck this regularly during plan execution to stay aligned with user intent."
     )]
     async fn get_all_feedback(
         &self,
@@ -471,7 +539,9 @@ impl PlannerHandler {
         )]))
     }
 
-    #[tool(description = "Answer a question feedback. The answer appears in the UI under the question.")]
+    #[tool(
+        description = "Answer a question feedback. The answer appears in the UI under the question."
+    )]
     async fn answer_feedback(
         &self,
         Parameters(params): Parameters<AnswerFeedbackParams>,
@@ -492,7 +562,9 @@ impl PlannerHandler {
         }
     }
 
-    #[tool(description = "Update card fields. Only provided fields change, others stay. Supports title, description, type, repo, files, dependencies, file_changes, order.")]
+    #[tool(
+        description = "Partially update a card — only provided fields change, others are preserved. Use this to:\n- Update description with progress/results\n- Add or modify file_changes with new code diffs\n- Change dependencies as the plan evolves\n- Reorder with the 'order' field\n\nFor file_changes, provide the full set of changes (not incremental) — existing file_changes are replaced entirely."
+    )]
     async fn update_card(
         &self,
         Parameters(params): Parameters<UpdateCardParams>,
