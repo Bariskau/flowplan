@@ -70,6 +70,7 @@ export default function App() {
   const [newCardModal, setNewCardModal] = useState(false);
   const [toast, setToast] = useState<{ text: string; file: string; error?: boolean } | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const exportSvgRef = useRef<(() => Promise<Blob | null>) | null>(null);
   const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
 
   // Listen for Tauri dialog events via CustomEvent
@@ -276,37 +277,37 @@ export default function App() {
     showToast("Exported", `~/Downloads/${fileName}`);
   }, [plan]);
 
-  const exportSvg = useCallback(() => {
-    const svgEl = document.querySelector(".react-flow__viewport");
-    if (!svgEl || !plan) {
+  const exportSvg = useCallback(async () => {
+    if (!plan || !exportSvgRef.current) {
       showToast("SVG export failed", "", true);
       return;
     }
-    const clone = svgEl.cloneNode(true) as Element;
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    const rect = svgEl.getBoundingClientRect();
-    svg.setAttribute("width", String(rect.width));
-    svg.setAttribute("height", String(rect.height));
-    svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
-    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    svg.appendChild(clone);
-    const blob = new Blob([svg.outerHTML], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const fileName = `${
-      plan.title
-        .replace(/[^a-zA-Z0-9-_ ]/g, "")
-        .replace(/\s+/g, "-")
-        .toLowerCase() || "flowplan"
-    }.svg`;
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast("Exported SVG", `~/Downloads/${fileName}`);
+    try {
+      const svgBlob = await exportSvgRef.current();
+      if (!svgBlob) throw new Error("svg export failed");
+      const a = document.createElement("a");
+      const fileName = `${
+        plan.title
+          .replace(/[^a-zA-Z0-9-_ ]/g, "")
+          .replace(/\s+/g, "-")
+          .toLowerCase() || "flowplan"
+      }.svg`;
+      const url = URL.createObjectURL(svgBlob);
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Exported SVG", `~/Downloads/${fileName}`);
+    } catch {
+      showToast("SVG export failed", "", true);
+    }
   }, [plan, showToast]);
+
+  const handleExportSvgReady = useCallback((exporter: (() => Promise<Blob | null>) | null) => {
+    exportSvgRef.current = exporter;
+  }, []);
 
   const handleDeletePlan = useCallback(async (id: string) => {
     setPlans((prev) => prev.filter((p) => p.id !== id));
@@ -452,10 +453,11 @@ export default function App() {
               onEditCard={handleEditCard}
               onDeleteCard={handleDeleteCard}
               onConnectCards={handleConnectCards}
-              onDisconnectCards={handleDisconnectCards}
-            />
-          </div>
-        )}
+            onDisconnectCards={handleDisconnectCards}
+            onExportSvgReady={handleExportSvgReady}
+          />
+        </div>
+      )}
       </div>
 
       <div

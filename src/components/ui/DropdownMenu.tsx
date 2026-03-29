@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useState, useEffect, useRef, type ReactNode } from "react";
 
 interface DropdownMenuProps {
   trigger: ReactNode;
@@ -53,8 +53,13 @@ export default function DropdownMenu({ trigger, children, align = "left" }: Drop
             } as React.CSSProperties
           }
         >
-          <div className="flex flex-col py-2 px-1" onClick={() => setOpen(false)}>
-            {typeof children === "function" ? (children as any)(() => setOpen(false)) : children}
+          <div className="flex flex-col py-2 px-1">
+            {typeof children === "function"
+              ? (children as any)(() => setOpen(false))
+              : Children.map(children, (child) => {
+                  if (!isValidElement(child)) return child;
+                  return cloneElement(child, { closeMenu: () => setOpen(false) });
+                })}
           </div>
         </div>
       )}
@@ -67,14 +72,17 @@ interface DropdownItemProps {
   icon?: ReactNode;
   label: string;
   danger?: boolean;
+  closeMenu?: () => void;
 }
 
-export function DropdownItem({ onClick, icon, label, danger }: DropdownItemProps) {
+export function DropdownItem({ onClick, icon, label, danger, closeMenu }: DropdownItemProps) {
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
+        closeMenu?.();
       }}
       className={`relative flex w-full items-center gap-2 bg-transparent px-3 py-1.5 text-left text-xs whitespace-nowrap cursor-pointer select-none border-none outline-none
         before:absolute before:inset-x-1 before:inset-y-0 before:rounded-md before:transition-colors before:duration-100
