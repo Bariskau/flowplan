@@ -15,6 +15,7 @@ import {
 } from "@xyflow/react";
 import { Plus, Minus, ArrowsOutCardinal, PencilSimple, Trash, Copy, X } from "@phosphor-icons/react";
 import type { Card, FileChange } from "../types";
+import { formatCardRef } from "../lib/refs";
 import CardNode, { type CardNodeData } from "./CardNode";
 
 /* ---- Zoom button ---- */
@@ -488,12 +489,12 @@ function FlowCanvasInner({
 
   const handleCopyRefs = useCallback(() => {
     const sel = cards.filter((c) => selectedNodeIds.includes(c.id));
-    const refs = sel.flatMap((c) => c.files).filter(Boolean);
+    const refs = sel.map((card) => formatCardRef(planTitle, card));
     navigator.clipboard.writeText(refs.join("\n")).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
-  }, [cards, selectedNodeIds]);
+  }, [cards, planTitle, selectedNodeIds]);
 
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
