@@ -8,13 +8,16 @@ import {
   ReactFlowProvider,
   useReactFlow,
   useOnViewportChange,
+  getNodesBounds,
   type Node,
   type Edge,
   type Connection,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import { Plus, Minus, ArrowsOutCardinal, PencilSimple, Trash, Copy, X } from "@phosphor-icons/react";
+import { toPng } from "html-to-image";
 import type { Card, FileChange } from "../types";
+import { formatCardRef } from "../lib/refs";
 import CardNode, { type CardNodeData } from "./CardNode";
 
 /* ---- Zoom button ---- */
@@ -167,6 +170,7 @@ interface FlowCanvasProps {
   onDeleteCard?: (cardId: string) => void;
   onConnectCards?: (sourceId: string, targetId: string) => void;
   onDisconnectCards?: (sourceId: string, targetId: string) => void;
+  onExportSvgReady?: (exporter: (() => Promise<Blob | null>) | null) => void;
 }
 
 function areStringArraysEqual(prev: string[] = [], next: string[] = []) {
@@ -233,6 +237,7 @@ function areFlowCanvasPropsEqual(prev: FlowCanvasProps, next: FlowCanvasProps) {
   if (prev.onDeleteCard !== next.onDeleteCard) return false;
   if (prev.onConnectCards !== next.onConnectCards) return false;
   if (prev.onDisconnectCards !== next.onDisconnectCards) return false;
+  if (prev.onExportSvgReady !== next.onExportSvgReady) return false;
   return true;
 }
 
@@ -337,6 +342,7 @@ function FlowCanvasInner({
   onDeleteCard,
   onConnectCards,
   onDisconnectCards,
+  onExportSvgReady,
 }: FlowCanvasProps) {
   const { fitView, zoomIn, zoomOut, getNodes } = useReactFlow();
   const hasFitView = useRef(false);
@@ -488,12 +494,59 @@ function FlowCanvasInner({
 
   const handleCopyRefs = useCallback(() => {
     const sel = cards.filter((c) => selectedNodeIds.includes(c.id));
-    const refs = sel.flatMap((c) => c.files).filter(Boolean);
+    const refs = sel.map((card) => formatCardRef(planTitle, card));
     navigator.clipboard.writeText(refs.join("\n")).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
-  }, [cards, selectedNodeIds]);
+  }, [cards, planTitle, selectedNodeIds]);
+
+  const createSvgBlob = useCallback(async () => {
+    const viewportEl = flowRef.current?.querySelector<HTMLElement>(".react-flow__viewport");
+    const flowNodes = getNodes();
+    if (!viewportEl || flowNodes.length === 0) return null;
+
+    const bounds = getNodesBounds(flowNodes);
+    const padding = 32;
+    const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
+    const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
+
+    const pngDataUrl = await toPng(viewportEl, {
+      backgroundColor: "#202124",
+      cacheBust: true,
+      pixelRatio: 2,
+      width,
+      height,
+      style: {
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `translate(${-bounds.x + padding}px, ${-bounds.y + padding}px) scale(1)`,
+        transformOrigin: "0 0",
+      },
+      filter: (node) => {
+        const el = node as HTMLElement;
+        if (el.classList?.contains("react-flow__background")) return false;
+        if (el.classList?.contains("react-flow__selection")) return false;
+        if (el.classList?.contains("react-flow__nodesselection")) return false;
+        if (el.classList?.contains("react-flow__nodesselection-rect")) return false;
+        if (el.classList?.contains("react-flow__panel")) return false;
+        return true;
+      },
+    });
+
+    const svgMarkup = `
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <rect width="100%" height="100%" fill="#202124" />
+  <image width="${width}" height="${height}" preserveAspectRatio="none" href="${pngDataUrl}" xlink:href="${pngDataUrl}" />
+</svg>`;
+
+    return new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+  }, [getNodes]);
+
+  useEffect(() => {
+    onExportSvgReady?.(createSvgBlob);
+    return () => onExportSvgReady?.(null);
+  }, [createSvgBlob, onExportSvgReady]);
 
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { TC } from "../lib/theme";
 import { Md } from "../lib/markdown";
+import { formatCardRef } from "../lib/refs";
 import type { Card, FileChange } from "../types";
 import { Folders, File, Copy, MagnifyingGlass, Compass, Plus, PencilSimple, Flask } from "@phosphor-icons/react";
 import CardTag from "./ui/CardTag";
@@ -38,7 +39,7 @@ function CopyRef({ card, planTitle }: { card: Card; planTitle: string }) {
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      const ref = `[${planTitle} / ${card.title}] (${card.type}#${card.id})`;
+      const ref = formatCardRef(planTitle, card);
       navigator.clipboard.writeText(ref).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
