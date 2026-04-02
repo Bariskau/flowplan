@@ -20,9 +20,9 @@ const variantClasses: Record<Variant, string> = {
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "w-6 h-6 rounded-fp-sm",
-  md: "w-7 h-7 rounded-fp-md",
-  lg: "w-8 h-8 rounded-fp-md",
+  sm: "w-6 h-6 min-w-6 min-h-6 aspect-square rounded-fp-sm",
+  md: "w-7 h-7 min-w-7 min-h-7 aspect-square rounded-fp-md",
+  lg: "w-8 h-8 min-w-8 min-h-8 aspect-square rounded-fp-md",
 };
 
 const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(

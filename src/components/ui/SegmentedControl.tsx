@@ -4,6 +4,7 @@ interface SegmentedControlOption {
   id: string;
   label: ReactNode;
   disabled?: boolean;
+  title?: string;
 }
 
 interface SegmentedControlProps {
@@ -50,6 +51,7 @@ export default function SegmentedControl({
             key={option.id}
             type="button"
             disabled={option.disabled}
+            title={option.title}
             aria-pressed={selected}
             onClick={() => onChange(option.id)}
             className={`relative z-10 flex items-center justify-center gap-1 px-2.5 py-1 rounded-full border-none text-[10px] font-medium transition-all duration-150 ${
