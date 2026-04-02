@@ -6,6 +6,7 @@ import type { Card } from "../types";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import Chip, { type ChipVariant } from "./ui/Chip";
+import SegmentedControl from "./ui/SegmentedControl";
 import { Md } from "../lib/markdown";
 import { TYPE_CHIP, TYPE_GRADIENT } from "../lib/cardTypes";
 
@@ -21,7 +22,7 @@ interface NewCardModalProps {
   planId: string;
   existingCards: Card[];
   onClose: () => void;
-  onCreated: (cardId: string) => void;
+  onCreated: (card: Card) => void;
 }
 
 export default function NewCardModal({ planId, existingCards, onClose, onCreated }: NewCardModalProps) {
@@ -50,7 +51,17 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
         files,
         dependencies: deps,
       });
-      onCreated(result.id);
+      onCreated({
+        id: result.id,
+        title: title.trim(),
+        description: desc.trim(),
+        type: cardType as Card["type"],
+        repo: repo.trim(),
+        files,
+        dependencies: deps,
+        fileChanges: {},
+        order: existingCards.length,
+      });
     } catch {
       setSaving(false);
     }
@@ -124,22 +135,14 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="fp-label !mb-0">Description</label>
-                <div
-                  role="radiogroup"
-                  className="flex gap-0.5 p-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]"
-                >
-                  {([false, true] as const).map((isPreview) => (
-                    <button
-                      key={String(isPreview)}
-                      role="radio"
-                      aria-checked={descPreview === isPreview}
-                      onClick={() => setDescPreview(isPreview)}
-                      className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium border-none cursor-pointer transition-all duration-150 ${descPreview === isPreview ? "bg-white/[0.08] text-white/80" : "bg-transparent text-white/30 hover:text-white/50"}`}
-                    >
-                      {isPreview ? "Preview" : "Edit"}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  value={descPreview ? "preview" : "edit"}
+                  onChange={(value) => setDescPreview(value === "preview")}
+                  options={[
+                    { id: "edit", label: "Edit" },
+                    { id: "preview", label: "Preview" },
+                  ]}
+                />
               </div>
               {descPreview ? (
                 <div className="fp-input min-h-[100px] overflow-y-auto">

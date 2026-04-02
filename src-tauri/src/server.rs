@@ -1,6 +1,8 @@
 use axum::{
     extract::Path,
+    extract::Query,
     extract::State as AxumState,
+    http::HeaderMap,
     routing::{delete, get, post},
     Json, Router,
 };
@@ -15,7 +17,10 @@ use tower_http::cors::CorsLayer;
 
 use std::collections::HashMap;
 
-use crate::state::{self, Card, CardType, Feedback, FeedbackType, Plan, Position, SharedState};
+use crate::state::{
+    self, Card, CardType, Feedback, FeedbackType, HistoryActor, HistoryChange, HistoryChangeKind,
+    HistorySource, Plan, Position, SharedState,
+};
 use crate::tools::PlannerHandler;
 
 pub async fn run_server(shared: SharedState, ct: CancellationToken) -> anyhow::Result<()> {
@@ -79,6 +84,17 @@ pub async fn run_server(shared: SharedState, ct: CancellationToken) -> anyhow::R
 async fn get_state(AxumState(st): AxumState<SharedState>) -> Json<serde_json::Value> {
     let s = st.read().await;
     Json(serde_json::to_value(&*s).unwrap_or_default())
+}
+
+fn history_source_from_headers(headers: &HeaderMap) -> HistorySource {
+    match headers
+        .get("x-flowplan-source")
+        .and_then(|value| value.to_str().ok())
+    {
+        Some("undo") => HistorySource::Undo,
+        Some("redo") => HistorySource::Redo,
+        _ => HistorySource::Rest,
+    }
 }
 
 #[derive(Deserialize)]
@@ -214,12 +230,49 @@ async fn import_plan(
     let title = plan.title.clone();
     s.plans.insert(0, plan);
     state::save_state(&s);
+    if let Some(inserted_plan) = s.plans.iter().find(|p| p.id == id).cloned() {
+        let changes = state::build_history_changes(None, &inserted_plan);
+        state::append_history_entry(
+            &inserted_plan,
+            s.positions.get(&id),
+            HistoryActor::Ui,
+            Some("desktop".to_string()),
+            HistorySource::Rest,
+            None,
+            changes,
+            Some("Imported plan".to_string()),
+        );
+    }
     Json(serde_json::json!({ "id": id, "title": title }))
 }
 
-async fn get_history(Path(plan_id): Path<String>) -> Json<serde_json::Value> {
+#[derive(Deserialize, Default)]
+struct HistoryQuery {
+    offset: Option<usize>,
+    limit: Option<usize>,
+}
+
+async fn get_history(
+    Path(plan_id): Path<String>,
+    Query(query): Query<HistoryQuery>,
+) -> Json<serde_json::Value> {
     let history = state::load_history(&plan_id);
-    Json(serde_json::to_value(&history).unwrap_or_default())
+    let total = history.entries.len();
+    let offset = query.offset.unwrap_or(0).min(total);
+    let limit = query.limit.unwrap_or(20).max(1).min(100);
+    let end = total.saturating_sub(offset);
+    let start = end.saturating_sub(limit);
+    let entries = history.entries[start..end].to_vec();
+
+    Json(serde_json::json!({
+        "planId": history.plan_id,
+        "entries": entries,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "hasMore": start > 0,
+        "hasPrevious": offset > 0,
+    }))
 }
 
 async fn clear_history(Path(plan_id): Path<String>) -> Json<serde_json::Value> {
@@ -251,13 +304,36 @@ async fn create_plan_rest(
         pinned: false,
     };
     let id = plan.id.clone();
-    s.plans.insert(0, plan);
+    s.plans.insert(0, plan.clone());
     state::save_state(&s);
+    state::append_history_entry(
+        &plan,
+        s.positions.get(&id),
+        HistoryActor::Ui,
+        Some("desktop".to_string()),
+        HistorySource::Rest,
+        None,
+        vec![HistoryChange {
+            kind: HistoryChangeKind::PlanCreated,
+            card_id: None,
+            title: Some(plan.title.clone()),
+            changed_fields: Vec::new(),
+            dependencies_added: Vec::new(),
+            dependencies_removed: Vec::new(),
+            files_added: Vec::new(),
+            files_removed: Vec::new(),
+            file_changes_updated: Vec::new(),
+            before: None,
+            after: None,
+        }],
+        Some("Created plan".to_string()),
+    );
     Json(serde_json::json!({ "id": id }))
 }
 
 #[derive(Deserialize)]
 struct AddCardInput {
+    id: Option<String>,
     title: String,
     description: String,
     #[serde(rename = "type")]
@@ -267,15 +343,20 @@ struct AddCardInput {
     files: Vec<String>,
     #[serde(default)]
     dependencies: Vec<String>,
+    #[serde(rename = "fileChanges")]
+    file_changes: Option<HashMap<String, state::FileChange>>,
+    order: Option<u32>,
 }
 
 async fn add_card_rest(
     AxumState(st): AxumState<SharedState>,
+    headers: HeaderMap,
     Path(plan_id): Path<String>,
     Json(input): Json<AddCardInput>,
 ) -> Json<serde_json::Value> {
     let mut s = st.write().await;
     if let Some(plan) = s.plans.iter_mut().find(|p| p.id == plan_id) {
+        let before_plan = plan.clone();
         let ct = match input.card_type.as_str() {
             "research" => CardType::Research,
             "planning" => CardType::Planning,
@@ -285,19 +366,36 @@ async fn add_card_rest(
         };
         let next_order = plan.steps.len() as u32;
         let card = Card {
-            id: state::gen_id("card"),
+            id: input.id.unwrap_or_else(|| state::gen_id("card")),
             title: input.title,
             description: input.description,
             card_type: ct,
             repo: input.repo,
             files: input.files,
             dependencies: input.dependencies,
-            file_changes: HashMap::new(),
-            order: next_order,
+            file_changes: input.file_changes.unwrap_or_default(),
+            order: input.order.unwrap_or(next_order),
         };
+        if plan.steps.iter().any(|existing| existing.id == card.id) {
+            return Json(serde_json::json!({ "error": "Card already exists" }));
+        }
         let id = card.id.clone();
         plan.steps.push(card);
+        let after_plan = plan.clone();
+        let snapshot_positions = s.positions.get(&plan_id).cloned();
+        let source = history_source_from_headers(&headers);
         state::save_state(&s);
+        let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+        state::append_history_entry(
+            &after_plan,
+            snapshot_positions.as_ref(),
+            HistoryActor::Ui,
+            Some("desktop".to_string()),
+            source,
+            None,
+            changes,
+            None,
+        );
         Json(serde_json::json!({ "id": id }))
     } else {
         Json(serde_json::json!({ "error": "Plan not found" }))
@@ -319,12 +417,14 @@ struct UpdateCardInput {
 
 async fn update_card_rest(
     AxumState(st): AxumState<SharedState>,
+    headers: HeaderMap,
     Path((plan_id, card_id)): Path<(String, String)>,
     Json(input): Json<UpdateCardInput>,
 ) -> Json<serde_json::Value> {
     let mut s = st.write().await;
     if let Some(plan) = s.plans.iter_mut().find(|p| p.id == plan_id) {
-        if let Some(card) = plan.steps.iter_mut().find(|c| c.id == card_id) {
+        let before_plan = plan.clone();
+        let updated = if let Some(card) = plan.steps.iter_mut().find(|c| c.id == card_id) {
             if let Some(v) = input.title {
                 card.title = v;
             }
@@ -352,12 +452,31 @@ async fn update_card_rest(
             if let Some(v) = input.file_changes {
                 card.file_changes = v;
             }
-            // Manual edits don't record history
-            state::save_state_no_history(&s);
-            Json(serde_json::json!({ "ok": true }))
+            true
         } else {
-            Json(serde_json::json!({ "error": "Card not found" }))
+            false
+        };
+
+        if !updated {
+            return Json(serde_json::json!({ "error": "Card not found" }));
         }
+
+        let after_plan = plan.clone();
+        let snapshot_positions = s.positions.get(&plan_id).cloned();
+        let source = history_source_from_headers(&headers);
+        state::save_state(&s);
+        let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+        state::append_history_entry(
+            &after_plan,
+            snapshot_positions.as_ref(),
+            HistoryActor::Ui,
+            Some("desktop".to_string()),
+            source,
+            None,
+            changes,
+            None,
+        );
+        Json(serde_json::json!({ "ok": true }))
     } else {
         Json(serde_json::json!({ "error": "Plan not found" }))
     }
@@ -365,12 +484,20 @@ async fn update_card_rest(
 
 async fn delete_card_rest(
     AxumState(st): AxumState<SharedState>,
+    headers: HeaderMap,
     Path((plan_id, card_id)): Path<(String, String)>,
 ) -> Json<serde_json::Value> {
     let mut s = st.write().await;
     let Some(plan_index) = s.plans.iter().position(|p| p.id == plan_id) else {
         return Json(serde_json::json!({ "error": "Plan not found" }));
     };
+    let before_plan = s.plans[plan_index].clone();
+    let removed_title = before_plan
+        .steps
+        .iter()
+        .find(|card| card.id == card_id)
+        .map(|card| card.title.clone())
+        .unwrap_or_else(|| "Untitled".to_string());
 
     let removed = {
         let plan = &mut s.plans[plan_index];
@@ -394,6 +521,20 @@ async fn delete_card_rest(
         plan_positions.remove(&card_id);
     }
     s.feedbacks.retain(|feedback| feedback.card_id != card_id);
+    let after_plan = s.plans[plan_index].clone();
+    let snapshot_positions = s.positions.get(&plan_id).cloned();
+    let source = history_source_from_headers(&headers);
     state::save_state(&s);
+    let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+    state::append_history_entry(
+        &after_plan,
+        snapshot_positions.as_ref(),
+        HistoryActor::Ui,
+        Some("desktop".to_string()),
+        source,
+        None,
+        changes,
+        Some(format!("Removed card: {removed_title}")),
+    );
     Json(serde_json::json!({ "ok": true }))
 }

@@ -5,7 +5,10 @@ use rmcp::schemars::JsonSchema;
 use rmcp::{tool, tool_handler, tool_router, ErrorData, ServerHandler};
 use serde::Deserialize;
 
-use crate::state::{self, Card, CardType, FileChange, Plan, SharedState};
+use crate::state::{
+    self, Card, CardType, FileChange, HistoryActor, HistoryChange, HistoryChangeKind,
+    HistorySource, Plan, SharedState,
+};
 use std::collections::HashMap;
 
 pub struct PlannerHandler {
@@ -254,8 +257,30 @@ impl PlannerHandler {
             pinned: false,
         };
         let id = plan.id.clone();
-        st.plans.insert(0, plan);
+        st.plans.insert(0, plan.clone());
         state::save_state(&st);
+        state::append_history_entry(
+            &plan,
+            st.positions.get(&id),
+            HistoryActor::Agent,
+            Some("mcp".to_string()),
+            HistorySource::Mcp,
+            None,
+            vec![HistoryChange {
+                kind: HistoryChangeKind::PlanCreated,
+                card_id: None,
+                title: Some(plan.title.clone()),
+                changed_fields: Vec::new(),
+                dependencies_added: Vec::new(),
+                dependencies_removed: Vec::new(),
+                files_added: Vec::new(),
+                files_removed: Vec::new(),
+                file_changes_updated: Vec::new(),
+                before: None,
+                after: None,
+            }],
+            Some("Created plan".to_string()),
+        );
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::json!({ "planId": id }).to_string(),
         )]))
@@ -272,6 +297,7 @@ impl PlannerHandler {
         let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
         match plan {
             Some(plan) => {
+                let before_plan = plan.clone();
                 if params.cards.is_empty() {
                     return Ok(CallToolResult::error(vec![Content::text(
                         "No cards provided. Pass at least one card in the 'cards' array.",
@@ -338,7 +364,19 @@ impl PlannerHandler {
                     plan.steps.push(card);
                 }
 
+                let after_plan = plan.clone();
                 state::save_state(&st);
+                let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+                state::append_history_entry(
+                    &after_plan,
+                    st.positions.get(&params.plan_id),
+                    HistoryActor::Agent,
+                    Some("mcp".to_string()),
+                    HistorySource::Mcp,
+                    None,
+                    changes,
+                    None,
+                );
                 Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({ "cardIds": card_ids }).to_string(),
                 )]))
@@ -361,6 +399,13 @@ impl PlannerHandler {
         let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
         match plan {
             Some(plan) => {
+                let before_plan = plan.clone();
+                let removed_title = before_plan
+                    .steps
+                    .iter()
+                    .find(|card| card.id == params.card_id)
+                    .map(|card| card.title.clone())
+                    .unwrap_or_else(|| "Untitled".to_string());
                 let before = plan.steps.len();
                 plan.steps.retain(|c| c.id != params.card_id);
                 if plan.steps.len() == before {
@@ -373,7 +418,19 @@ impl PlannerHandler {
                     for card in plan.steps.iter_mut() {
                         card.dependencies.retain(|d| d != &params.card_id);
                     }
+                    let after_plan = plan.clone();
                     state::save_state(&st);
+                    let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+                    state::append_history_entry(
+                        &after_plan,
+                        st.positions.get(&params.plan_id),
+                        HistoryActor::Agent,
+                        Some("mcp".to_string()),
+                        HistorySource::Mcp,
+                        None,
+                        changes,
+                        Some(format!("Removed card: {removed_title}")),
+                    );
                     Ok(CallToolResult::success(vec![Content::text("Card removed")]))
                 }
             }
@@ -491,8 +548,21 @@ impl PlannerHandler {
         let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
         match plan {
             Some(plan) => {
+                let before_plan = plan.clone();
                 plan.steps.clear();
+                let after_plan = plan.clone();
                 state::save_state(&st);
+                let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+                state::append_history_entry(
+                    &after_plan,
+                    st.positions.get(&params.plan_id),
+                    HistoryActor::Agent,
+                    Some("mcp".to_string()),
+                    HistorySource::Mcp,
+                    None,
+                    changes,
+                    Some("Cleared plan".to_string()),
+                );
                 Ok(CallToolResult::success(vec![Content::text("Plan cleared")]))
             }
             None => Ok(CallToolResult::error(vec![Content::text(format!(
@@ -573,9 +643,9 @@ impl PlannerHandler {
         let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
         match plan {
             Some(plan) => {
-                let card = plan.steps.iter_mut().find(|c| c.id == params.card_id);
-                match card {
-                    Some(card) => {
+                let before_plan = plan.clone();
+                let updated =
+                    if let Some(card) = plan.steps.iter_mut().find(|c| c.id == params.card_id) {
                         if let Some(v) = params.title {
                             card.title = v;
                         }
@@ -600,15 +670,33 @@ impl PlannerHandler {
                         if let Some(entries) = params.file_changes {
                             card.file_changes = build_file_changes(entries);
                         }
-                        state::save_state(&st);
-                        Ok(CallToolResult::success(vec![Content::text(
-                            serde_json::json!({ "ok": true, "cardId": params.card_id }).to_string(),
-                        )]))
-                    }
-                    None => Ok(CallToolResult::error(vec![Content::text(format!(
+                        true
+                    } else {
+                        false
+                    };
+
+                if !updated {
+                    Ok(CallToolResult::error(vec![Content::text(format!(
                         "Card '{}' not found in plan '{}'",
                         params.card_id, params.plan_id
-                    ))])),
+                    ))]))
+                } else {
+                    let after_plan = plan.clone();
+                    state::save_state(&st);
+                    let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+                    state::append_history_entry(
+                        &after_plan,
+                        st.positions.get(&params.plan_id),
+                        HistoryActor::Agent,
+                        Some("mcp".to_string()),
+                        HistorySource::Mcp,
+                        None,
+                        changes,
+                        None,
+                    );
+                    Ok(CallToolResult::success(vec![Content::text(
+                        serde_json::json!({ "ok": true, "cardId": params.card_id }).to_string(),
+                    )]))
                 }
             }
             None => Ok(CallToolResult::error(vec![Content::text(format!(
@@ -627,6 +715,7 @@ impl PlannerHandler {
         let plan = st.plans.iter_mut().find(|p| p.id == params.plan_id);
         match plan {
             Some(plan) => {
+                let before_plan = plan.clone();
                 let mut updated = 0u32;
                 for (i, cid) in params.card_ids.iter().enumerate() {
                     if let Some(card) = plan.steps.iter_mut().find(|c| c.id == *cid) {
@@ -634,7 +723,19 @@ impl PlannerHandler {
                         updated += 1;
                     }
                 }
+                let after_plan = plan.clone();
                 state::save_state(&st);
+                let changes = state::build_history_changes(Some(&before_plan), &after_plan);
+                state::append_history_entry(
+                    &after_plan,
+                    st.positions.get(&params.plan_id),
+                    HistoryActor::Agent,
+                    Some("mcp".to_string()),
+                    HistorySource::Mcp,
+                    None,
+                    changes,
+                    Some("Reordered cards".to_string()),
+                );
                 Ok(CallToolResult::success(vec![Content::text(
                     serde_json::json!({ "ok": true, "updated": updated }).to_string(),
                 )]))

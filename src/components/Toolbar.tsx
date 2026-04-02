@@ -1,5 +1,15 @@
 import React, { useState, useCallback } from "react";
-import { ClockCounterClockwise, Export, Copy, Check, FileImage, BracketsAngle, Plus } from "@phosphor-icons/react";
+import {
+  ClockCounterClockwise,
+  Export,
+  Copy,
+  Check,
+  FileImage,
+  BracketsAngle,
+  Plus,
+  ArrowCounterClockwise,
+  ArrowClockwise,
+} from "@phosphor-icons/react";
 import type { Plan } from "../types";
 import IconButton from "./ui/IconButton";
 import DropdownMenu, { DropdownItem } from "./ui/DropdownMenu";
@@ -11,6 +21,10 @@ interface ToolbarProps {
   onExportSvg: () => void;
   onExportJson: () => void;
   onAddCard: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   planTitle: string;
   planId: string;
 }
@@ -46,11 +60,15 @@ function Toolbar({
   onExportSvg,
   onExportJson,
   onAddCard,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   planTitle,
   planId,
 }: ToolbarProps) {
   return (
-    <div className="h-[var(--spacing-fp-toolbar)] border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] rounded-full inline-flex items-center gap-2 px-4 shrink-0 z-10 animate-toolbar-in">
+    <div className="h-[var(--spacing-fp-toolbar)] border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 rounded-full inline-flex items-center gap-2 px-4 shrink-0 z-10 animate-toolbar-in">
       {/* ---- Left: Title, count, CopyRef, Add ---- */}
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[13px] font-semibold text-fp-text overflow-hidden text-ellipsis whitespace-nowrap leading-none tracking-tight min-w-0 flex-shrink">
@@ -76,6 +94,27 @@ function Toolbar({
 
       {/* ---- Right: History, Export ---- */}
       <div className="flex items-center gap-1 shrink-0 ml-2">
+        <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full border border-white/[0.06] bg-white/[0.025]">
+          <IconButton
+            variant="ghost"
+            size="sm"
+            onClick={onUndo}
+            disabled={!canUndo}
+            label="Undo"
+            icon={<ArrowCounterClockwise size={12} weight="bold" />}
+            className={canUndo ? "" : "!text-white/15 hover:!bg-transparent"}
+          />
+          <IconButton
+            variant="ghost"
+            size="sm"
+            onClick={onRedo}
+            disabled={!canRedo}
+            label="Redo"
+            icon={<ArrowClockwise size={12} weight="bold" />}
+            className={canRedo ? "" : "!text-white/15 hover:!bg-transparent"}
+          />
+        </div>
+
         <IconButton
           variant={historyOpen ? "glassy" : "ghost"}
           size="sm"

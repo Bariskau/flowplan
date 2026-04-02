@@ -1,6 +1,14 @@
 import type { AppState, PlanHistory } from "../types";
 
 const BASE = "http://localhost:3100/api";
+type MutationSource = "rest" | "undo" | "redo";
+
+function mutationHeaders(source: MutationSource = "rest") {
+  return {
+    "Content-Type": "application/json",
+    "X-Flowplan-Source": source,
+  };
+}
 
 export async function fetchState(): Promise<AppState> {
   const r = await fetch(`${BASE}/state`);
@@ -50,8 +58,12 @@ export async function togglePin(planId: string): Promise<{ pinned: boolean }> {
   return r.json();
 }
 
-export async function fetchHistory(planId: string): Promise<PlanHistory> {
-  const r = await fetch(`${BASE}/plans/${planId}/history`);
+export async function fetchHistory(planId: string, options?: { offset?: number; limit?: number }): Promise<PlanHistory> {
+  const params = new URLSearchParams();
+  if (options?.offset !== undefined) params.set("offset", String(options.offset));
+  if (options?.limit !== undefined) params.set("limit", String(options.limit));
+  const query = params.toString();
+  const r = await fetch(`${BASE}/plans/${planId}/history${query ? `?${query}` : ""}`);
   if (!r.ok) throw new Error("fetch history failed");
   return r.json();
 }
@@ -83,27 +95,50 @@ export async function createPlan(title: string, icon: string, description: strin
 
 export async function addCard(
   planId: string,
-  card: { title: string; description: string; type: string; repo: string; files: string[]; dependencies: string[] },
+  card: {
+    id?: string;
+    title: string;
+    description: string;
+    type: string;
+    repo: string;
+    files: string[];
+    dependencies: string[];
+    fileChanges?: Record<string, any>;
+    order?: number;
+  },
+  source: MutationSource = "rest",
 ): Promise<{ id: string }> {
   const r = await fetch(`${BASE}/plans/${planId}/cards`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: mutationHeaders(source),
     body: JSON.stringify(card),
   });
   if (!r.ok) throw new Error("add card failed");
   return r.json();
 }
 
-export async function updateCard(planId: string, cardId: string, updates: Record<string, any>): Promise<void> {
+export async function updateCard(
+  planId: string,
+  cardId: string,
+  updates: Record<string, any>,
+  source: MutationSource = "rest",
+): Promise<void> {
   const r = await fetch(`${BASE}/plans/${planId}/cards/${cardId}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: mutationHeaders(source),
     body: JSON.stringify(updates),
   });
   if (!r.ok) throw new Error("update card failed");
 }
 
-export async function deleteCard(planId: string, cardId: string): Promise<void> {
-  const r = await fetch(`${BASE}/plans/${planId}/cards/${cardId}`, { method: "DELETE" });
+export async function deleteCard(
+  planId: string,
+  cardId: string,
+  source: MutationSource = "rest",
+): Promise<void> {
+  const r = await fetch(`${BASE}/plans/${planId}/cards/${cardId}`, {
+    method: "DELETE",
+    headers: { "X-Flowplan-Source": source },
+  });
   if (!r.ok) throw new Error("delete card failed");
 }

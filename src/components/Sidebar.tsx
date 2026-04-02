@@ -182,7 +182,7 @@ function Sidebar({
   };
 
   return (
-    <div className="w-[var(--spacing-fp-sidebar)] h-full rounded-2xl border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] flex flex-col shrink-0 font-sans overflow-hidden animate-sidebar-in">
+    <div className="w-[var(--spacing-fp-sidebar)] h-full rounded-2xl border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 flex flex-col shrink-0 font-sans overflow-hidden animate-sidebar-in">
       {/* ---- Header ---- */}
       <div className="py-3 px-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">

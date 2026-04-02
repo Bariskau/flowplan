@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { Card, Plan, Feedback, FileChange, HistoryEntry } from "./types";
 import * as api from "./lib/api";
-import { computeHistoryEntryDiff } from "./lib/diff";
 import { X } from "@phosphor-icons/react";
 
 import Sidebar from "./components/Sidebar";
@@ -16,6 +15,39 @@ import Button from "./components/ui/Button";
 
 const EMPTY_STEPS: Card[] = [];
 const EMPTY_PLAN_POSITIONS: Record<string, { x: number; y: number }> = {};
+const EMPTY_FEEDBACK_COUNTS: Record<string, number> = {};
+const EMPTY_FEEDBACK_TYPES: Record<string, string[]> = {};
+const HISTORY_PAGE_LIMIT = 100;
+
+type PlanPositions = Record<string, { x: number; y: number }>;
+
+type BaseUiUndoAction = {
+  planId: string;
+  beforePlan: Plan;
+  afterPlan: Plan;
+  beforePositions: PlanPositions;
+  afterPositions: PlanPositions;
+  beforeSelectedCardId: string | null;
+  afterSelectedCardId: string | null;
+};
+
+type UiUndoAction =
+  | (BaseUiUndoAction & {
+      kind: "card_add";
+      card: Card;
+    })
+  | (BaseUiUndoAction & {
+      kind: "card_delete";
+      card: Card;
+      restoredDependencies: Array<{ cardId: string; dependencies: string[] }>;
+    })
+  | (BaseUiUndoAction & {
+      kind: "dependency_add" | "dependency_remove";
+      sourceId: string;
+      targetId: string;
+      beforeDependencies: string[];
+      afterDependencies: string[];
+    });
 
 function arePositionsEqual(
   prev: Record<string, { x: number; y: number }>,
@@ -53,6 +85,100 @@ function mergePositions(
   return changed ? merged : prev;
 }
 
+function cloneValue<T>(value: T): T {
+  return structuredClone(value);
+}
+
+function normalizePlan(plan: Plan | null) {
+  if (!plan) return null;
+  return {
+    id: plan.id,
+    title: plan.title,
+    description: plan.description,
+    createdAt: plan.createdAt,
+    pinned: !!plan.pinned,
+    steps: plan.steps.map((card) => ({
+      id: card.id,
+      title: card.title,
+      description: card.description,
+      type: card.type,
+      repo: card.repo,
+      files: [...card.files],
+      dependencies: [...card.dependencies],
+      order: card.order ?? 0,
+      fileChanges: Object.keys(card.fileChanges ?? {})
+        .sort()
+        .map((path) => {
+          const change = card.fileChanges?.[path];
+          return [path, change ? { content: change.content, language: change.language, changeType: change.changeType } : null];
+        }),
+    })),
+  };
+}
+
+function normalizePositions(positions: PlanPositions) {
+  return Object.keys(positions)
+    .sort()
+    .map((id) => [id, { x: positions[id].x, y: positions[id].y }]);
+}
+
+function buildPlanSignature(plan: Plan | null, positions: PlanPositions) {
+  if (!plan) return null;
+  return JSON.stringify({
+    plan: normalizePlan(plan),
+    positions: normalizePositions(positions),
+  });
+}
+
+function cardToAddPayload(card: Card) {
+  return {
+    id: card.id,
+    title: card.title,
+    description: card.description,
+    type: card.type,
+    repo: card.repo,
+    files: card.files,
+    dependencies: card.dependencies,
+    fileChanges: card.fileChanges ?? {},
+    order: card.order,
+  };
+}
+
+function mergeUndoPositions(
+  action: UiUndoAction,
+  direction: "undo" | "redo",
+  currentPositions: PlanPositions,
+): PlanPositions {
+  const nextPositions = cloneValue(currentPositions);
+
+  switch (action.kind) {
+    case "dependency_add":
+    case "dependency_remove":
+      return nextPositions;
+
+    case "card_add":
+      if (direction === "undo") {
+        delete nextPositions[action.card.id];
+        return nextPositions;
+      }
+      if (action.afterPositions[action.card.id]) {
+        nextPositions[action.card.id] = cloneValue(action.afterPositions[action.card.id]);
+      }
+      return nextPositions;
+
+    case "card_delete":
+      if (direction === "undo") {
+        const restoredPosition = action.beforePositions[action.card.id];
+        if (restoredPosition) {
+          nextPositions[action.card.id] = cloneValue(restoredPosition);
+        }
+        return nextPositions;
+      }
+      delete nextPositions[action.card.id];
+      return nextPositions;
+  }
+}
+
 export default function App() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -63,9 +189,12 @@ export default function App() {
   const [codeViewer, setCodeViewer] = useState<{ path: string; change: FileChange; cardId: string } | null>(null);
   const [histOpen, setHistOpen] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [histIdx, setHistIdx] = useState<number | null>(null);
+  const [selectedHistoryEntryId, setSelectedHistoryEntryId] = useState<string | null>(null);
   const [oldCard, setOldCard] = useState<Card | null>(null);
   const [histCard, setHistCard] = useState<Card | null>(null);
+  const [undoStack, setUndoStack] = useState<UiUndoAction[]>([]);
+  const [redoStack, setRedoStack] = useState<UiUndoAction[]>([]);
+  const [undoRedoBusy, setUndoRedoBusy] = useState(false);
   const [newPlanModal, setNewPlanModal] = useState(false);
   const [newCardModal, setNewCardModal] = useState(false);
   const [toast, setToast] = useState<{ text: string; file: string; error?: boolean } | null>(null);
@@ -94,6 +223,24 @@ export default function App() {
   activePlanIdRef.current = activePlanId;
   const selectedCardIdRef = useRef(selectedCardId);
   selectedCardIdRef.current = selectedCardId;
+  const plansRef = useRef(plans);
+  plansRef.current = plans;
+  const feedbacksRef = useRef(feedbacks);
+  feedbacksRef.current = feedbacks;
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
+  const lastPlanSignatureRef = useRef<string | null>(null);
+  const lastLocalPlanSignatureRef = useRef<string | null>(null);
+  const undoStackRef = useRef<UiUndoAction[]>([]);
+  const redoStackRef = useRef<UiUndoAction[]>([]);
+
+  useEffect(() => {
+    undoStackRef.current = undoStack;
+  }, [undoStack]);
+
+  useEffect(() => {
+    redoStackRef.current = redoStack;
+  }, [redoStack]);
 
   useEffect(() => {
     let alive = true;
@@ -138,25 +285,36 @@ export default function App() {
   useEffect(() => {
     setSelectedCardId(null);
     setHistOpen(false);
-    setHistIdx(null);
+    setSelectedHistoryEntryId(null);
     setOldCard(null);
     setHistCard(null);
+    setUndoStack([]);
+    setRedoStack([]);
+    lastPlanSignatureRef.current = null;
+    lastLocalPlanSignatureRef.current = null;
   }, [activePlanId]);
 
   // Poll history
   useEffect(() => {
     if (!histOpen || !activePlanId) {
       setHistory([]);
-      setHistIdx(null);
+      setSelectedHistoryEntryId(null);
       return;
     }
     let alive = true;
     const load = async () => {
       try {
-        const h = await api.fetchHistory(activePlanId);
-        if (alive) setHistory(h.entries || []);
+        const h = await api.fetchHistory(activePlanId, { limit: HISTORY_PAGE_LIMIT });
+        if (!alive) return;
+        setHistory(h.entries || []);
+        setSelectedHistoryEntryId((prev) =>
+          prev && !(h.entries || []).some((entry) => entry.id === prev) ? null : prev,
+        );
       } catch {
-        if (alive) setHistory([]);
+        if (alive) {
+          setHistory([]);
+          setSelectedHistoryEntryId(null);
+        }
       }
     };
     load();
@@ -185,23 +343,78 @@ export default function App() {
     return [counts, types] as const;
   }, [feedbacks]);
 
+  const activeHistoryEntry = useMemo(
+    () => (histOpen && selectedHistoryEntryId ? history.find((entry) => entry.id === selectedHistoryEntryId) ?? null : null),
+    [histOpen, history, selectedHistoryEntryId],
+  );
+  const historySnapshot = activeHistoryEntry?.snapshot ?? null;
+
+  useEffect(() => {
+    if (selectedHistoryEntryId && activeHistoryEntry) return;
+    setOldCard(null);
+    setHistCard(null);
+  }, [activeHistoryEntry, selectedHistoryEntryId]);
+
   const highlightMap = useMemo<Record<string, "added" | "modified">>(() => {
-    if (!histOpen || histIdx === null || histIdx >= history.length) return {};
-    const diff = computeHistoryEntryDiff(histIdx > 0 ? history[histIdx - 1] : null, history[histIdx]);
+    if (!activeHistoryEntry) return {};
     const m: Record<string, "added" | "modified"> = {};
-    diff.added.forEach((c) => {
-      m[c.id] = "added";
-    });
-    diff.modified.forEach((c) => {
-      m[c.after.id] = "modified";
+    activeHistoryEntry.changes.forEach((change) => {
+      const cardId = change.after?.id || change.cardId || null;
+      if (!cardId) return;
+      if (change.kind === "card_added") {
+        m[cardId] = "added";
+      } else if (change.kind === "card_updated") {
+        m[cardId] = "modified";
+      }
     });
     return m;
-  }, [histOpen, histIdx, history]);
+  }, [activeHistoryEntry]);
 
   const savedPositions = useMemo(
     () => (activePlanId && positions[activePlanId] ? positions[activePlanId] : EMPTY_PLAN_POSITIONS),
     [activePlanId, positions],
   );
+  useEffect(() => {
+    const signature = buildPlanSignature(plan, savedPositions);
+    if (!signature) {
+      lastPlanSignatureRef.current = null;
+      return;
+    }
+
+    if (
+      lastPlanSignatureRef.current &&
+      signature !== lastPlanSignatureRef.current &&
+      signature !== lastLocalPlanSignatureRef.current &&
+      (undoStack.length > 0 || redoStack.length > 0)
+    ) {
+      setUndoStack([]);
+      setRedoStack([]);
+    }
+
+    lastPlanSignatureRef.current = signature;
+    if (signature === lastLocalPlanSignatureRef.current) {
+      lastLocalPlanSignatureRef.current = null;
+    }
+  }, [plan, redoStack.length, savedPositions, undoStack.length]);
+
+  const applyLocalPlanSnapshot = useCallback(
+    (planId: string, nextPlan: Plan, nextPositions: PlanPositions, nextSelectedCardId: string | null) => {
+      lastLocalPlanSignatureRef.current = buildPlanSignature(nextPlan, nextPositions);
+      setPlans((prev) => prev.map((candidate) => (candidate.id === planId ? nextPlan : candidate)));
+      setPositions((prev) => {
+        const prevPlanPositions = prev[planId] ?? EMPTY_PLAN_POSITIONS;
+        if (arePositionsEqual(prevPlanPositions, nextPositions)) return prev;
+        return { ...prev, [planId]: nextPositions };
+      });
+      setSelectedCardId(nextSelectedCardId);
+    },
+    [],
+  );
+
+  const pushUndoAction = useCallback((action: UiUndoAction) => {
+    setUndoStack((prev) => [...prev.slice(-9), action]);
+    setRedoStack([]);
+  }, []);
 
   const onFileClick = useCallback(
     (path: string, change: FileChange, cardId?: string) =>
@@ -212,14 +425,31 @@ export default function App() {
   const selectCard = useCallback((id: string | null) => {
     setSelectedCardId(id);
     setHistOpen(false);
-    setHistIdx(null);
+    setSelectedHistoryEntryId(null);
     if (!id) setOldCard(null);
   }, []);
+
+  const selectHistoryCard = useCallback(
+    (id: string | null) => {
+      if (!historySnapshot) {
+        setHistCard(null);
+        return;
+      }
+      setSelectedCardId(null);
+      setOldCard(null);
+      setHistCard(id ? historySnapshot.cards.find((card) => card.id === id) ?? null : null);
+    },
+    [historySnapshot],
+  );
 
   const onPositionsChange = useCallback(
     (positions: Record<string, { x: number; y: number }>) => {
       const currentPlanId = activePlanIdRef.current;
       if (!currentPlanId) return;
+      const currentPlan = plansRef.current.find((candidate) => candidate.id === currentPlanId) ?? null;
+      if (currentPlan) {
+        lastLocalPlanSignatureRef.current = buildPlanSignature(currentPlan, positions);
+      }
       setPositions((prev) => {
         const prevPlanPositions = prev[currentPlanId];
         if (prevPlanPositions && arePositionsEqual(prevPlanPositions, positions)) return prev;
@@ -323,109 +553,280 @@ export default function App() {
   const handleNewPlan = useCallback(() => setNewPlanModal(true), []);
   const handleNewCard = useCallback(() => setNewCardModal(true), []);
 
+  const persistUndoableAction = useCallback(async (action: UiUndoAction, direction: "undo" | "redo") => {
+    const source = direction;
+    const currentPositions = cloneValue(positionsRef.current[action.planId] ?? EMPTY_PLAN_POSITIONS);
+    const mergedPositions = mergeUndoPositions(action, direction, currentPositions);
+
+    switch (action.kind) {
+      case "card_add":
+        if (direction === "undo") {
+          await api.deleteCard(action.planId, action.card.id, source);
+        } else {
+          await api.addCard(action.planId, cardToAddPayload(action.card), source);
+          if (!arePositionsEqual(currentPositions, mergedPositions)) {
+            await api.savePositions(action.planId, mergedPositions);
+          }
+        }
+        return;
+
+      case "card_delete":
+        if (direction === "undo") {
+          await api.addCard(action.planId, cardToAddPayload(action.card), source);
+          for (const dependencyRestore of action.restoredDependencies) {
+            await api.updateCard(
+              action.planId,
+              dependencyRestore.cardId,
+              { dependencies: dependencyRestore.dependencies },
+              source,
+            );
+          }
+          if (!arePositionsEqual(currentPositions, mergedPositions)) {
+            await api.savePositions(action.planId, mergedPositions);
+          }
+        } else {
+          await api.deleteCard(action.planId, action.card.id, source);
+        }
+        return;
+
+      case "dependency_add":
+      case "dependency_remove":
+        await api.updateCard(
+          action.planId,
+          action.targetId,
+          {
+            dependencies: direction === "undo" ? action.beforeDependencies : action.afterDependencies,
+          },
+          source,
+        );
+        return;
+    }
+  }, []);
+
+  const applyUndoableSnapshot = useCallback(
+    (action: UiUndoAction, direction: "undo" | "redo") => {
+      const nextPlan = cloneValue(direction === "undo" ? action.beforePlan : action.afterPlan);
+      const currentPositions = cloneValue(positionsRef.current[action.planId] ?? EMPTY_PLAN_POSITIONS);
+      const nextPositions = mergeUndoPositions(action, direction, currentPositions);
+      const nextSelectedCardId = direction === "undo" ? action.beforeSelectedCardId : action.afterSelectedCardId;
+      applyLocalPlanSnapshot(action.planId, nextPlan, nextPositions, nextSelectedCardId);
+    },
+    [applyLocalPlanSnapshot],
+  );
+
+  const handleUndo = useCallback(async () => {
+    if (historySnapshot || undoRedoBusy) return;
+    const action = undoStackRef.current[undoStackRef.current.length - 1];
+    if (!action) return;
+    setUndoRedoBusy(true);
+    applyUndoableSnapshot(action, "undo");
+    setUndoStack((prev) => prev.slice(0, -1));
+    setRedoStack((prev) => [...prev.slice(-9), action]);
+    try {
+      await persistUndoableAction(action, "undo");
+    } catch {
+      applyUndoableSnapshot(action, "redo");
+      setRedoStack((prev) => prev.slice(0, -1));
+      setUndoStack((prev) => [...prev.slice(-9), action]);
+      showToast("Undo failed", action.kind.replace("_", " "), true);
+    } finally {
+      setUndoRedoBusy(false);
+    }
+  }, [applyUndoableSnapshot, historySnapshot, persistUndoableAction, showToast, undoRedoBusy]);
+
+  const handleRedo = useCallback(async () => {
+    if (historySnapshot || undoRedoBusy) return;
+    const action = redoStackRef.current[redoStackRef.current.length - 1];
+    if (!action) return;
+    setUndoRedoBusy(true);
+    applyUndoableSnapshot(action, "redo");
+    setRedoStack((prev) => prev.slice(0, -1));
+    setUndoStack((prev) => [...prev.slice(-9), action]);
+    try {
+      await persistUndoableAction(action, "redo");
+    } catch {
+      applyUndoableSnapshot(action, "undo");
+      setUndoStack((prev) => prev.slice(0, -1));
+      setRedoStack((prev) => [...prev.slice(-9), action]);
+      showToast("Redo failed", action.kind.replace("_", " "), true);
+    } finally {
+      setUndoRedoBusy(false);
+    }
+  }, [applyUndoableSnapshot, historySnapshot, persistUndoableAction, showToast, undoRedoBusy]);
+
   const handleToggleHistory = useCallback(() => {
     setHistOpen((h) => !h);
     setSelectedCardId(null);
-    setHistIdx(null);
+    setSelectedHistoryEntryId(null);
     setOldCard(null);
+    setHistCard(null);
   }, []);
 
   const handleHistorySelect = useCallback(
-    (idx: number | null) => {
-      setHistIdx(idx);
+    (entryId: string | null) => {
+      setSelectedHistoryEntryId(entryId);
       setOldCard(null);
       setHistCard(null);
-      if (idx === null) return;
-      const currentEntry = history[idx];
-      const prevEntry = idx > 0 ? history[idx - 1] : null;
-      const diff = computeHistoryEntryDiff(prevEntry, currentEntry);
-
-      const firstCurrentCardId = diff.modified[0]?.after.id ?? diff.added[0]?.id ?? null;
-      if (firstCurrentCardId && steps.find((step) => step.id === firstCurrentCardId)) {
-        setSelectedCardId(firstCurrentCardId);
-      }
+      setSelectedCardId(null);
+      if (entryId === null) return;
     },
-    [history, steps],
+    [],
   );
   const handleEditCard = useCallback((cardId: string) => setSelectedCardId(cardId), []);
 
   const handleDeleteCard = useCallback(async (cardId: string) => {
     const currentAId = activePlanIdRef.current;
     if (!currentAId) return;
-    setPlans((prev) =>
-      prev.map((p) =>
-        p.id !== currentAId
-          ? p
-          : {
-              ...p,
-              steps: p.steps
-                .filter((s) => s.id !== cardId)
-                .map((s) =>
-                  s.dependencies.includes(cardId)
-                    ? { ...s, dependencies: s.dependencies.filter((dep) => dep !== cardId) }
-                    : s,
-                ),
-            },
-      ),
-    );
-    setPositions((prev) => {
-      const planPositions = prev[currentAId];
-      if (!planPositions || !planPositions[cardId]) return prev;
-      const { [cardId]: _removed, ...rest } = planPositions;
-      return { ...prev, [currentAId]: rest };
-    });
+
+    const currentPlan = plansRef.current.find((candidate) => candidate.id === currentAId);
+    if (!currentPlan) return;
+    const removedCard = currentPlan.steps.find((card) => card.id === cardId);
+    if (!removedCard) return;
+
+    const beforePlan = cloneValue(currentPlan);
+    const beforePositions = cloneValue(positionsRef.current[currentAId] ?? EMPTY_PLAN_POSITIONS);
+    const afterPlan: Plan = {
+      ...cloneValue(beforePlan),
+      steps: beforePlan.steps
+        .filter((card) => card.id !== cardId)
+        .map((card) =>
+          card.dependencies.includes(cardId)
+            ? { ...card, dependencies: card.dependencies.filter((dependency) => dependency !== cardId) }
+            : cloneValue(card),
+        ),
+    };
+    const { [cardId]: _removedPosition, ...remainingPositions } = beforePositions;
+    const afterPositions = remainingPositions;
+    const removedFeedbacks = feedbacksRef.current.filter((feedback) => feedback.cardId === cardId);
+    const action: UiUndoAction = {
+      kind: "card_delete",
+      planId: currentAId,
+      card: cloneValue(removedCard),
+      restoredDependencies: beforePlan.steps
+        .filter((card) => card.dependencies.includes(cardId))
+        .map((card) => ({ cardId: card.id, dependencies: cloneValue(card.dependencies) })),
+      beforePlan,
+      afterPlan,
+      beforePositions,
+      afterPositions,
+      beforeSelectedCardId: selectedCardIdRef.current,
+      afterSelectedCardId: selectedCardIdRef.current === cardId ? null : selectedCardIdRef.current,
+    };
+
+    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(afterPositions), action.afterSelectedCardId);
     setFeedbacks((prev) => prev.filter((feedback) => feedback.cardId !== cardId));
-    if (selectedCardIdRef.current === cardId) setSelectedCardId(null);
+    pushUndoAction(action);
     try {
       await api.deleteCard(currentAId, cardId);
-    } catch {}
-  }, []);
+    } catch {
+      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId);
+      setFeedbacks((prev) => [...prev, ...removedFeedbacks]);
+      setUndoStack((prev) => prev.slice(0, -1));
+      showToast("Delete failed", removedCard.title, true);
+    }
+  }, [applyLocalPlanSnapshot, pushUndoAction, showToast]);
 
   const handleConnectCards = useCallback(async (sourceId: string, targetId: string) => {
     const currentAId = activePlanIdRef.current;
     if (!currentAId) return;
-    let newDeps: string[] = [];
-    setPlans((prev) =>
-      prev.map((p) =>
-        p.id !== currentAId
-          ? p
-          : {
-              ...p,
-              steps: p.steps.map((s) => {
-                if (s.id !== targetId) return s;
-                newDeps = [...new Set([...s.dependencies, sourceId])];
-                return { ...s, dependencies: newDeps };
-              }),
-            },
+    const currentPlan = plansRef.current.find((candidate) => candidate.id === currentAId);
+    if (!currentPlan) return;
+    const targetCard = currentPlan.steps.find((card) => card.id === targetId);
+    if (!targetCard || targetCard.dependencies.includes(sourceId)) return;
+
+    const beforePlan = cloneValue(currentPlan);
+    const beforePositions = cloneValue(positionsRef.current[currentAId] ?? EMPTY_PLAN_POSITIONS);
+    const afterDependencies = [...new Set([...targetCard.dependencies, sourceId])];
+    const afterPlan: Plan = {
+      ...cloneValue(beforePlan),
+      steps: beforePlan.steps.map((card) =>
+        card.id === targetId ? { ...card, dependencies: cloneValue(afterDependencies) } : cloneValue(card),
       ),
-    );
+    };
+    const action: UiUndoAction = {
+      kind: "dependency_add",
+      planId: currentAId,
+      sourceId,
+      targetId,
+      beforeDependencies: cloneValue(targetCard.dependencies),
+      afterDependencies: cloneValue(afterDependencies),
+      beforePlan,
+      afterPlan,
+      beforePositions,
+      afterPositions: beforePositions,
+      beforeSelectedCardId: selectedCardIdRef.current,
+      afterSelectedCardId: selectedCardIdRef.current,
+    };
+
+    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId);
+    pushUndoAction(action);
     try {
-      await api.updateCard(currentAId, targetId, { dependencies: newDeps });
-    } catch {}
-  }, []);
+      await api.updateCard(currentAId, targetId, { dependencies: afterDependencies });
+    } catch {
+      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId);
+      setUndoStack((prev) => prev.slice(0, -1));
+      showToast("Dependency add failed", targetCard.title, true);
+    }
+  }, [applyLocalPlanSnapshot, pushUndoAction, showToast]);
 
   const handleDisconnectCards = useCallback(async (sourceId: string, targetId: string) => {
     const currentAId = activePlanIdRef.current;
     if (!currentAId) return;
-    let newDeps: string[] = [];
-    setPlans((prev) =>
-      prev.map((p) =>
-        p.id !== currentAId
-          ? p
-          : {
-              ...p,
-              steps: p.steps.map((s) => {
-                if (s.id !== targetId) return s;
-                newDeps = s.dependencies.filter((d) => d !== sourceId);
-                return { ...s, dependencies: newDeps };
-              }),
-            },
+    const currentPlan = plansRef.current.find((candidate) => candidate.id === currentAId);
+    if (!currentPlan) return;
+    const targetCard = currentPlan.steps.find((card) => card.id === targetId);
+    if (!targetCard || !targetCard.dependencies.includes(sourceId)) return;
+
+    const beforePlan = cloneValue(currentPlan);
+    const beforePositions = cloneValue(positionsRef.current[currentAId] ?? EMPTY_PLAN_POSITIONS);
+    const afterDependencies = targetCard.dependencies.filter((dependency) => dependency !== sourceId);
+    const afterPlan: Plan = {
+      ...cloneValue(beforePlan),
+      steps: beforePlan.steps.map((card) =>
+        card.id === targetId ? { ...card, dependencies: cloneValue(afterDependencies) } : cloneValue(card),
       ),
-    );
+    };
+    const action: UiUndoAction = {
+      kind: "dependency_remove",
+      planId: currentAId,
+      sourceId,
+      targetId,
+      beforeDependencies: cloneValue(targetCard.dependencies),
+      afterDependencies: cloneValue(afterDependencies),
+      beforePlan,
+      afterPlan,
+      beforePositions,
+      afterPositions: beforePositions,
+      beforeSelectedCardId: selectedCardIdRef.current,
+      afterSelectedCardId: selectedCardIdRef.current,
+    };
+
+    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId);
+    pushUndoAction(action);
     try {
-      await api.updateCard(currentAId, targetId, { dependencies: newDeps });
-    } catch {}
-  }, []);
+      await api.updateCard(currentAId, targetId, { dependencies: afterDependencies });
+    } catch {
+      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId);
+      setUndoStack((prev) => prev.slice(0, -1));
+      showToast("Dependency remove failed", targetCard.title, true);
+    }
+  }, [applyLocalPlanSnapshot, pushUndoAction, showToast]);
+
+  const canvasCards = historySnapshot?.cards ?? steps;
+  const canvasFeedbackCounts = historySnapshot ? EMPTY_FEEDBACK_COUNTS : feedbackCountMap;
+  const canvasFeedbackTypes = historySnapshot ? EMPTY_FEEDBACK_TYPES : feedbackTypeMap;
+  const canvasPositions = historySnapshot?.positions ?? savedPositions;
+  const canvasPlanTitle = historySnapshot?.title ?? plan?.title ?? "";
+  const canvasPlanId = historySnapshot?.id ?? plan?.id ?? "";
+  const canvasReadOnly = !!historySnapshot;
+  const canvasReadOnlyLabel =
+    historySnapshot && activeHistoryEntry ? `History snapshot · r${activeHistoryEntry.revision}` : undefined;
+  const historyDetailLabel =
+    activeHistoryEntry ? `History change · r${activeHistoryEntry.revision}` : "History change";
+  const historyBeforeLabel =
+    activeHistoryEntry ? `History before · r${activeHistoryEntry.revision}` : "History before";
+  const canToolbarUndo = !canvasReadOnly && !undoRedoBusy && undoStack.length > 0;
+  const canToolbarRedo = !canvasReadOnly && !undoRedoBusy && redoStack.length > 0;
 
   return (
     <div className="w-full h-screen bg-fp-bg font-sans text-fp-text overflow-hidden relative">
@@ -439,25 +840,27 @@ export default function App() {
         ) : (
           <div className="absolute inset-0">
             <FlowCanvas
-              cards={steps}
-              onSelectCard={selectCard}
-              feedbackCounts={feedbackCountMap}
-              feedbackTypes={feedbackTypeMap}
-              planTitle={plan.title}
-              planId={plan.id}
+              cards={canvasCards}
+              onSelectCard={canvasReadOnly ? selectHistoryCard : selectCard}
+              feedbackCounts={canvasFeedbackCounts}
+              feedbackTypes={canvasFeedbackTypes}
+              planTitle={canvasPlanTitle}
+              planId={canvasPlanId}
               onFileClick={onFileClick}
               highlightMap={highlightMap}
-              savedPositions={savedPositions}
-              onPositionsChange={onPositionsChange}
+              savedPositions={canvasPositions}
+              onPositionsChange={canvasReadOnly ? () => {} : onPositionsChange}
               onAddCard={handleNewCard}
-              onEditCard={handleEditCard}
-              onDeleteCard={handleDeleteCard}
-              onConnectCards={handleConnectCards}
-            onDisconnectCards={handleDisconnectCards}
-            onExportSvgReady={handleExportSvgReady}
-          />
-        </div>
-      )}
+              onEditCard={canvasReadOnly ? undefined : handleEditCard}
+              onDeleteCard={canvasReadOnly ? undefined : handleDeleteCard}
+              onConnectCards={canvasReadOnly ? undefined : handleConnectCards}
+              onDisconnectCards={canvasReadOnly ? undefined : handleDisconnectCards}
+              onExportSvgReady={handleExportSvgReady}
+              readOnly={canvasReadOnly}
+              readOnlyLabel={canvasReadOnlyLabel}
+            />
+          </div>
+        )}
       </div>
 
       <div
@@ -488,6 +891,10 @@ export default function App() {
             onExportSvg={exportSvg}
             onExportJson={exportJson}
             onAddCard={handleNewCard}
+            canUndo={canToolbarUndo}
+            canRedo={canToolbarRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
             planTitle={plan.title}
             planId={plan.id}
           />
@@ -496,102 +903,124 @@ export default function App() {
 
       {histOpen && oldCard && (
         <div
-          className="fixed border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] rounded-2xl z-[51] flex flex-col overflow-hidden animate-drawer-in"
+          className="fixed border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 rounded-2xl z-[51] flex flex-col overflow-hidden animate-drawer-in"
           style={{
             top: "var(--spacing-fp-gap)",
             bottom: "var(--spacing-fp-gap)",
-            right: "calc(var(--spacing-fp-history) + var(--spacing-fp-gap) + var(--spacing-fp-gap))",
+            right: "calc(var(--spacing-fp-history) + var(--spacing-fp-drawer) + var(--spacing-fp-gap) * 3)",
             width: "var(--spacing-fp-drawer)",
           }}
         >
           <DetailDrawer
             card={oldCard}
-            feedbacks={feedbacks.filter((f) => f.cardId === oldCard.id)}
+            feedbacks={[]}
             onClose={() => setOldCard(null)}
             onAddFeedback={async () => {}}
             onDeleteFeedback={async () => {}}
-            planTitle="Old Version"
+            planTitle={historyBeforeLabel}
             planId=""
             onFileClick={onFileClick}
-            allCards={steps}
+            allCards={historySnapshot?.cards ?? steps}
             onSelectCard={() => {}}
             readOnly
           />
         </div>
       )}
 
-      {(histOpen || histCard || (selectedCardId && selectedCard)) && (
+      {histOpen && histCard && (
         <div
-          className={`fixed border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] rounded-2xl z-50 flex flex-col overflow-hidden animate-drawer-in ${histOpen && !histCard ? "w-[var(--spacing-fp-history)]" : "w-[var(--spacing-fp-drawer)]"}`}
+          className="fixed border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 rounded-2xl z-50 flex flex-col overflow-hidden animate-drawer-in w-[var(--spacing-fp-drawer)]"
+          style={{
+            top: "var(--spacing-fp-gap)",
+            bottom: "var(--spacing-fp-gap)",
+            right: "calc(var(--spacing-fp-history) + var(--spacing-fp-gap) * 2)",
+          }}
+        >
+          <DetailDrawer
+            card={histCard}
+            feedbacks={[]}
+            onClose={() => {
+              setHistCard(null);
+              setOldCard(null);
+            }}
+            readOnly
+            onAddFeedback={() => {}}
+            onDeleteFeedback={() => {}}
+            planTitle={historyDetailLabel}
+            planId={historySnapshot?.id || plan?.id || ""}
+            onFileClick={onFileClick}
+            allCards={historySnapshot?.cards ?? [histCard]}
+            onSelectCard={() => {}}
+          />
+        </div>
+      )}
+
+      {histOpen && (
+        <div
+          className="fixed border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 rounded-2xl z-50 flex flex-col overflow-hidden animate-drawer-in w-[var(--spacing-fp-history)]"
           style={{ top: "var(--spacing-fp-gap)", bottom: "var(--spacing-fp-gap)", right: "var(--spacing-fp-gap)" }}
         >
-          {histCard ? (
-            <DetailDrawer
-              card={histCard}
-              feedbacks={[]}
-              onClose={() => setHistCard(null)}
-              readOnly
-              onAddFeedback={() => {}}
-              onDeleteFeedback={() => {}}
-              planTitle={plan?.title || ""}
-              planId={plan?.id || ""}
-              onFileClick={onFileClick}
-              allCards={histCard ? [histCard] : []}
-              onSelectCard={() => {}}
-            />
-          ) : histOpen ? (
-            <HistoryPanel
-              entries={history}
-              selectedIdx={histIdx}
-              onSelect={handleHistorySelect}
-              onCardClick={(card) => {
-                setSelectedCardId(null);
-                setHistCard(null);
-                setOldCard(card);
-              }}
-              onClose={() => {
-                setHistOpen(false);
-                setHistIdx(null);
+          <HistoryPanel
+            entries={history}
+            pageLimit={HISTORY_PAGE_LIMIT}
+            selectedEntryId={selectedHistoryEntryId}
+            onSelect={handleHistorySelect}
+            onCardClick={(change) => {
+              setSelectedCardId(null);
+              setHistCard(change.after || change.before || null);
+              setOldCard(change.before && change.after ? change.before : null);
+            }}
+            onClose={() => {
+              setHistOpen(false);
+              setSelectedHistoryEntryId(null);
+              setOldCard(null);
+              setHistCard(null);
+            }}
+            onClear={async () => {
+              if (activePlanId) {
+                await api.clearHistory(activePlanId);
+                setHistory([]);
+                setSelectedHistoryEntryId(null);
                 setOldCard(null);
-              }}
-              onClear={async () => {
-                if (activePlanId) {
-                  await api.clearHistory(activePlanId);
-                  setHistory([]);
-                  setHistIdx(null);
-                  setOldCard(null);
-                }
-              }}
-            />
-          ) : selectedCard ? (
-            <DetailDrawer
-              card={selectedCard}
-              feedbacks={feedbacks.filter((f) => f.cardId === selectedCard.id)}
-              onClose={() => setSelectedCardId(null)}
-              onAddFeedback={async (c, t, x) => {
-                try {
-                  await api.addFeedback(c, t as any, x);
-                } catch {}
-              }}
-              onDeleteFeedback={async (id) => {
-                try {
-                  await api.deleteFeedback(id);
-                } catch {}
-              }}
-              planTitle={plan?.title || ""}
-              planId={plan?.id || ""}
-              onFileClick={onFileClick}
-              allCards={steps}
-              onSelectCard={(id) => {
-                setSelectedCardId(id);
-              }}
-              onEditCard={async (pid, cid, updates) => {
-                try {
-                  await api.updateCard(pid, cid, updates);
-                } catch {}
-              }}
-            />
-          ) : null}
+                setHistCard(null);
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {!histOpen && selectedCard && (
+        <div
+          className="fixed border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 rounded-2xl z-50 flex flex-col overflow-hidden animate-drawer-in w-[var(--spacing-fp-drawer)]"
+          style={{ top: "var(--spacing-fp-gap)", bottom: "var(--spacing-fp-gap)", right: "var(--spacing-fp-gap)" }}
+        >
+          <DetailDrawer
+            card={selectedCard}
+            feedbacks={feedbacks.filter((f) => f.cardId === selectedCard.id)}
+            onClose={() => setSelectedCardId(null)}
+            onAddFeedback={async (c, t, x) => {
+              try {
+                await api.addFeedback(c, t as any, x);
+              } catch {}
+            }}
+            onDeleteFeedback={async (id) => {
+              try {
+                await api.deleteFeedback(id);
+              } catch {}
+            }}
+            planTitle={plan?.title || ""}
+            planId={plan?.id || ""}
+            onFileClick={onFileClick}
+            allCards={steps}
+            onSelectCard={(id) => {
+              setSelectedCardId(id);
+            }}
+            onEditCard={async (pid, cid, updates) => {
+              try {
+                await api.updateCard(pid, cid, updates);
+              } catch {}
+            }}
+          />
         </div>
       )}
 
@@ -635,8 +1064,31 @@ export default function App() {
           planId={plan.id}
           existingCards={steps}
           onClose={() => setNewCardModal(false)}
-          onCreated={(id) => {
-            setSelectedCardId(id);
+          onCreated={(card) => {
+            const currentPlan = plansRef.current.find((candidate) => candidate.id === plan.id);
+            if (currentPlan) {
+              const beforePlan = cloneValue(currentPlan);
+              const beforePositions = cloneValue(positionsRef.current[plan.id] ?? EMPTY_PLAN_POSITIONS);
+              const afterPlan: Plan = {
+                ...cloneValue(beforePlan),
+                steps: [...beforePlan.steps.map((step) => cloneValue(step)), cloneValue(card)],
+              };
+              const action: UiUndoAction = {
+                kind: "card_add",
+                planId: plan.id,
+                card: cloneValue(card),
+                beforePlan,
+                afterPlan,
+                beforePositions,
+                afterPositions: beforePositions,
+                beforeSelectedCardId: selectedCardIdRef.current,
+                afterSelectedCardId: card.id,
+              };
+              applyLocalPlanSnapshot(plan.id, cloneValue(afterPlan), cloneValue(beforePositions), card.id);
+              pushUndoAction(action);
+            } else {
+              setSelectedCardId(card.id);
+            }
             setNewCardModal(false);
             showToast("Card added", "");
           }}
