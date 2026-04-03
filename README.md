@@ -1,6 +1,6 @@
 # FlowPlan
 
-A visual plan board for AI coding agents. FlowPlan connects to Claude Code, Codex, Cursor, Gemini CLI, and other MCP-compatible agents via MCP (Model Context Protocol), turning their execution plans into interactive flow diagrams with dependency connections, file change previews, and a two-way feedback system.
+A visual plan board for AI coding agents. FlowPlan connects to Claude Code, Codex, Cursor, Gemini CLI, and other MCP-compatible agents via MCP (Model Context Protocol), turning their execution plans into interactive flow diagrams with dependency connections, file change previews, a two-way feedback system, and live collaboration for shared review sessions.
 
 **[Website](https://bariskau.github.io/flowplan)**
 
@@ -17,6 +17,7 @@ A visual plan board for AI coding agents. FlowPlan connects to Claude Code, Code
 - **Interactive flow diagrams** — Cards lay out as a dependency graph. Drag, zoom, pan, connect cards by dragging handles.
 - **File change previews** — Each card lists affected files with proposed code changes. Click to open a syntax-highlighted code viewer.
 - **Two-way feedback** — Right-click cards to leave Questions, Directives, or Issues. The agent responds through MCP.
+- **Live collaboration** — Share a room, see active collaborators, sync card edits and dependency changes, and follow live cursors during review.
 - **Copy references** — Every card has a "Copy ref" button. Paste the reference into your agent's chat to target specific cards.
 - **History timeline** — Every change is recorded. Scrub through history with visual diff highlights on the canvas.
 - **5 card types** — Research, Planning, Create, Edit, Test. Color-coded for instant readability.
@@ -39,6 +40,10 @@ npm run tauri:dev
 ```
 
 The MCP server starts automatically at `http://localhost:3100/mcp` (Streamable HTTP).
+
+### Optional Collaboration
+
+FlowPlan also supports live collaboration sessions. Add your signaling server URL in `Settings -> Collaboration network`, then host or join a room from the sidebar to review plans together in real time.
 
 ### MCP Setup
 
