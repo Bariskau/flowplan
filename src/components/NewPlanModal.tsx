@@ -1,25 +1,39 @@
 import { useState } from "react";
 import { X, Plus } from "@phosphor-icons/react";
 import * as api from "../lib/api";
+import type { Plan } from "../types";
+import useEscapeClose from "../hooks/useEscapeClose";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 
 interface NewPlanModalProps {
+  actorId?: string;
+  actorAvatarSeed?: string;
   onClose: () => void;
-  onCreated: (planId: string) => void;
+  onCreated: (plan: Plan) => void;
 }
 
-export default function NewPlanModal({ onClose, onCreated }: NewPlanModalProps) {
+export default function NewPlanModal({ actorId, actorAvatarSeed, onClose, onCreated }: NewPlanModalProps) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEscapeClose(onClose);
 
   const submit = async () => {
     if (!title.trim() || saving) return;
     setSaving(true);
     try {
-      const result = await api.createPlan(title.trim(), "", desc.trim());
-      onCreated(result.id);
+      const result = await api.createPlan(title.trim(), "", desc.trim(), undefined, actorId, actorAvatarSeed);
+      onCreated({
+        id: result.id,
+        title: title.trim(),
+        icon: "",
+        description: desc.trim(),
+        steps: [],
+        createdAt: Date.now(),
+        pinned: false,
+      });
     } catch {
       setSaving(false);
     }

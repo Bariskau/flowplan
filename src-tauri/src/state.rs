@@ -37,6 +37,7 @@ impl Default for AppState {
 pub struct Plan {
     pub id: String,
     pub title: String,
+    #[serde(default)]
     pub icon: String,
     pub description: String,
     pub steps: Vec<Card>,
@@ -92,6 +93,12 @@ pub struct Feedback {
     pub timestamp: u64,
     #[serde(default)]
     pub read: bool,
+    #[serde(default)]
+    pub owner_user_id: String,
+    #[serde(default)]
+    pub owner_username: String,
+    #[serde(default)]
+    pub owner_avatar_seed: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -169,6 +176,7 @@ pub struct CardSummary {
 pub enum HistoryActor {
     Ui,
     Agent,
+    Collab,
     #[default]
     System,
 }
@@ -247,6 +255,8 @@ pub struct HistoryEntry {
     pub actor: HistoryActor,
     #[serde(default)]
     pub actor_id: Option<String>,
+    #[serde(default)]
+    pub actor_avatar_seed: Option<String>,
     #[serde(default)]
     pub source: HistorySource,
     #[serde(default)]
@@ -623,6 +633,7 @@ pub fn append_history_entry(
     positions: Option<&HashMap<String, Position>>,
     actor: HistoryActor,
     actor_id: Option<String>,
+    actor_avatar_seed: Option<String>,
     source: HistorySource,
     tx_id: Option<String>,
     changes: Vec<HistoryChange>,
@@ -646,6 +657,7 @@ pub fn append_history_entry(
         timestamp: now_millis(),
         actor,
         actor_id,
+        actor_avatar_seed,
         source,
         tx_id: tx_id.unwrap_or_else(|| gen_id("tx")),
         summary: summary.clone(),

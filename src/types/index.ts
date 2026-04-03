@@ -19,6 +19,7 @@ export interface Card {
 export interface Plan {
   id: string;
   title: string;
+  icon?: string;
   description: string;
   steps: Card[];
   createdAt: number;
@@ -33,12 +34,71 @@ export interface Feedback {
   answer: string | null;
   timestamp: number;
   read?: boolean;
+  ownerUserId?: string;
+  ownerUsername?: string;
+  ownerAvatarSeed?: string;
 }
 
 export interface AppState {
   plans: Plan[];
   feedbacks: Feedback[];
   positions: Record<string, Record<string, { x: number; y: number }>>;
+}
+
+export interface CollabProfile {
+  userId: string;
+  username: string;
+  avatarSeed: string;
+}
+
+export interface CollabParticipant {
+  sessionId: string;
+  userId: string;
+  username: string;
+  avatarSeed: string;
+  isSelf?: boolean;
+  isHost?: boolean;
+  status?: "active" | "connecting" | "idle";
+}
+
+export interface CollabConnectionDefaults {
+  serverUrl: string;
+  iceServers: string;
+  lastJoinRoomId?: string;
+  lastJoinSecret?: string;
+}
+
+export interface ConnectPlanDraft {
+  mode: "host" | "join";
+  serverUrl: string;
+  iceServers: string;
+  roomId: string;
+  joinSecret: string;
+}
+
+export interface CollabSession {
+  transport: "p2p";
+  status: "hosting" | "joined";
+  serverUrl: string;
+  iceServers: RTCIceServer[];
+  roomId: string;
+  joinSecret?: string | null;
+  planId: string;
+  planTitle: string;
+  selfSessionId: string;
+  participants: CollabParticipant[];
+  snapshot?: {
+    plan: Plan;
+    positions: Record<string, { x: number; y: number }>;
+    feedbacks: Feedback[];
+  } | null;
+  snapshotHash?: string;
+  createdAt: number;
+}
+
+export interface CollabTransportState {
+  signal: "connecting" | "connected" | "reconnecting" | "disconnected";
+  peer: "idle" | "connecting" | "connected" | "failed";
 }
 
 export interface CardSummary {
@@ -57,7 +117,7 @@ export interface HistoryDiff {
   modified: { before: CardSummary; after: CardSummary }[];
 }
 
-export type HistoryActor = "ui" | "agent" | "system";
+export type HistoryActor = "ui" | "agent" | "collab" | "system";
 export type HistorySource = "rest" | "mcp" | "undo" | "redo" | "system";
 export type HistoryChangeKind = "plan_created" | "card_added" | "card_removed" | "card_updated";
 
@@ -92,6 +152,7 @@ export interface HistoryEntry {
   timestamp: number;
   actor: HistoryActor;
   actorId?: string | null;
+  actorAvatarSeed?: string | null;
   source: HistorySource;
   txId: string;
   summary: string;

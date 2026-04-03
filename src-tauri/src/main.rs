@@ -1,3 +1,4 @@
+mod commands;
 mod server;
 mod state;
 mod tools;
@@ -75,11 +76,28 @@ async fn run_update_check<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
 fn main() {
     let app_state = Arc::new(RwLock::new(state::load_state()));
     let ct = CancellationToken::new();
-
     let server_state = app_state.clone();
     let server_ct = ct.clone();
 
     let app = tauri::Builder::default()
+        .manage(app_state.clone())
+        .invoke_handler(tauri::generate_handler![
+            commands::get_app_state,
+            commands::add_feedback,
+            commands::delete_feedback,
+            commands::create_plan,
+            commands::import_plan,
+            commands::save_positions,
+            commands::delete_plan,
+            commands::fork_plan,
+            commands::toggle_pin,
+            commands::fetch_history,
+            commands::clear_history,
+            commands::add_card,
+            commands::update_card,
+            commands::delete_card,
+            commands::apply_peer_snapshot,
+        ])
         .setup(move |app| {
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -147,7 +165,17 @@ fn main() {
                 .separator()
                 .item(&quit)
                 .build()?;
-            let menu = MenuBuilder::new(app).item(&app_submenu).build()?;
+            let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                .undo()
+                .redo()
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .separator()
+                .select_all()
+                .build()?;
+            let menu = MenuBuilder::new(app).item(&app_submenu).item(&edit_submenu).build()?;
             app.set_menu(menu)?;
             app.on_menu_event(move |app, event| {
                 if event.id() == MENU_ABOUT {
@@ -165,8 +193,8 @@ fn main() {
             });
 
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = server::run_server(server_state, server_ct).await {
-                    eprintln!("[FlowPlan] Server error: {}", e);
+                if let Err(error) = server::run_server(server_state, server_ct).await {
+                    eprintln!("[FlowPlan] Server error: {error}");
                 }
             });
 

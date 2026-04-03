@@ -23,6 +23,7 @@ import IconButton from "./ui/IconButton";
 import Chip, { type ChipVariant } from "./ui/Chip";
 import SegmentedControl from "./ui/SegmentedControl";
 import { TYPE_CHIP, TYPE_GRADIENT } from "../lib/cardTypes";
+import Avatar from "./ui/Avatar";
 
 /* ---- Props ---- */
 interface DetailDrawerProps {
@@ -173,6 +174,17 @@ function FeedbackItem({
               className={`transition-opacity duration-150 ${hovered ? "opacity-100" : "opacity-0"}`}
             />
           )}
+        </div>
+
+        <div className="mb-2 flex items-center gap-2 text-[10px] text-white/40">
+          <Avatar
+            user={{
+              username: fb.ownerUsername || "FlowPlan",
+              avatarSeed: fb.ownerAvatarSeed || `feedback-${fb.id}`,
+            }}
+            size="sm"
+          />
+          <span className="font-medium text-white/56">{fb.ownerUsername || "Unknown user"}</span>
         </div>
 
         {/* Text */}
