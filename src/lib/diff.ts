@@ -58,7 +58,7 @@ function areCardsEqual(prev: Card, current: Card) {
 }
 
 export function hasFullHistoryEntryCards(entry: HistoryEntry | null | undefined) {
-  return !!entry?.fullCards && entry.fullCards.length === entry.cards.length;
+  return !!entry?.fullCards && entry.fullCards.length === (entry.cards?.length ?? entry.fullCards.length);
 }
 
 export function hasPreviousFullHistoryEntryCards(entry: HistoryEntry | null | undefined) {
@@ -124,7 +124,7 @@ export function computeHistoryEntryDiff(prevEntry: HistoryEntry | null, currentE
     return computeCardDiff(currentEntry.previousFullCards ?? [], currentEntry.fullCards ?? []);
   }
   if (currentEntry.previousCards?.length) {
-    return computeDiff(currentEntry.previousCards, currentEntry.cards);
+    return computeDiff(currentEntry.previousCards, currentEntry.cards ?? []);
   }
   if (prevEntry && hasFullHistoryEntryCards(prevEntry) && hasFullHistoryEntryCards(currentEntry)) {
     return computeCardDiff(prevEntry.fullCards ?? [], currentEntry.fullCards ?? []);
@@ -132,5 +132,5 @@ export function computeHistoryEntryDiff(prevEntry: HistoryEntry | null, currentE
   if (!prevEntry && hasFullHistoryEntryCards(currentEntry)) {
     return computeCardDiff([], currentEntry.fullCards ?? []);
   }
-  return computeDiff(prevEntry?.cards ?? [], currentEntry.cards);
+  return computeDiff(prevEntry?.cards ?? [], currentEntry.cards ?? []);
 }

@@ -1,12 +1,16 @@
 import React, { useState, useMemo } from "react";
-import type { Plan } from "../types";
+import type { CollabSession, CollabTransportState, Plan } from "../types";
 import IconButton from "./ui/IconButton";
+import Button from "./ui/Button";
 import DropdownMenu, { DropdownItem } from "./ui/DropdownMenu";
 import {
+  Check,
   Plus,
   PushPin,
   PushPinSimple,
+  Power,
   Trash,
+  Copy,
   DotsThreeVertical,
   DownloadSimple,
   CloudCheck,
@@ -14,6 +18,13 @@ import {
   MagnifyingGlass,
   Cards,
   CalendarBlank,
+  PlugsConnected,
+  Broadcast,
+  GearSix,
+  WifiHigh,
+  Pulse,
+  WarningCircle,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 
 interface SidebarProps {
@@ -24,7 +35,14 @@ interface SidebarProps {
   onTogglePin: (planId: string) => void;
   onImport: () => void;
   onNewPlan: () => void;
+  onOpenSettings: () => void;
   connected: boolean;
+  onConnectPlan: () => void;
+  onDisconnectPlan?: () => void;
+  collabSession: CollabSession | null;
+  collabTransportState?: CollabTransportState | null;
+  collabSessionCount?: number;
+  collabStatusByPlan?: Record<string, CollabSession["status"]>;
 }
 
 /* ---- Logo ---- */
@@ -96,9 +114,26 @@ function Sidebar({
   onTogglePin,
   onImport,
   onNewPlan,
+  onOpenSettings,
   connected,
+  onConnectPlan,
+  onDisconnectPlan,
+  collabSession,
+  collabTransportState,
+  collabSessionCount = 0,
+  collabStatusByPlan = {},
 }: SidebarProps) {
   const [search, setSearch] = useState("");
+  const [copiedInvite, setCopiedInvite] = useState(false);
+
+  const copyInvite = async () => {
+    if (!collabSession?.roomId || !collabSession.joinSecret) return;
+    try {
+      await navigator.clipboard.writeText(`Room ID: ${collabSession.roomId}\nSecret: ${collabSession.joinSecret}`);
+      setCopiedInvite(true);
+      setTimeout(() => setCopiedInvite(false), 1400);
+    } catch {}
+  };
 
   /* Filter & group plans */
   const filtered = useMemo(() => {
@@ -130,9 +165,69 @@ function Sidebar({
     return groups;
   }, [filtered]);
 
+  const signalMeta = useMemo(() => {
+    switch (collabTransportState?.signal) {
+      case "connected":
+        return {
+          icon: <WifiHigh size={11} weight="fill" />,
+          className: "text-fp-info bg-fp-info/[0.10] border-fp-info/12",
+          label: "Signal connected",
+        };
+      case "reconnecting":
+        return {
+          icon: <ArrowsClockwise size={11} weight="bold" className="animate-spin" />,
+          className: "text-fp-warning bg-fp-warning/[0.10] border-fp-warning/12",
+          label: "Signal reconnecting",
+        };
+      case "disconnected":
+        return {
+          icon: <WarningCircle size={11} weight="fill" />,
+          className: "text-fp-danger bg-fp-danger/[0.10] border-fp-danger/12",
+          label: "Signal disconnected",
+        };
+      default:
+        return {
+          icon: <ArrowsClockwise size={11} weight="bold" className="animate-spin" />,
+          className: "text-white/56 bg-white/[0.05] border-white/[0.08]",
+          label: "Signal connecting",
+        };
+    }
+  }, [collabTransportState?.signal]);
+
+  const p2pMeta = useMemo(() => {
+    switch (collabTransportState?.peer) {
+      case "connected":
+        return {
+          icon: <Pulse size={11} weight="fill" />,
+          className: "text-fp-accent bg-fp-accent/[0.10] border-fp-accent/12",
+          label: "P2P connected",
+        };
+      case "connecting":
+        return {
+          icon: <ArrowsClockwise size={11} weight="bold" className="animate-spin" />,
+          className: "text-fp-warning bg-fp-warning/[0.10] border-fp-warning/12",
+          label: "P2P connecting",
+        };
+      case "failed":
+        return {
+          icon: <WarningCircle size={11} weight="fill" />,
+          className: "text-fp-danger bg-fp-danger/[0.10] border-fp-danger/12",
+          label: "P2P failed",
+        };
+      default:
+        return {
+          icon: <Pulse size={11} weight="duotone" />,
+          className: "text-white/56 bg-white/[0.05] border-white/[0.08]",
+          label: "P2P idle",
+        };
+    }
+  }, [collabTransportState?.peer]);
+
   /* Render a single plan row */
   const PlanItem = ({ p }: { p: Plan }) => {
     const act = p.id === activeId;
+    const collabStatus = collabStatusByPlan[p.id] ?? null;
+    const hasLiveRoom = Boolean(collabStatus);
 
     return (
       <div
@@ -143,10 +238,18 @@ function Sidebar({
       >
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div
-            className={`text-sm leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${act ? "text-white" : "text-white/80"}`}
-          >
-            {p.title}
+          <div className="flex items-center gap-2 min-w-0">
+            {hasLiveRoom && (
+              <span
+                className="mt-px h-2 w-2 shrink-0 rounded-full bg-[#62f58c] shadow-[0_0_0_2px_rgba(98,245,140,0.12),0_0_12px_rgba(98,245,140,0.65)]"
+                title={collabStatus === "hosting" ? "Hosting room" : "Joined room"}
+              />
+            )}
+            <div
+              className={`min-w-0 text-sm leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${act ? "text-white" : "text-white/80"}`}
+            >
+              {p.title}
+            </div>
           </div>
           <div className="flex items-center gap-1 mt-1 text-[11px] text-white/30">
             <Cards size={12} weight="regular" className="shrink-0 -mt-px" />
@@ -182,7 +285,7 @@ function Sidebar({
   };
 
   return (
-    <div className="w-[var(--spacing-fp-sidebar)] h-full rounded-2xl border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] flex flex-col shrink-0 font-sans overflow-hidden animate-sidebar-in">
+    <div className="w-[var(--spacing-fp-sidebar)] h-full rounded-2xl border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 flex flex-col shrink-0 font-sans overflow-hidden animate-sidebar-in">
       {/* ---- Header ---- */}
       <div className="py-3 px-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -199,14 +302,22 @@ function Sidebar({
           </div>
         </div>
 
-        {/* Add button */}
-        <DropdownMenu
-          align="right"
-          trigger={<IconButton variant="ghost" size="sm" icon={<Plus size={14} />} label="Add plan" />}
-        >
-          <DropdownItem onClick={() => onNewPlan()} icon={<Plus size={14} />} label="New Plan" />
-          <DropdownItem onClick={() => onImport()} icon={<DownloadSimple size={14} />} label="Import JSON" />
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <DropdownMenu
+            align="right"
+            trigger={<IconButton variant="ghost" size="sm" icon={<Plus size={14} />} label="Add plan" />}
+          >
+            <DropdownItem onClick={() => onNewPlan()} icon={<Plus size={14} />} label="New Plan" />
+            <DropdownItem onClick={() => onImport()} icon={<DownloadSimple size={14} />} label="Import JSON" />
+          </DropdownMenu>
+          <IconButton
+            variant="ghost"
+            size="sm"
+            onClick={onOpenSettings}
+            icon={<GearSix size={14} />}
+            label="Settings"
+          />
+        </div>
       </div>
 
       {/* ---- Search bar ---- */}
@@ -246,6 +357,99 @@ function Sidebar({
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="shrink-0 border-t border-white/[0.06] px-3 pb-3 pt-3">
+        <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.025] px-3.5 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-[0.12em] text-white/26 font-mono">Collaboration</div>
+              <div className="mt-1 text-[13px] font-medium text-white/78">
+                {collabSession ? (collabSession.status === "hosting" ? "Hosting room" : "Connected to room") : "Connect plan"}
+              </div>
+              <div className="mt-1 min-w-0 text-[11px] text-white/34 leading-relaxed">
+                {collabSession
+                  ? collabSessionCount > 1
+                    ? `${collabSession.roomId} · ${collabSessionCount} live sessions`
+                    : collabSession.roomId
+                  : collabSessionCount > 0
+                    ? `${collabSessionCount} live sessions open in this app`
+                    : "Start a host session or join a shared plan room."}
+              </div>
+            </div>
+
+            <div className="shrink-0">
+              <div className="group relative">
+                <div
+                  className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                    collabSession
+                      ? collabSession.status === "hosting"
+                        ? "bg-fp-accent-dim text-fp-accent"
+                        : "bg-fp-info-dim text-fp-info"
+                      : "bg-white/[0.04] text-white/34"
+                  } cursor-help`}
+                  aria-label={
+                    collabSession && collabTransportState
+                      ? `${signalMeta.label}. ${p2pMeta.label}.`
+                      : collabSession
+                        ? "Collaboration active"
+                        : "No active collaboration session"
+                  }
+                >
+                  {collabSession ? (collabSession.status === "hosting" ? "Host" : "Live") : "Idle"}
+                </div>
+                {collabSession && collabTransportState && (
+                  <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 min-w-[168px] rounded-2xl border border-white/8 bg-[rgba(24,25,28,0.94)] px-2.5 py-2 text-[10px] text-white/72 opacity-0 shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full border backdrop-blur-[18px] supports-[backdrop-filter]:backdrop-saturate-150 ${signalMeta.className}`}
+                      >
+                        {signalMeta.icon}
+                      </span>
+                      <span className="font-medium text-white/48">Signal</span>
+                      <span className="ml-auto font-medium text-white/82">{signalMeta.label.replace(/^Signal\s+/i, "")}</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full border backdrop-blur-[18px] supports-[backdrop-filter]:backdrop-saturate-150 ${p2pMeta.className}`}
+                      >
+                        {p2pMeta.icon}
+                      </span>
+                      <span className="font-medium text-white/48">P2P</span>
+                      <span className="ml-auto font-medium text-white/82">{p2pMeta.label.replace(/^P2P\s+/i, "")}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {collabSession && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {collabSession.joinSecret && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={copiedInvite ? <Check size={12} weight="bold" /> : <Copy size={12} />}
+                  onClick={copyInvite}
+                  className="text-white/60 hover:text-white"
+                >
+                  {copiedInvite ? "Copied" : "Copy invite"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          <Button
+            variant={collabSession ? "danger" : "glassy"}
+            size="md"
+            icon={collabSession ? <Power size={13} weight="bold" /> : <PlugsConnected size={13} weight="bold" />}
+            onClick={collabSession ? onDisconnectPlan : onConnectPlan}
+            className="w-full mt-2"
+          >
+            {collabSession ? "Disconnect" : "Connect plan"}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flowplan-signal",
+  "main": "src/index.js",
+  "compatibility_date": "2026-04-02",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SIGNAL_ROOM",
+        "class_name": "SignalRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SignalRoom"]
+    }
+  ]
+}
+

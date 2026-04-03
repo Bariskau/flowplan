@@ -36,3 +36,4 @@ src-tauri/gen/
 *.tmp
 *.temp
 .playwright-mcp
+.playwright-cli

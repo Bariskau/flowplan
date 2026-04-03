@@ -14,20 +14,43 @@ import {
   type Connection,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
-import { Plus, Minus, ArrowsOutCardinal, PencilSimple, Trash, Copy, X } from "@phosphor-icons/react";
+import {
+  Plus,
+  Minus,
+  ArrowsOutCardinal,
+  PencilSimple,
+  Trash,
+  Copy,
+  X,
+} from "@phosphor-icons/react";
 import { toPng } from "html-to-image";
 import type { Card, FileChange } from "../types";
 import { formatCardRef } from "../lib/refs";
 import CardNode, { type CardNodeData } from "./CardNode";
 
 /* ---- Zoom button ---- */
-function ZoomBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function ZoomBtn({
+  icon,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="w-7 h-7 flex items-center justify-center rounded-full bg-transparent border-none text-white/50 cursor-pointer transition-all duration-150 hover:bg-white/8 hover:text-white/90 active:bg-white/12 active:scale-95"
+      disabled={disabled}
+      className={`w-7 h-7 flex items-center justify-center rounded-full bg-transparent border-none transition-all duration-150 ${
+        disabled
+          ? "text-white/18 cursor-default"
+          : "text-white/50 cursor-pointer hover:bg-white/8 hover:text-white/90 active:bg-white/12 active:scale-95"
+      }`}
     >
       {icon}
     </button>
@@ -153,6 +176,7 @@ const CH = 140;
 const GX = 60;
 const GY = 32;
 type FlowNode = Node<CardNodeData, "card">;
+type FlowViewport = { x: number; y: number; zoom: number };
 
 interface FlowCanvasProps {
   cards: Card[];
@@ -171,6 +195,10 @@ interface FlowCanvasProps {
   onConnectCards?: (sourceId: string, targetId: string) => void;
   onDisconnectCards?: (sourceId: string, targetId: string) => void;
   onExportSvgReady?: (exporter: (() => Promise<Blob | null>) | null) => void;
+  onFrameChange?: (frame: { left: number; top: number; width: number; height: number } | null) => void;
+  onViewportChange?: (viewport: FlowViewport | null) => void;
+  readOnly?: boolean;
+  readOnlyLabel?: string;
 }
 
 function areStringArraysEqual(prev: string[] = [], next: string[] = []) {
@@ -238,6 +266,9 @@ function areFlowCanvasPropsEqual(prev: FlowCanvasProps, next: FlowCanvasProps) {
   if (prev.onConnectCards !== next.onConnectCards) return false;
   if (prev.onDisconnectCards !== next.onDisconnectCards) return false;
   if (prev.onExportSvgReady !== next.onExportSvgReady) return false;
+  if (prev.onFrameChange !== next.onFrameChange) return false;
+  if (prev.onViewportChange !== next.onViewportChange) return false;
+  if (prev.readOnly !== next.readOnly || prev.readOnlyLabel !== next.readOnlyLabel) return false;
   return true;
 }
 
@@ -253,6 +284,13 @@ function isNodeDataEqual(prev: CardNodeData, next: CardNodeData) {
     prev.onDelete === next.onDelete &&
     prev.highlight === next.highlight
   );
+}
+
+function isNodePositionEqual(
+  prev: { x: number; y: number },
+  next: { x: number; y: number },
+) {
+  return prev.x === next.x && prev.y === next.y;
 }
 
 function computeLayout(cards: Card[]): Record<string, { x: number; y: number }> {
@@ -343,8 +381,12 @@ function FlowCanvasInner({
   onConnectCards,
   onDisconnectCards,
   onExportSvgReady,
+  onFrameChange,
+  onViewportChange,
+  readOnly = false,
+  readOnlyLabel,
 }: FlowCanvasProps) {
-  const { fitView, zoomIn, zoomOut, getNodes } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, getNodes, getViewport } = useReactFlow();
   const hasFitView = useRef(false);
   const flowRef = useRef<HTMLDivElement>(null);
   const [ctxMenu, setCtxMenu] = useState<{
@@ -371,8 +413,8 @@ function FlowCanvasInner({
           planTitle,
           planId,
           onFileClick,
-          onEdit: onEditCard,
-          onDelete: onDeleteCard,
+          onEdit: readOnly ? undefined : onEditCard,
+          onDelete: readOnly ? undefined : onDeleteCard,
           highlight: highlightMap[card.id] || null,
         },
       };
@@ -389,6 +431,7 @@ function FlowCanvasInner({
     onEditCard,
     onDeleteCard,
     highlightMap,
+    readOnly,
   ]);
 
   const initialEdges = useMemo(() => cardsToEdges(cards), [cards]);
@@ -410,16 +453,23 @@ function FlowCanvasInner({
       // Cards added/removed - full reset with positions
       setNodes(initialNodes);
     } else {
-      // Only data changed (feedback counts, highlights, etc.) - preserve current positions
+      // Keep local node instances, but still apply remote position updates.
       const nodeMap = new Map(initialNodes.map((n) => [n.id, n]));
       setNodes((prev) => {
         let changed = false;
         const nextNodes = prev.map((n) => {
           const updated = nodeMap.get(n.id);
           if (!updated) return n;
-          if (isNodeDataEqual(n.data, updated.data)) return n;
-          changed = true;
-          return { ...n, data: updated.data };
+          let nextNode = n;
+          if (!isNodeDataEqual(n.data, updated.data)) {
+            nextNode = { ...nextNode, data: updated.data };
+            changed = true;
+          }
+          if (!isNodePositionEqual(n.position, updated.position)) {
+            nextNode = { ...nextNode, position: updated.position };
+            changed = true;
+          }
+          return nextNode;
         });
         return changed ? nextNodes : prev;
       });
@@ -460,12 +510,23 @@ function FlowCanvasInner({
     setCtxMenu(null);
   }, [planId]);
 
+  useEffect(() => {
+    if (!readOnly) return;
+    setSelectedNodeIds([]);
+    setCtxMenu(null);
+  }, [readOnly]);
+
   const handleSelectionChange = useCallback(({ nodes: sel }: OnSelectionChangeParams) => {
+    if (readOnly) {
+      setSelectedNodeIds([]);
+      return;
+    }
     setSelectedNodeIds(sel.map((n) => n.id));
-  }, []);
+  }, [readOnly]);
 
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node) => {
+      if (event.ctrlKey || event.metaKey) return;
       onSelectCard(node.id);
     },
     [onSelectCard],
@@ -478,18 +539,20 @@ function FlowCanvasInner({
 
   const handleConnect = useCallback(
     (connection: Connection) => {
+      if (readOnly) return;
       if (connection.source && connection.target && connection.source !== connection.target) {
         onConnectCards?.(connection.source, connection.target);
       }
     },
-    [onConnectCards],
+    [onConnectCards, readOnly],
   );
 
   const handleEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
+      if (readOnly) return;
       onDisconnectCards?.(edge.source, edge.target);
     },
-    [onDisconnectCards],
+    [onDisconnectCards, readOnly],
   );
 
   const handleCopyRefs = useCallback(() => {
@@ -548,7 +611,46 @@ function FlowCanvasInner({
     return () => onExportSvgReady?.(null);
   }, [createSvgBlob, onExportSvgReady]);
 
+  useOnViewportChange({
+    onChange: useCallback((viewport: FlowViewport) => {
+      onViewportChange?.(viewport);
+    }, [onViewportChange]),
+  });
+
+  useEffect(() => {
+    const updateFrame = () => {
+      const rect = flowRef.current?.getBoundingClientRect();
+      onFrameChange?.(
+        rect
+          ? {
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+            }
+          : null,
+      );
+      onViewportChange?.(getViewport());
+    };
+
+    updateFrame();
+    const resizeObserver = typeof ResizeObserver !== "undefined" && flowRef.current
+      ? new ResizeObserver(updateFrame)
+      : null;
+    if (flowRef.current && resizeObserver) {
+      resizeObserver.observe(flowRef.current);
+    }
+    window.addEventListener("resize", updateFrame);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateFrame);
+      onFrameChange?.(null);
+      onViewportChange?.(null);
+    };
+  }, [getViewport, onFrameChange, onViewportChange, planId, readOnlyLabel]);
+
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    if (readOnly) return;
     event.preventDefault();
     if (!flowRef.current) return;
     const pane = flowRef.current.getBoundingClientRect();
@@ -559,7 +661,7 @@ function FlowCanvasInner({
       right: event.clientX >= pane.width - 200 ? pane.right - event.clientX : undefined,
       bottom: event.clientY >= pane.height - 200 ? pane.bottom - event.clientY : undefined,
     });
-  }, []);
+  }, [readOnly]);
 
   const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
 
@@ -589,6 +691,15 @@ function FlowCanvasInner({
         colorMode="dark"
         fitView
         fitViewOptions={{ padding: 0.3 }}
+        minZoom={0.12}
+        connectionLineStyle={{
+          stroke: "rgba(229, 231, 235, 0.92)",
+          strokeWidth: 2.25,
+          strokeDasharray: "6 5",
+        }}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        elementsSelectable={!readOnly}
         proOptions={{ hideAttribution: true }}
         style={{ background: "transparent" }}
       >
@@ -597,7 +708,7 @@ function FlowCanvasInner({
       </ReactFlow>
 
       {/* Context menu */}
-      {ctxMenu && (
+      {ctxMenu && !readOnly && (
         <div
           className="absolute z-[50] min-w-[140px] rounded-2xl animate-ctx-menu bg-[rgba(32,33,36,0.85)] backdrop-blur-[40px] border border-white/10 p-1.5"
           style={{ top: ctxMenu.top, left: ctxMenu.left, right: ctxMenu.right, bottom: ctxMenu.bottom }}
@@ -628,6 +739,14 @@ function FlowCanvasInner({
       )}
 
       {/* Custom zoom controls */}
+      {readOnlyLabel && (
+        <div className="absolute top-[14px] right-[14px] flex items-center gap-2 animate-zoom-in">
+          <div className="px-2.5 h-8 rounded-full border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] inline-flex items-center text-[11px] font-medium text-white/65">
+            {readOnlyLabel}
+          </div>
+        </div>
+      )}
+
       <div
         className="absolute flex items-center gap-0.5 p-1 rounded-full border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px] animate-zoom-in"
         style={{ bottom: 14, left: "calc(var(--spacing-fp-sidebar) + var(--spacing-fp-gap) * 2 + 14px)" }}
@@ -646,7 +765,7 @@ function FlowCanvasInner({
       </div>
 
       {/* Multi-select action bar */}
-      {selectedNodeIds.length > 0 && (
+      {!readOnly && selectedNodeIds.length > 0 && (
         <div
           className="absolute flex items-center gap-2 py-1.5 pl-3 pr-1.5 rounded-full border border-white/8 bg-[rgba(32,33,36,0.72)] backdrop-blur-[20px]  animate-slide-up"
           style={{ bottom: 14, right: 14 }}
