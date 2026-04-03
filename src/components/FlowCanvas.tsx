@@ -176,6 +176,7 @@ const CH = 140;
 const GX = 60;
 const GY = 32;
 type FlowNode = Node<CardNodeData, "card">;
+type FlowViewport = { x: number; y: number; zoom: number };
 
 interface FlowCanvasProps {
   cards: Card[];
@@ -194,6 +195,8 @@ interface FlowCanvasProps {
   onConnectCards?: (sourceId: string, targetId: string) => void;
   onDisconnectCards?: (sourceId: string, targetId: string) => void;
   onExportSvgReady?: (exporter: (() => Promise<Blob | null>) | null) => void;
+  onFrameChange?: (frame: { left: number; top: number; width: number; height: number } | null) => void;
+  onViewportChange?: (viewport: FlowViewport | null) => void;
   readOnly?: boolean;
   readOnlyLabel?: string;
 }
@@ -263,6 +266,8 @@ function areFlowCanvasPropsEqual(prev: FlowCanvasProps, next: FlowCanvasProps) {
   if (prev.onConnectCards !== next.onConnectCards) return false;
   if (prev.onDisconnectCards !== next.onDisconnectCards) return false;
   if (prev.onExportSvgReady !== next.onExportSvgReady) return false;
+  if (prev.onFrameChange !== next.onFrameChange) return false;
+  if (prev.onViewportChange !== next.onViewportChange) return false;
   if (prev.readOnly !== next.readOnly || prev.readOnlyLabel !== next.readOnlyLabel) return false;
   return true;
 }
@@ -279,6 +284,13 @@ function isNodeDataEqual(prev: CardNodeData, next: CardNodeData) {
     prev.onDelete === next.onDelete &&
     prev.highlight === next.highlight
   );
+}
+
+function isNodePositionEqual(
+  prev: { x: number; y: number },
+  next: { x: number; y: number },
+) {
+  return prev.x === next.x && prev.y === next.y;
 }
 
 function computeLayout(cards: Card[]): Record<string, { x: number; y: number }> {
@@ -369,10 +381,12 @@ function FlowCanvasInner({
   onConnectCards,
   onDisconnectCards,
   onExportSvgReady,
+  onFrameChange,
+  onViewportChange,
   readOnly = false,
   readOnlyLabel,
 }: FlowCanvasProps) {
-  const { fitView, zoomIn, zoomOut, getNodes } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, getNodes, getViewport } = useReactFlow();
   const hasFitView = useRef(false);
   const flowRef = useRef<HTMLDivElement>(null);
   const [ctxMenu, setCtxMenu] = useState<{
@@ -439,16 +453,23 @@ function FlowCanvasInner({
       // Cards added/removed - full reset with positions
       setNodes(initialNodes);
     } else {
-      // Only data changed (feedback counts, highlights, etc.) - preserve current positions
+      // Keep local node instances, but still apply remote position updates.
       const nodeMap = new Map(initialNodes.map((n) => [n.id, n]));
       setNodes((prev) => {
         let changed = false;
         const nextNodes = prev.map((n) => {
           const updated = nodeMap.get(n.id);
           if (!updated) return n;
-          if (isNodeDataEqual(n.data, updated.data)) return n;
-          changed = true;
-          return { ...n, data: updated.data };
+          let nextNode = n;
+          if (!isNodeDataEqual(n.data, updated.data)) {
+            nextNode = { ...nextNode, data: updated.data };
+            changed = true;
+          }
+          if (!isNodePositionEqual(n.position, updated.position)) {
+            nextNode = { ...nextNode, position: updated.position };
+            changed = true;
+          }
+          return nextNode;
         });
         return changed ? nextNodes : prev;
       });
@@ -589,6 +610,44 @@ function FlowCanvasInner({
     onExportSvgReady?.(createSvgBlob);
     return () => onExportSvgReady?.(null);
   }, [createSvgBlob, onExportSvgReady]);
+
+  useOnViewportChange({
+    onChange: useCallback((viewport: FlowViewport) => {
+      onViewportChange?.(viewport);
+    }, [onViewportChange]),
+  });
+
+  useEffect(() => {
+    const updateFrame = () => {
+      const rect = flowRef.current?.getBoundingClientRect();
+      onFrameChange?.(
+        rect
+          ? {
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+            }
+          : null,
+      );
+      onViewportChange?.(getViewport());
+    };
+
+    updateFrame();
+    const resizeObserver = typeof ResizeObserver !== "undefined" && flowRef.current
+      ? new ResizeObserver(updateFrame)
+      : null;
+    if (flowRef.current && resizeObserver) {
+      resizeObserver.observe(flowRef.current);
+    }
+    window.addEventListener("resize", updateFrame);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateFrame);
+      onFrameChange?.(null);
+      onViewportChange?.(null);
+    };
+  }, [getViewport, onFrameChange, onViewportChange, planId, readOnlyLabel]);
 
   const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     if (readOnly) return;

@@ -8,24 +8,27 @@ import {
   MinusCircle,
   PencilSimple,
 } from "@phosphor-icons/react";
-import type { HistoryChange, HistoryEntry } from "../types";
+import type { CollabProfile, HistoryChange, HistoryEntry } from "../types";
 import IconButton from "./ui/IconButton";
 import CardTag, { type TagVariant } from "./ui/CardTag";
+import Avatar from "./ui/Avatar";
 
 interface HistoryPanelProps {
   entries: HistoryEntry[];
   pageLimit: number;
   selectedEntryId: string | null;
+  profile: CollabProfile;
   onSelect: (entryId: string | null) => void;
   onClose: () => void;
   onClear: () => void;
   onCardClick?: (change: HistoryChange, entry: HistoryEntry) => void;
 }
 
-const ACTOR_TAG: Record<string, { variant: TagVariant; label: string }> = {
-  ui: { variant: "info", label: "You" },
-  agent: { variant: "warning", label: "AI" },
-  system: { variant: "default", label: "System" },
+const ACTOR_META: Record<string, { variant: TagVariant; label: string; avatarSeed: string; monogram?: string }> = {
+  ui: { variant: "info", label: "You", avatarSeed: "history-ui" },
+  agent: { variant: "warning", label: "AI", avatarSeed: "history-agent", monogram: "AI" },
+  collab: { variant: "accent", label: "Collaborator", avatarSeed: "history-collab" },
+  system: { variant: "default", label: "System", avatarSeed: "history-system", monogram: "SYS" },
 };
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -35,6 +38,47 @@ const SOURCE_LABEL: Record<string, string> = {
   redo: "Redo",
   system: "System",
 };
+
+function actorIdentity(entry: HistoryEntry, profile: CollabProfile) {
+  const fallback = ACTOR_META[entry.actor] || ACTOR_META.system;
+  const actorId = entry.actorId?.trim();
+  const storedAvatarSeed = entry.actorAvatarSeed?.trim();
+
+  if (entry.actor === "ui") {
+    const label = actorId && actorId.toLowerCase() !== "desktop" ? actorId : profile.username || fallback.label;
+    const isCurrentProfile = !actorId || actorId.toLowerCase() === "desktop" || actorId === profile.username;
+    return {
+      variant: fallback.variant,
+      label,
+      avatarSeed: storedAvatarSeed || (isCurrentProfile ? profile.avatarSeed : `history-ui-${label.toLowerCase()}`),
+      monogram: undefined,
+    };
+  }
+
+  if (entry.actor === "collab") {
+    const label = actorId || fallback.label;
+    return {
+      variant: fallback.variant,
+      label,
+      avatarSeed: storedAvatarSeed || `${fallback.avatarSeed}-${label.toLowerCase()}`,
+      monogram: undefined,
+    };
+  }
+
+  if (actorId) {
+    return {
+      variant: fallback.variant,
+      label: actorId,
+      avatarSeed: storedAvatarSeed || `${fallback.avatarSeed}-${actorId.toLowerCase()}`,
+      monogram: fallback.monogram,
+    };
+  }
+
+  return {
+    ...fallback,
+    avatarSeed: storedAvatarSeed || fallback.avatarSeed,
+  };
+}
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -154,6 +198,7 @@ function HistoryPanel({
   entries,
   pageLimit,
   selectedEntryId,
+  profile,
   onSelect,
   onClose,
   onClear,
@@ -207,7 +252,7 @@ function HistoryPanel({
           <div className="flex flex-col gap-2.5">
             {reversed.map((entry) => {
               const selected = selectedEntryId === entry.id;
-              const actor = ACTOR_TAG[entry.actor] || ACTOR_TAG.system;
+              const actor = actorIdentity(entry, profile);
               const added = entry.changes.filter((change) => change.kind === "card_added").length;
               const removed = entry.changes.filter((change) => change.kind === "card_removed").length;
               const updated = entry.changes.filter((change) => change.kind === "card_updated").length;
@@ -228,7 +273,32 @@ function HistoryPanel({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-                        <CardTag variant={actor.variant}>{actor.label}</CardTag>
+                        <div className="group relative shrink-0">
+                          <div
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full border shrink-0 ${
+                            actor.variant === "info"
+                              ? "border-fp-info/20 bg-fp-info/8"
+                              : actor.variant === "warning"
+                                ? "border-fp-warning/20 bg-fp-warning/8"
+                                : "border-white/10 bg-white/[0.04]"
+                          }`}
+                        >
+                          {actor.monogram ? (
+                            <span className="text-[9px] font-semibold tracking-[0.08em] text-white/78">
+                              {actor.monogram}
+                            </span>
+                          ) : (
+                            <Avatar
+                              user={{ username: actor.label, avatarSeed: actor.avatarSeed }}
+                              size="sm"
+                              className="!w-5 !h-5 !min-w-5 !min-h-5"
+                            />
+                          )}
+                          </div>
+                          <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/8 bg-[rgba(24,25,28,0.94)] px-2.5 py-1 text-[10px] font-medium text-white/72 opacity-0 shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-opacity duration-150 group-hover:opacity-100">
+                            {actor.label}
+                          </div>
+                        </div>
                         <CardTag variant="default" icon={<ArrowsClockwise size={9} weight="regular" />}>
                           {SOURCE_LABEL[entry.source] || entry.source}
                         </CardTag>

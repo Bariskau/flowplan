@@ -3,6 +3,7 @@ import { X, Plus, ChatCircleDots, Folders, Lightning, PencilSimple, CheckCircle 
 import { TC } from "../lib/theme";
 import * as api from "../lib/api";
 import type { Card } from "../types";
+import useEscapeClose from "../hooks/useEscapeClose";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import Chip, { type ChipVariant } from "./ui/Chip";
@@ -21,11 +22,24 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
 interface NewCardModalProps {
   planId: string;
   existingCards: Card[];
+  apiBase?: string;
+  sessionId?: string;
+  actorId?: string;
+  actorAvatarSeed?: string;
   onClose: () => void;
   onCreated: (card: Card) => void;
 }
 
-export default function NewCardModal({ planId, existingCards, onClose, onCreated }: NewCardModalProps) {
+export default function NewCardModal({
+  planId,
+  existingCards,
+  apiBase,
+  sessionId,
+  actorId,
+  actorAvatarSeed,
+  onClose,
+  onCreated,
+}: NewCardModalProps) {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [cardType, setCardType] = useState("edit");
@@ -34,6 +48,8 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
   const deps: string[] = [];
   const [saving, setSaving] = useState(false);
   const [descPreview, setDescPreview] = useState(false);
+
+  useEscapeClose(onClose);
 
   const submit = async () => {
     if (!title.trim() || saving) return;
@@ -50,7 +66,7 @@ export default function NewCardModal({ planId, existingCards, onClose, onCreated
         repo: repo.trim(),
         files,
         dependencies: deps,
-      });
+      }, "rest", apiBase, sessionId, actorId, actorAvatarSeed);
       onCreated({
         id: result.id,
         title: title.trim(),

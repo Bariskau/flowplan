@@ -1,7 +1,29 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import type { Card, Plan, Feedback, FileChange, HistoryEntry } from "./types";
+import { useState, useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
+import type {
+  Card,
+  Plan,
+  Feedback,
+  FileChange,
+  HistoryEntry,
+  CollabProfile,
+  CollabSession,
+  CollabTransportState,
+  ConnectPlanDraft,
+} from "./types";
 import * as api from "./lib/api";
 import { X } from "@phosphor-icons/react";
+import {
+  createHostSession,
+  createJoinSession,
+  loadConnectionDefaults,
+  loadStoredProfile,
+  saveConnectionDefaults,
+  saveStoredProfile,
+  sanitizeUsername,
+} from "./lib/collab";
+import { FlowPlanCollabDoc } from "./lib/collabDoc";
+import { FlowPlanPeerSession, type SharedPlanSnapshot } from "./lib/p2p";
+import useEscapeClose from "./hooks/useEscapeClose";
 
 import Sidebar from "./components/Sidebar";
 import Toolbar from "./components/Toolbar";
@@ -11,6 +33,10 @@ import HistoryPanel from "./components/HistoryPanel";
 import CodeViewer from "./components/CodeViewer";
 import NewPlanModal from "./components/NewPlanModal";
 import NewCardModal from "./components/NewCardModal";
+import SettingsModal from "./components/SettingsModal";
+import ConnectPlanModal from "./components/ConnectPlanModal";
+import AvatarGroup from "./components/AvatarGroup";
+import CollabCursorLayer from "./components/CollabCursorLayer";
 import Button from "./components/ui/Button";
 
 const EMPTY_STEPS: Card[] = [];
@@ -18,8 +44,24 @@ const EMPTY_PLAN_POSITIONS: Record<string, { x: number; y: number }> = {};
 const EMPTY_FEEDBACK_COUNTS: Record<string, number> = {};
 const EMPTY_FEEDBACK_TYPES: Record<string, string[]> = {};
 const HISTORY_PAGE_LIMIT = 100;
+const CURSOR_SEND_INTERVAL_MS = 120;
+const CURSOR_STALE_TIMEOUT_MS = 30_000;
 
 type PlanPositions = Record<string, { x: number; y: number }>;
+type CollabSessionMap = Record<string, CollabSession>;
+type CollabTransportStateMap = Record<string, CollabTransportState>;
+type CursorPresence = { x: number; y: number; active: boolean; lastUpdated: number };
+type CursorPresenceMap = Record<string, Record<string, CursorPresence>>;
+type CanvasFrame = { left: number; top: number; width: number; height: number };
+type CanvasViewport = { x: number; y: number; zoom: number };
+type UndoStackBehavior = "preserve" | "invalidate" | "ignore";
+type DisconnectedFork = {
+  roomId: string;
+  planId: string;
+  planTitle: string;
+  baselineSignature: string | null;
+  disconnectedAt: number;
+};
 
 type BaseUiUndoAction = {
   planId: string;
@@ -89,11 +131,16 @@ function cloneValue<T>(value: T): T {
   return structuredClone(value);
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function normalizePlan(plan: Plan | null) {
   if (!plan) return null;
   return {
     id: plan.id,
     title: plan.title,
+    icon: plan.icon ?? "",
     description: plan.description,
     createdAt: plan.createdAt,
     pinned: !!plan.pinned,
@@ -130,6 +177,48 @@ function buildPlanSignature(plan: Plan | null, positions: PlanPositions) {
   });
 }
 
+function normalizeFeedback(feedback: Feedback) {
+  return {
+    id: feedback.id,
+    cardId: feedback.cardId,
+    type: feedback.type,
+    text: feedback.text,
+    answer: feedback.answer,
+    timestamp: feedback.timestamp,
+    read: !!feedback.read,
+    ownerUserId: feedback.ownerUserId ?? "",
+    ownerUsername: feedback.ownerUsername ?? "",
+    ownerAvatarSeed: feedback.ownerAvatarSeed ?? "",
+  };
+}
+
+function feedbacksForPlan(plan: Plan | null, feedbacks: Feedback[]) {
+  if (!plan) return [];
+  const planCardIds = new Set(plan.steps.map((card) => card.id));
+  return feedbacks
+    .filter((feedback) => planCardIds.has(feedback.cardId))
+    .sort((left, right) => left.timestamp - right.timestamp || left.id.localeCompare(right.id));
+}
+
+function mergeFeedbacksForPlan(prev: Feedback[], nextPlan: Plan, nextFeedbacks: Feedback[], previousPlan?: Plan | null) {
+  const planCardIds = new Set([
+    ...nextPlan.steps.map((card) => card.id),
+    ...(previousPlan?.steps.map((card) => card.id) ?? []),
+  ]);
+  return [...prev.filter((feedback) => !planCardIds.has(feedback.cardId)), ...nextFeedbacks];
+}
+
+function buildSharedSnapshotSignature(snapshot: SharedPlanSnapshot | null) {
+  if (!snapshot) return null;
+  return JSON.stringify({
+    plan: normalizePlan(snapshot.plan),
+    positions: normalizePositions(snapshot.positions),
+    feedbacks: [...snapshot.feedbacks]
+      .sort((left, right) => left.timestamp - right.timestamp || left.id.localeCompare(right.id))
+      .map(normalizeFeedback),
+  });
+}
+
 function cardToAddPayload(card: Card) {
   return {
     id: card.id,
@@ -142,6 +231,31 @@ function cardToAddPayload(card: Card) {
     fileChanges: card.fileChanges ?? {},
     order: card.order,
   };
+}
+
+function applyCollabSnapshotToLocalState(
+  session: CollabSession,
+  setPlans: Dispatch<SetStateAction<Plan[]>>,
+  setPositions: Dispatch<SetStateAction<Record<string, Record<string, { x: number; y: number }>>>>,
+  setFeedbacks: Dispatch<SetStateAction<Feedback[]>>,
+  previousPlan?: Plan | null,
+) {
+  const snapshot = session.snapshot;
+  if (!snapshot) return;
+
+  setPlans((prev) => {
+    const exists = prev.some((candidate) => candidate.id === snapshot.plan.id);
+    if (exists) {
+      return prev.map((candidate) => (candidate.id === snapshot.plan.id ? snapshot.plan : candidate));
+    }
+    return [snapshot.plan, ...prev];
+  });
+
+  setPositions((prev) => ({
+    ...prev,
+    [snapshot.plan.id]: snapshot.positions,
+  }));
+  setFeedbacks((prev) => mergeFeedbacksForPlan(prev, snapshot.plan, snapshot.feedbacks ?? [], previousPlan));
 }
 
 function mergeUndoPositions(
@@ -183,6 +297,12 @@ export default function App() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [positions, setPositions] = useState<Record<string, Record<string, { x: number; y: number }>>>({});
+  const [profile, setProfile] = useState<CollabProfile>(() => loadStoredProfile());
+  const [collabSessions, setCollabSessions] = useState<CollabSessionMap>({});
+  const [collabTransportStates, setCollabTransportStates] = useState<CollabTransportStateMap>({});
+  const [cursorPresences, setCursorPresences] = useState<CursorPresenceMap>({});
+  const [disconnectedForks, setDisconnectedForks] = useState<Record<string, DisconnectedFork>>({});
+  const [collabBusy, setCollabBusy] = useState(false);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -197,10 +317,30 @@ export default function App() {
   const [undoRedoBusy, setUndoRedoBusy] = useState(false);
   const [newPlanModal, setNewPlanModal] = useState(false);
   const [newCardModal, setNewCardModal] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [toast, setToast] = useState<{ text: string; file: string; error?: boolean } | null>(null);
+  const [rejoinPrompt, setRejoinPrompt] = useState<{ draft: ConnectPlanDraft; fork: DisconnectedFork } | null>(null);
+  const [canvasFrame, setCanvasFrame] = useState<CanvasFrame | null>(null);
+  const [canvasViewport, setCanvasViewport] = useState<CanvasViewport | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const exportSvgRef = useRef<(() => Promise<Blob | null>) | null>(null);
   const [dialog, setDialog] = useState<{ title: string; message: string } | null>(null);
+
+  useEscapeClose(() => setDialog(null), !!dialog);
+  useEscapeClose(() => setRejoinPrompt(null), !!rejoinPrompt);
+
+  const showToast = useCallback((text: string, file: string, error = false) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ text, file, error });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const showCollabDialog = useCallback((title: string, message: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast(null);
+    setDialog({ title, message });
+  }, []);
 
   // Listen for Tauri dialog events via CustomEvent
   useEffect(() => {
@@ -210,6 +350,18 @@ export default function App() {
     };
     window.addEventListener("fp-dialog", handler);
     return () => window.removeEventListener("fp-dialog", handler);
+  }, []);
+
+  useEffect(() => {
+    saveStoredProfile(profile);
+  }, [profile]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Disable right-click
@@ -230,9 +382,260 @@ export default function App() {
   const positionsRef = useRef(positions);
   positionsRef.current = positions;
   const lastPlanSignatureRef = useRef<string | null>(null);
-  const lastLocalPlanSignatureRef = useRef<string | null>(null);
+  const lastUndoPreservingSignatureRef = useRef<string | null>(null);
   const undoStackRef = useRef<UiUndoAction[]>([]);
   const redoStackRef = useRef<UiUndoAction[]>([]);
+  const collabSessionsRef = useRef(collabSessions);
+  collabSessionsRef.current = collabSessions;
+  const disconnectedForksRef = useRef(disconnectedForks);
+  disconnectedForksRef.current = disconnectedForks;
+  const collabDocsRef = useRef<Record<string, FlowPlanCollabDoc>>({});
+  const collabDocUnsubsRef = useRef<Record<string, () => void>>({});
+  const peerSessionsRef = useRef<Record<string, FlowPlanPeerSession>>({});
+  const collabRevisionsRef = useRef<Record<string, number>>({});
+  const applyingPeerSnapshotRoomsRef = useRef<Record<string, boolean>>({});
+  const lastPeerSnapshotSignaturesRef = useRef<Record<string, string | null>>({});
+  const lastLocalCollabSyncSignaturesRef = useRef<Record<string, string | null>>({});
+
+  const invalidateUndoRedoStacks = useCallback(() => {
+    lastUndoPreservingSignatureRef.current = null;
+    if (undoStackRef.current.length === 0 && redoStackRef.current.length === 0) return;
+    setUndoStack([]);
+    setRedoStack([]);
+  }, []);
+
+  const apiBaseForPlan = useCallback((_planId: string | null | undefined) => {
+    return api.LOCAL_API_BASE;
+  }, []);
+
+  const sessionIdForPlan = useCallback((_planId: string | null | undefined) => {
+    return undefined;
+  }, []);
+
+  const buildPeerSnapshot = useCallback((planId?: string | null): SharedPlanSnapshot | null => {
+    const resolvedPlanId = planId ?? activePlanIdRef.current;
+    if (!resolvedPlanId) return null;
+    const nextPlan = plansRef.current.find((candidate) => candidate.id === resolvedPlanId);
+    if (!nextPlan) return null;
+    return {
+      plan: cloneValue(nextPlan),
+      positions: cloneValue(positionsRef.current[resolvedPlanId] ?? EMPTY_PLAN_POSITIONS),
+      feedbacks: cloneValue(feedbacksForPlan(nextPlan, feedbacksRef.current)),
+    };
+  }, []);
+
+  const getCollabSessionForPlanId = useCallback((planId?: string | null) => {
+    if (!planId) return null;
+    return Object.values(collabSessionsRef.current).find((session) => session.planId === planId) ?? null;
+  }, []);
+
+  const resolveParticipantLabel = useCallback((roomId: string, sessionId?: string | null) => {
+    if (!sessionId) return undefined;
+    return collabSessionsRef.current[roomId]?.participants.find((participant) => participant.sessionId === sessionId)?.username;
+  }, []);
+  const resolveParticipantAvatarSeed = useCallback((roomId: string, sessionId?: string | null) => {
+    if (!sessionId) return undefined;
+    return collabSessionsRef.current[roomId]?.participants.find((participant) => participant.sessionId === sessionId)?.avatarSeed;
+  }, []);
+
+  const isTerminalCollabError = useCallback((message: string) => {
+    const normalized = message.trim().toLowerCase();
+    return [
+      "room not found",
+      "invalid join secret",
+      "room already exists",
+      "room is full",
+      "session already connected",
+      "missing required signaling parameters",
+      "join secret must be at least",
+    ].some((fragment) => normalized.includes(fragment));
+  }, []);
+
+  const describeCollabError = useCallback((message: string) => {
+    const normalized = message.trim().toLowerCase();
+    if (normalized.includes("room not found")) {
+      return {
+        title: "Room Not Found",
+        message: "The host room is not live right now. Ask the host to start the session again and then rejoin with the latest room id and secret.",
+      };
+    }
+    if (normalized.includes("invalid join secret")) {
+      return {
+        title: "Invalid Secret",
+        message: "That room exists, but the secret does not match. Copy the latest secret from the host and try again.",
+      };
+    }
+    if (normalized.includes("room already exists")) {
+      return {
+        title: "Room Already Exists",
+        message: "This room id is already hosting another session. Use a different room id or disconnect the existing host first.",
+      };
+    }
+    if (normalized.includes("room is full")) {
+      return {
+        title: "Room Is Full",
+        message: "This collaboration room already reached the participant limit. Disconnect someone first or host a new room.",
+      };
+    }
+    if (normalized.includes("session already connected")) {
+      return {
+        title: "Session Already Connected",
+        message: "This device session is already attached to the room. Disconnect the existing session or retry after a refresh.",
+      };
+    }
+    return {
+      title: "Connection Error",
+      message,
+    };
+  }, []);
+
+  const destroyCollabRoom = useCallback((roomId: string) => {
+    peerSessionsRef.current[roomId]?.destroy();
+    delete peerSessionsRef.current[roomId];
+
+    collabDocUnsubsRef.current[roomId]?.();
+    delete collabDocUnsubsRef.current[roomId];
+
+    collabDocsRef.current[roomId]?.destroy();
+    delete collabDocsRef.current[roomId];
+
+    delete collabRevisionsRef.current[roomId];
+    delete applyingPeerSnapshotRoomsRef.current[roomId];
+    delete lastPeerSnapshotSignaturesRef.current[roomId];
+    setCollabTransportStates((prev) => {
+      if (!prev[roomId]) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
+    setCursorPresences((prev) => {
+      if (!prev[roomId]) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
+  }, []);
+
+  const clearDisconnectedFork = useCallback((roomId: string) => {
+    setDisconnectedForks((prev) => {
+      if (!prev[roomId]) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
+  }, []);
+
+  const rememberDisconnectedFork = useCallback((session: CollabSession) => {
+    if (session.status !== "joined" || !session.planId) return;
+    const currentPlan = plansRef.current.find((candidate) => candidate.id === session.planId) ?? session.snapshot?.plan ?? null;
+    if (!currentPlan) return;
+    const currentPositions =
+      positionsRef.current[session.planId] ?? session.snapshot?.positions ?? EMPTY_PLAN_POSITIONS;
+    setDisconnectedForks((prev) => ({
+      ...prev,
+      [session.roomId]: {
+        roomId: session.roomId,
+        planId: session.planId,
+        planTitle: currentPlan.title,
+        baselineSignature: buildPlanSignature(currentPlan, currentPositions),
+        disconnectedAt: Date.now(),
+      },
+    }));
+  }, []);
+
+  const isDisconnectedForkDirty = useCallback((fork: DisconnectedFork) => {
+    const currentPlan = plansRef.current.find((candidate) => candidate.id === fork.planId) ?? null;
+    if (!currentPlan) return false;
+    const currentPositions = positionsRef.current[fork.planId] ?? EMPTY_PLAN_POSITIONS;
+    return buildPlanSignature(currentPlan, currentPositions) !== fork.baselineSignature;
+  }, []);
+
+  const applyPeerSnapshot = useCallback((
+    roomId: string,
+    snapshot: SharedPlanSnapshot,
+    revision: number,
+    actorId?: string,
+    actorAvatarSeed?: string,
+    recordHistory = true,
+  ) => {
+    const roomSession = collabSessionsRef.current[roomId];
+    if (!roomSession) return;
+    const previousPlan = plansRef.current.find((candidate) => candidate.id === snapshot.plan.id) ?? roomSession.snapshot?.plan ?? null;
+    const signature = buildSharedSnapshotSignature(snapshot);
+    collabRevisionsRef.current[roomId] = revision;
+    lastPeerSnapshotSignaturesRef.current[roomId] = signature;
+    applyingPeerSnapshotRoomsRef.current[roomId] = true;
+    void api.applyPeerSnapshot(snapshot.plan, snapshot.positions, snapshot.feedbacks, actorId, actorAvatarSeed, recordHistory);
+    applyCollabSnapshotToLocalState(
+      {
+        transport: "p2p",
+        status: roomSession.status,
+        serverUrl: roomSession.serverUrl,
+        iceServers: roomSession.iceServers,
+        roomId: roomSession.roomId,
+        joinSecret: roomSession.joinSecret ?? null,
+        planId: snapshot.plan.id,
+        planTitle: snapshot.plan.title,
+        selfSessionId: roomSession.selfSessionId,
+        participants: roomSession.participants,
+        snapshot,
+        createdAt: roomSession.createdAt,
+      },
+      setPlans,
+      setPositions,
+      setFeedbacks,
+      previousPlan,
+    );
+    setCollabSessions((prev) =>
+      prev[roomId]
+        ? {
+            ...prev,
+            [roomId]: {
+              ...prev[roomId],
+              planId: snapshot.plan.id,
+              planTitle: snapshot.plan.title,
+              snapshot,
+            },
+          }
+        : prev,
+    );
+    setActivePlanId(snapshot.plan.id);
+    window.setTimeout(() => {
+      delete applyingPeerSnapshotRoomsRef.current[roomId];
+    }, 0);
+  }, []);
+
+  const syncLocalSnapshotToCollab = useCallback((
+    planId: string,
+    nextPlan: Plan,
+    nextPositions: PlanPositions,
+    nextFeedbacks?: Feedback[],
+  ) => {
+    const roomSession = getCollabSessionForPlanId(planId);
+    if (!roomSession) return;
+    const roomId = roomSession.roomId;
+    const snapshot = {
+      plan: cloneValue(nextPlan),
+      positions: cloneValue(nextPositions),
+      feedbacks: cloneValue(nextFeedbacks ?? feedbacksForPlan(nextPlan, feedbacksRef.current)),
+    };
+    const signature = buildSharedSnapshotSignature(snapshot);
+    lastLocalCollabSyncSignaturesRef.current[roomId] = signature;
+    setCollabSessions((prev) =>
+      prev[roomId]
+        ? {
+            ...prev,
+            [roomId]: {
+              ...prev[roomId],
+              planId: snapshot.plan.id,
+              planTitle: snapshot.plan.title,
+              snapshot,
+            },
+          }
+        : prev,
+    );
+    collabDocsRef.current[roomId]?.syncFromSnapshot(snapshot, { kind: "local-ui" });
+  }, [getCollabSessionForPlanId]);
 
   useEffect(() => {
     undoStackRef.current = undoStack;
@@ -248,10 +651,27 @@ export default function App() {
       try {
         const s = await api.fetchState();
         if (!alive) return;
+        const remoteSnapshots = Object.values(collabSessionsRef.current)
+          .map((session) => session.snapshot)
+          .filter((snapshot): snapshot is SharedPlanSnapshot => !!snapshot);
+        const snapshotPlanIds = new Set(remoteSnapshots.map((snapshot) => snapshot.plan.id));
+        const collabCardIds = new Set(remoteSnapshots.flatMap((snapshot) => snapshot.plan.steps.map((card) => card.id)));
+        const nextPlans = [
+          ...s.plans.filter((candidate) => !snapshotPlanIds.has(candidate.id)),
+          ...remoteSnapshots.map((snapshot) => snapshot.plan),
+        ];
+        const nextPositions = {
+          ...s.positions,
+          ...Object.fromEntries(remoteSnapshots.map((snapshot) => [snapshot.plan.id, snapshot.positions])),
+        };
+        const nextFeedbacks = [
+          ...s.feedbacks.filter((feedback) => !collabCardIds.has(feedback.cardId)),
+          ...remoteSnapshots.flatMap((snapshot) => snapshot.feedbacks ?? []),
+        ];
 
         setPlans((prev) => {
           const prevMap = new Map(prev.map((p) => [p.id, p]));
-          const merged = s.plans.map((nextPlan) => {
+          const merged = nextPlans.map((nextPlan) => {
             const prevPlan = prevMap.get(nextPlan.id);
             return prevPlan && JSON.stringify(prevPlan) === JSON.stringify(nextPlan) ? prevPlan : nextPlan;
           });
@@ -259,13 +679,13 @@ export default function App() {
           return merged;
         });
 
-        setFeedbacks((prev) => (JSON.stringify(prev) === JSON.stringify(s.feedbacks) ? prev : s.feedbacks));
-        setPositions((prev) => mergePositions(prev, s.positions));
+        setFeedbacks((prev) => (JSON.stringify(prev) === JSON.stringify(nextFeedbacks) ? prev : nextFeedbacks));
+        setPositions((prev) => mergePositions(prev, nextPositions));
 
         setConnected(true);
         const currentId = activePlanIdRef.current;
-        if (s.plans.length) {
-          if (!currentId || !s.plans.some((p) => p.id === currentId)) setActivePlanId(s.plans[0].id);
+        if (nextPlans.length) {
+          if (!currentId || !nextPlans.some((p) => p.id === currentId)) setActivePlanId(nextPlans[0].id);
         } else {
           setActivePlanId(null);
         }
@@ -274,7 +694,7 @@ export default function App() {
       }
     };
     poll();
-    const iv = setInterval(poll, 1500);
+    const iv = setInterval(poll, 2500);
     return () => {
       alive = false;
       clearInterval(iv);
@@ -291,7 +711,7 @@ export default function App() {
     setUndoStack([]);
     setRedoStack([]);
     lastPlanSignatureRef.current = null;
-    lastLocalPlanSignatureRef.current = null;
+    lastUndoPreservingSignatureRef.current = null;
   }, [activePlanId]);
 
   // Poll history
@@ -304,7 +724,10 @@ export default function App() {
     let alive = true;
     const load = async () => {
       try {
-        const h = await api.fetchHistory(activePlanId, { limit: HISTORY_PAGE_LIMIT });
+        const h = await api.fetchHistory(activePlanId, {
+          limit: HISTORY_PAGE_LIMIT,
+          base: apiBaseForPlan(activePlanId),
+        });
         if (!alive) return;
         setHistory(h.entries || []);
         setSelectedHistoryEntryId((prev) =>
@@ -325,12 +748,279 @@ export default function App() {
     };
   }, [histOpen, activePlanId]);
 
+  useEffect(() => {
+    const activeRoomIds = new Set(Object.keys(collabSessions));
+
+    Object.keys(peerSessionsRef.current).forEach((roomId) => {
+      if (activeRoomIds.has(roomId)) return;
+      destroyCollabRoom(roomId);
+    });
+
+    Object.values(collabSessions).forEach((session) => {
+      if (!session.roomId || !session.selfSessionId) return;
+
+      if (!collabDocsRef.current[session.roomId]) {
+        const roomId = session.roomId;
+        const initialSnapshot =
+          session.snapshot ?? (session.status === "hosting" ? buildPeerSnapshot(session.planId) : null);
+        const doc = new FlowPlanCollabDoc(initialSnapshot);
+        const unsubscribe = doc.onUpdate((update, snapshot, origin) => {
+          const signature = buildSharedSnapshotSignature(snapshot);
+          lastPeerSnapshotSignaturesRef.current[roomId] = signature;
+
+          setCollabSessions((prev) =>
+            prev[roomId]
+              ? {
+                  ...prev,
+                  [roomId]: {
+                    ...prev[roomId],
+                    planId: snapshot.plan.id,
+                    planTitle: snapshot.plan.title,
+                    snapshot,
+                  },
+                }
+              : prev,
+          );
+
+          if (origin.kind === "peer_state" || origin.kind === "peer_update") {
+            const nextRevision = (collabRevisionsRef.current[roomId] ?? 0) + 1;
+            applyPeerSnapshot(
+              roomId,
+              snapshot,
+              nextRevision,
+              resolveParticipantLabel(roomId, origin.fromSessionId),
+              resolveParticipantAvatarSeed(roomId, origin.fromSessionId),
+              origin.kind === "peer_update",
+            );
+          }
+
+          const currentSession = collabSessionsRef.current[roomId];
+          const shouldBroadcast =
+            origin.kind === "local-ui" ||
+            (origin.kind === "peer_update" && currentSession?.status === "hosting");
+          if (shouldBroadcast) {
+            peerSessionsRef.current[roomId]?.broadcastDocUpdate(
+              update,
+              origin.kind === "peer_update" ? origin.fromSessionId : currentSession?.selfSessionId,
+            );
+          }
+        });
+
+        collabDocsRef.current[roomId] = doc;
+        collabDocUnsubsRef.current[roomId] = unsubscribe;
+      }
+
+      if (!peerSessionsRef.current[session.roomId]) {
+        const roomId = session.roomId;
+        const peer = new FlowPlanPeerSession({
+          session,
+          getInitialDocUpdate: () => collabDocsRef.current[roomId]?.getStateUpdate() ?? null,
+          onParticipants: (participants) => {
+            setCollabSessions((prev) =>
+              prev[roomId]
+                ? {
+                    ...prev,
+                    [roomId]: {
+                      ...prev[roomId],
+                      participants,
+                    },
+                  }
+                : prev,
+            );
+            setCursorPresences((prev) => {
+              const roomCursors = prev[roomId];
+              if (!roomCursors) return prev;
+              const participantIds = new Set(participants.map((participant) => participant.sessionId));
+              const nextRoomCursors = Object.fromEntries(
+                Object.entries(roomCursors).filter(([sessionId]) => participantIds.has(sessionId)),
+              );
+              const previousKeys = Object.keys(roomCursors);
+              const nextKeys = Object.keys(nextRoomCursors);
+              if (
+                previousKeys.length === nextKeys.length &&
+                previousKeys.every((sessionId) => participantIds.has(sessionId))
+              ) {
+                return prev;
+              }
+              return { ...prev, [roomId]: nextRoomCursors };
+            });
+          },
+          onHostAvailabilityChange: (available, graceMs) => {
+            const session = collabSessionsRef.current[roomId];
+            if (!session || session.status !== "joined") return;
+            if (available) {
+              showToast("Host reconnected", roomId);
+              return;
+            }
+            const seconds = graceMs ? Math.max(1, Math.round(graceMs / 1000)) : 10;
+            showToast("Host disconnected · waiting to recover", `${roomId} · up to ${seconds}s`, true);
+          },
+          onDocUpdate: (update, _transportPeerSessionId, authorSessionId, kind) => {
+            collabDocsRef.current[roomId]?.applyRemoteUpdate(
+              update,
+              authorSessionId,
+              kind === "doc_state" ? "state" : "update",
+            );
+          },
+          onTransportStateChange: (state) => {
+            setCollabTransportStates((prev) => {
+              const current = prev[roomId];
+              if (current && current.signal === state.signal && current.peer === state.peer) {
+                return prev;
+              }
+              return {
+                ...prev,
+                [roomId]: state,
+              };
+            });
+          },
+          onCursor: (cursor, transportPeerSessionId, authorSessionId) => {
+            const ownerSessionId = authorSessionId ?? transportPeerSessionId;
+            const currentSession = collabSessionsRef.current[roomId];
+            if (!ownerSessionId || ownerSessionId === currentSession?.selfSessionId) return;
+
+            setCursorPresences((prev) => {
+              const roomCursors = prev[roomId] ?? {};
+              const previousCursor = roomCursors[ownerSessionId];
+              if (
+                previousCursor &&
+                previousCursor.x === cursor.x &&
+                previousCursor.y === cursor.y &&
+                previousCursor.active === cursor.active
+              ) {
+                return prev;
+              }
+              return {
+                ...prev,
+                [roomId]: {
+                  ...roomCursors,
+                  [ownerSessionId]: {
+                    x: cursor.x,
+                    y: cursor.y,
+                    active: cursor.active,
+                    lastUpdated: Date.now(),
+                  },
+                },
+              };
+            });
+
+            if (collabSessionsRef.current[roomId]?.status === "hosting") {
+              peerSessionsRef.current[roomId]?.broadcastCursor(cursor, ownerSessionId, transportPeerSessionId);
+            }
+          },
+          onRoomClosed: () => {
+            const latestSession = collabSessionsRef.current[roomId];
+            if (latestSession) {
+              rememberDisconnectedFork(latestSession);
+            }
+            destroyCollabRoom(roomId);
+            setCollabSessions((prev) => {
+              if (!prev[roomId]) return prev;
+              const { [roomId]: _removed, ...rest } = prev;
+              return rest;
+            });
+            showToast(
+              latestSession?.status === "joined" ? "Collaboration ended · editing local copy" : "Collaboration ended",
+              roomId,
+              true,
+            );
+          },
+          onError: (message) => {
+            if (isTerminalCollabError(message)) {
+              destroyCollabRoom(roomId);
+              setCollabSessions((prev) => {
+                if (!prev[roomId]) return prev;
+                const { [roomId]: _removed, ...rest } = prev;
+                return rest;
+              });
+              const details = describeCollabError(message);
+              showCollabDialog(details.title, details.message);
+              return;
+            }
+            showToast(message, roomId, true);
+          },
+        });
+        peerSessionsRef.current[roomId] = peer;
+        peer.connect();
+      }
+    });
+  }, [applyPeerSnapshot, buildPeerSnapshot, collabSessions, describeCollabError, destroyCollabRoom, isTerminalCollabError, rememberDisconnectedFork, resolveParticipantAvatarSeed, resolveParticipantLabel, showCollabDialog, showToast]);
+
+  useEffect(() => {
+    return () => {
+      Object.keys(peerSessionsRef.current).forEach((roomId) => destroyCollabRoom(roomId));
+    };
+  }, [destroyCollabRoom]);
+
   const plan = useMemo(() => plans.find((p) => p.id === activePlanId) ?? null, [plans, activePlanId]);
   const steps = plan?.steps ?? EMPTY_STEPS;
   const selectedCard = useMemo(
     () => steps.find((s) => s.id === selectedCardId) ?? null,
     [steps, selectedCardId],
   );
+  const collabSessionList = useMemo(() => Object.values(collabSessions), [collabSessions]);
+  const collabStatusByPlan = useMemo(
+    () =>
+      collabSessionList.reduce<Record<string, "hosting" | "joined">>((acc, session) => {
+        if (session.planId) acc[session.planId] = session.status;
+        return acc;
+      }, {}),
+    [collabSessionList],
+  );
+  const collabSessionForPlan = useMemo(
+    () => (plan ? collabSessionList.find((session) => session.planId === plan.id) ?? null : null),
+    [collabSessionList, plan],
+  );
+  const collabTransportForPlan = useMemo(
+    () => (collabSessionForPlan ? collabTransportStates[collabSessionForPlan.roomId] ?? null : null),
+    [collabSessionForPlan, collabTransportStates],
+  );
+  const pendingCollabSession = useMemo(
+    () => collabSessionList.find((session) => !session.planId) ?? null,
+    [collabSessionList],
+  );
+  const connectModalSession = collabSessionForPlan ?? pendingCollabSession;
+  const activeUsers = useMemo(() => {
+    if (!plan) return [];
+    if (collabSessionForPlan) return collabSessionForPlan.participants;
+    return [
+      {
+        sessionId: `local-${profile.userId}`,
+        userId: profile.userId,
+        username: profile.username,
+        avatarSeed: profile.avatarSeed,
+        isSelf: true,
+        status: "active" as const,
+      },
+    ];
+  }, [collabSessionForPlan, plan, profile]);
+  const activeCollabCursors = useMemo(() => {
+    if (!collabSessionForPlan) return [];
+    const roomCursors = cursorPresences[collabSessionForPlan.roomId] ?? {};
+
+    return collabSessionForPlan.participants
+      .filter((participant) => !participant.isSelf)
+      .map((participant) => {
+        const cursor = roomCursors[participant.sessionId];
+        if (!cursor?.active) return null;
+        return {
+          sessionId: participant.sessionId,
+          username: participant.username,
+          avatarSeed: participant.avatarSeed,
+          x: cursor.x,
+          y: cursor.y,
+          lastUpdated: cursor.lastUpdated,
+        };
+      })
+      .filter((cursor): cursor is { sessionId: string; username: string; avatarSeed: string; x: number; y: number; lastUpdated: number } => !!cursor)
+      .sort((left, right) => left.lastUpdated - right.lastUpdated)
+      .map(({ lastUpdated: _lastUpdated, ...cursor }) => cursor);
+  }, [collabSessionForPlan, cursorPresences]);
+  const currentActorId = useMemo(
+    () => sanitizeUsername(profile.username) || profile.userId,
+    [profile.userId, profile.username],
+  );
+  const currentActorAvatarSeed = useMemo(() => profile.avatarSeed, [profile.avatarSeed]);
 
   const [feedbackCountMap, feedbackTypeMap] = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -374,6 +1064,18 @@ export default function App() {
     () => (activePlanId && positions[activePlanId] ? positions[activePlanId] : EMPTY_PLAN_POSITIONS),
     [activePlanId, positions],
   );
+  const currentPlanFeedbacks = useMemo(() => feedbacksForPlan(plan, feedbacks), [feedbacks, plan]);
+  const collabPlanSignature = useMemo(
+    () =>
+      collabSessionForPlan && plan
+        ? buildSharedSnapshotSignature({
+            plan,
+            positions: savedPositions,
+            feedbacks: currentPlanFeedbacks,
+          })
+        : null,
+    [collabSessionForPlan, currentPlanFeedbacks, plan, savedPositions],
+  );
   useEffect(() => {
     const signature = buildPlanSignature(plan, savedPositions);
     if (!signature) {
@@ -384,7 +1086,7 @@ export default function App() {
     if (
       lastPlanSignatureRef.current &&
       signature !== lastPlanSignatureRef.current &&
-      signature !== lastLocalPlanSignatureRef.current &&
+      signature !== lastUndoPreservingSignatureRef.current &&
       (undoStack.length > 0 || redoStack.length > 0)
     ) {
       setUndoStack([]);
@@ -392,14 +1094,186 @@ export default function App() {
     }
 
     lastPlanSignatureRef.current = signature;
-    if (signature === lastLocalPlanSignatureRef.current) {
-      lastLocalPlanSignatureRef.current = null;
+    if (signature === lastUndoPreservingSignatureRef.current) {
+      lastUndoPreservingSignatureRef.current = null;
     }
   }, [plan, redoStack.length, savedPositions, undoStack.length]);
 
+  useEffect(() => {
+    if (!collabSessionForPlan || !plan || !collabPlanSignature) return;
+    const roomId = collabSessionForPlan.roomId;
+    if (applyingPeerSnapshotRoomsRef.current[roomId]) return;
+    if (lastPeerSnapshotSignaturesRef.current[roomId] === collabPlanSignature) return;
+    if (lastLocalCollabSyncSignaturesRef.current[roomId] === collabPlanSignature) {
+      delete lastLocalCollabSyncSignaturesRef.current[roomId];
+      return;
+    }
+
+    const snapshot = {
+      plan: cloneValue(plan),
+      positions: cloneValue(savedPositions),
+      feedbacks: cloneValue(currentPlanFeedbacks),
+    };
+    lastPeerSnapshotSignaturesRef.current[roomId] = collabPlanSignature;
+    setCollabSessions((prev) =>
+      prev[roomId]
+        ? {
+            ...prev,
+            [roomId]: {
+              ...prev[roomId],
+              planId: snapshot.plan.id,
+              planTitle: snapshot.plan.title,
+              snapshot,
+            },
+          }
+        : prev,
+    );
+    collabDocsRef.current[roomId]?.syncFromSnapshot(snapshot, { kind: "local-ui" });
+  }, [collabPlanSignature, collabSessionForPlan, currentPlanFeedbacks, plan, savedPositions]);
+
+  useEffect(() => {
+    if (!collabSessionForPlan || !canvasViewport) return;
+
+    const roomId = collabSessionForPlan.roomId;
+    const selfSessionId = collabSessionForPlan.selfSessionId;
+    let lastSentAt = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let active = false;
+    let pendingCursor: { x: number; y: number; active: boolean } | null = null;
+    let pendingTimer: number | null = null;
+
+    const sendCursor = (x: number, y: number, nextActive: boolean) => {
+      lastX = x;
+      lastY = y;
+      active = nextActive;
+      lastSentAt = performance.now();
+      peerSessionsRef.current[roomId]?.broadcastCursor({ x, y, active: nextActive }, selfSessionId);
+    };
+
+    const clearPending = () => {
+      if (pendingTimer) {
+        window.clearTimeout(pendingTimer);
+        pendingTimer = null;
+      }
+    };
+
+    const flushPending = () => {
+      clearPending();
+      if (!pendingCursor) return;
+      const next = pendingCursor;
+      pendingCursor = null;
+      sendCursor(next.x, next.y, next.active);
+    };
+
+    const scheduleCursor = (x: number, y: number, nextActive: boolean) => {
+      pendingCursor = { x, y, active: nextActive };
+      const now = performance.now();
+      const wait = Math.max(0, CURSOR_SEND_INTERVAL_MS - (now - lastSentAt));
+      if (wait === 0) {
+        flushPending();
+        return;
+      }
+      if (pendingTimer) return;
+      pendingTimer = window.setTimeout(() => {
+        flushPending();
+      }, wait);
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = canvasFrame;
+      const viewport = canvasViewport;
+      if (!rect || !viewport || rect.width <= 0 || rect.height <= 0 || viewport.zoom <= 0) return;
+      if (
+        event.clientX < rect.left ||
+        event.clientX > rect.left + rect.width ||
+        event.clientY < rect.top ||
+        event.clientY > rect.top + rect.height
+      ) {
+        handleInactive();
+        return;
+      }
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      const x = (localX - viewport.x) / viewport.zoom;
+      const y = (localY - viewport.y) / viewport.zoom;
+      const flowThreshold = 12 / viewport.zoom;
+      const reference = pendingCursor ?? { x: lastX, y: lastY, active };
+      if (
+        reference.active &&
+        Math.abs(x - reference.x) < flowThreshold &&
+        Math.abs(y - reference.y) < flowThreshold
+      ) {
+        return;
+      }
+      scheduleCursor(x, y, true);
+    };
+
+    const handleInactive = () => {
+      const reference = pendingCursor ?? { x: lastX, y: lastY, active };
+      if (!reference.active) return;
+      scheduleCursor(reference.x, reference.y, false);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleInactive();
+      }
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("blur", handleInactive);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.documentElement.addEventListener("mouseleave", handleInactive);
+
+    return () => {
+      handleInactive();
+      flushPending();
+      clearPending();
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("blur", handleInactive);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.documentElement.removeEventListener("mouseleave", handleInactive);
+    };
+  }, [canvasFrame, canvasViewport, collabSessionForPlan?.roomId, collabSessionForPlan?.selfSessionId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setCursorPresences((prev) => {
+        let changed = false;
+        const nextRooms = Object.fromEntries(
+          Object.entries(prev).flatMap(([roomId, roomCursors]) => {
+            const nextRoomCursors = Object.fromEntries(
+              Object.entries(roomCursors).filter(([, cursor]) => now - cursor.lastUpdated <= CURSOR_STALE_TIMEOUT_MS),
+            );
+            if (Object.keys(nextRoomCursors).length !== Object.keys(roomCursors).length) {
+              changed = true;
+            }
+            return Object.keys(nextRoomCursors).length > 0 ? [[roomId, nextRoomCursors]] : [];
+          }),
+        );
+        return changed ? nextRooms : prev;
+      });
+    }, 10_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   const applyLocalPlanSnapshot = useCallback(
-    (planId: string, nextPlan: Plan, nextPositions: PlanPositions, nextSelectedCardId: string | null) => {
-      lastLocalPlanSignatureRef.current = buildPlanSignature(nextPlan, nextPositions);
+    (
+      planId: string,
+      nextPlan: Plan,
+      nextPositions: PlanPositions,
+      nextSelectedCardId: string | null,
+      stackBehavior: UndoStackBehavior = "ignore",
+    ) => {
+      const signature = buildPlanSignature(nextPlan, nextPositions);
+      if (signature && stackBehavior === "preserve") {
+        lastUndoPreservingSignatureRef.current = signature;
+      } else if (stackBehavior === "invalidate") {
+        invalidateUndoRedoStacks();
+      }
       setPlans((prev) => prev.map((candidate) => (candidate.id === planId ? nextPlan : candidate)));
       setPositions((prev) => {
         const prevPlanPositions = prev[planId] ?? EMPTY_PLAN_POSITIONS;
@@ -407,8 +1281,9 @@ export default function App() {
         return { ...prev, [planId]: nextPositions };
       });
       setSelectedCardId(nextSelectedCardId);
+      syncLocalSnapshotToCollab(planId, nextPlan, nextPositions);
     },
-    [],
+    [invalidateUndoRedoStacks, syncLocalSnapshotToCollab],
   );
 
   const pushUndoAction = useCallback((action: UiUndoAction) => {
@@ -448,16 +1323,19 @@ export default function App() {
       if (!currentPlanId) return;
       const currentPlan = plansRef.current.find((candidate) => candidate.id === currentPlanId) ?? null;
       if (currentPlan) {
-        lastLocalPlanSignatureRef.current = buildPlanSignature(currentPlan, positions);
+        invalidateUndoRedoStacks();
+        syncLocalSnapshotToCollab(currentPlanId, currentPlan, positions);
       }
       setPositions((prev) => {
         const prevPlanPositions = prev[currentPlanId];
         if (prevPlanPositions && arePositionsEqual(prevPlanPositions, positions)) return prev;
         return { ...prev, [currentPlanId]: positions };
       });
-      api.savePositions(currentPlanId, positions).catch(() => {});
+      api
+        .savePositions(currentPlanId, positions, apiBaseForPlan(currentPlanId), sessionIdForPlan(currentPlanId))
+        .catch(() => {});
     },
-    [],
+    [apiBaseForPlan, invalidateUndoRedoStacks, sessionIdForPlan, syncLocalSnapshotToCollab],
   );
 
   const importPlan = useCallback(() => {
@@ -471,7 +1349,7 @@ export default function App() {
         const text = await file.text();
         const data = JSON.parse(text);
         if (!data.title || !Array.isArray(data.steps)) throw new Error("invalid");
-        const result = await api.importPlan(data);
+        const result = await api.importPlan(data, undefined, currentActorId, currentActorAvatarSeed);
         if (!activePlanIdRef.current) setActivePlanId(result.id);
         showToast("Imported", data.title);
       } catch {
@@ -479,13 +1357,7 @@ export default function App() {
       }
     };
     input.click();
-  }, []);
-
-  const showToast = useCallback((text: string, file: string, error = false) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToast({ text, file, error });
-    toastTimeoutRef.current = setTimeout(() => setToast(null), 4000);
-  }, []);
+  }, [currentActorAvatarSeed, currentActorId, showToast]);
 
   const exportJson = useCallback(() => {
     if (!plan) return;
@@ -542,50 +1414,242 @@ export default function App() {
   const handleDeletePlan = useCallback(async (id: string) => {
     setPlans((prev) => prev.filter((p) => p.id !== id));
     setActivePlanId((prev) => (prev === id ? null : prev));
-    api.deletePlan(id).catch(() => {});
-  }, []);
+    setCollabSessions((prev) => {
+      const next = { ...prev };
+      Object.entries(prev).forEach(([roomId, session]) => {
+        if (session.planId !== id) return;
+        destroyCollabRoom(roomId);
+        delete next[roomId];
+      });
+      return next;
+    });
+    api.deletePlan(id, apiBaseForPlan(id), sessionIdForPlan(id)).catch(() => {});
+  }, [apiBaseForPlan, destroyCollabRoom, sessionIdForPlan]);
 
   const handleTogglePin = useCallback(async (id: string) => {
     setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, pinned: !p.pinned } : p)));
-    api.togglePin(id).catch(() => {});
-  }, []);
+    api.togglePin(id, apiBaseForPlan(id), sessionIdForPlan(id)).catch(() => {});
+  }, [apiBaseForPlan, sessionIdForPlan]);
 
   const handleNewPlan = useCallback(() => setNewPlanModal(true), []);
   const handleNewCard = useCallback(() => setNewCardModal(true), []);
+  const handleOpenSettings = useCallback(() => setSettingsOpen(true), []);
+  const handleOpenConnectModal = useCallback(() => {
+    setConnectModalOpen(true);
+  }, []);
+  const applyProfileIdentity = useCallback((nextProfile: CollabProfile) => {
+    setProfile(nextProfile);
+    setCollabSessions((prev) =>
+      Object.fromEntries(
+        Object.entries(prev).map(([roomId, session]) => [
+          roomId,
+          {
+            ...session,
+            participants: session.participants.map((participant) =>
+              participant.isSelf
+                ? {
+                    ...participant,
+                    userId: nextProfile.userId,
+                    username: nextProfile.username,
+                    avatarSeed: nextProfile.avatarSeed,
+                  }
+                : participant,
+            ),
+          },
+        ]),
+      ),
+    );
+    Object.values(peerSessionsRef.current).forEach((peerSession) => {
+      peerSession.updateSelfProfile(nextProfile);
+    });
+  }, []);
+  const handleSaveProfile = useCallback((nextProfile: CollabProfile) => {
+    applyProfileIdentity(nextProfile);
+    setSettingsOpen(false);
+    showToast("Saved settings", nextProfile.username);
+  }, [applyProfileIdentity, showToast]);
+  const beginCollabSession = useCallback(async (draft: ConnectPlanDraft) => {
+    const currentPlanId = activePlanIdRef.current;
+    if (collabSessionsRef.current[draft.roomId.trim()]) {
+      setDialog({
+        title: "Room Already Connected",
+        message: "This room is already active in the current app window.",
+      });
+      return;
+    }
+    if (draft.mode === "host" && !currentPlanId) {
+      setDialog({
+        title: "Select A Plan",
+        message: "Choose the plan you want to host before starting a collaboration session.",
+      });
+      return;
+    }
+    if (draft.mode === "host" && getCollabSessionForPlanId(currentPlanId)) {
+      setDialog({
+        title: "Plan Already Connected",
+        message: "This plan already has an active collaboration session. Disconnect it first to host a new room.",
+      });
+      return;
+    }
+    setCollabBusy(true);
+    try {
+      const currentPlan =
+        draft.mode === "host"
+          ? plansRef.current.find((candidate) => candidate.id === currentPlanId) ?? null
+          : plansRef.current.find((candidate) => candidate.id === currentPlanId) ?? null;
+      const session =
+        draft.mode === "host" && currentPlan
+          ? {
+              ...createHostSession(profile, currentPlan, draft),
+              snapshot: {
+                plan: cloneValue(currentPlan),
+                positions: cloneValue(positionsRef.current[currentPlan.id] ?? EMPTY_PLAN_POSITIONS),
+                feedbacks: cloneValue(feedbacksForPlan(currentPlan, feedbacksRef.current)),
+              },
+            }
+          : createJoinSession(profile, null, draft);
+      if (session.snapshot) {
+        applyCollabSnapshotToLocalState(session, setPlans, setPositions, setFeedbacks);
+      }
+      setCollabSessions((prev) => ({
+        ...prev,
+        [session.roomId]: {
+          ...session,
+          joinSecret: draft.joinSecret,
+        },
+      }));
+      if (session.planId) {
+        setActivePlanId(session.planId);
+      }
+      clearDisconnectedFork(session.roomId);
+      setConnectModalOpen(false);
+      if (draft.mode === "join") {
+        const defaults = loadConnectionDefaults();
+        saveConnectionDefaults({
+          ...defaults,
+          lastJoinRoomId: draft.roomId.trim(),
+          lastJoinSecret: draft.joinSecret.trim(),
+        });
+      }
+      showToast(session.status === "hosting" ? "P2P host ready" : "Joining P2P room", session.roomId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Collaboration connection failed";
+      showToast(message, draft.roomId || currentPlanId || "", true);
+    } finally {
+      setCollabBusy(false);
+    }
+  }, [clearDisconnectedFork, getCollabSessionForPlanId, profile, showToast]);
+
+  const handleStartCollabSession = useCallback(async (draft: ConnectPlanDraft) => {
+    const roomId = draft.roomId.trim();
+    if (draft.mode === "join") {
+      const fork = disconnectedForksRef.current[roomId];
+      if (fork && isDisconnectedForkDirty(fork)) {
+        setRejoinPrompt({
+          draft: { ...draft, roomId },
+          fork,
+        });
+        return;
+      }
+    }
+
+    await beginCollabSession(draft);
+  }, [beginCollabSession, isDisconnectedForkDirty]);
+
+  const handleResolveForkAndJoin = useCallback(async (strategy: "discard" | "duplicate") => {
+    if (!rejoinPrompt) return;
+    const { draft, fork } = rejoinPrompt;
+    setRejoinPrompt(null);
+
+    if (strategy === "duplicate") {
+      const currentPlan = plansRef.current.find((candidate) => candidate.id === fork.planId) ?? null;
+      if (currentPlan) {
+        try {
+          const result = await api.forkPlan(
+            fork.planId,
+            `${currentPlan.title} local copy`,
+            apiBaseForPlan(fork.planId),
+            currentActorId,
+            currentActorAvatarSeed,
+          );
+          showToast("Saved local copy", result.title);
+        } catch {
+          showToast("Could not save local copy", fork.planTitle, true);
+          return;
+        }
+      }
+    }
+
+    await beginCollabSession(draft);
+  }, [apiBaseForPlan, beginCollabSession, currentActorAvatarSeed, currentActorId, rejoinPrompt, showToast]);
+
+  const handleDisconnectSession = useCallback(async (roomId?: string | null) => {
+    const targetRoom = roomId ?? connectModalSession?.roomId ?? collabSessionForPlan?.roomId ?? "";
+    const session = collabSessionsRef.current[targetRoom];
+    const currentRoom = session?.roomId ?? targetRoom;
+    if (!currentRoom) return;
+    setCollabBusy(true);
+    try {
+      if (session?.status === "joined") {
+        rememberDisconnectedFork(session);
+      }
+      destroyCollabRoom(currentRoom);
+      setCollabSessions((prev) => {
+        if (!prev[currentRoom]) return prev;
+        const { [currentRoom]: _removed, ...rest } = prev;
+        return rest;
+      });
+      if (connectModalSession?.roomId === currentRoom) {
+        setConnectModalOpen(false);
+      }
+      showToast("Disconnected", currentRoom);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Disconnect failed";
+      showToast(message, currentRoom, true);
+    } finally {
+      setCollabBusy(false);
+    }
+  }, [collabSessionForPlan, connectModalSession, destroyCollabRoom, rememberDisconnectedFork, showToast]);
 
   const persistUndoableAction = useCallback(async (action: UiUndoAction, direction: "undo" | "redo") => {
     const source = direction;
+    const base = apiBaseForPlan(action.planId);
+    const sessionId = sessionIdForPlan(action.planId);
     const currentPositions = cloneValue(positionsRef.current[action.planId] ?? EMPTY_PLAN_POSITIONS);
     const mergedPositions = mergeUndoPositions(action, direction, currentPositions);
 
     switch (action.kind) {
       case "card_add":
         if (direction === "undo") {
-          await api.deleteCard(action.planId, action.card.id, source);
+          await api.deleteCard(action.planId, action.card.id, source, base, sessionId, currentActorId, currentActorAvatarSeed);
         } else {
-          await api.addCard(action.planId, cardToAddPayload(action.card), source);
+          await api.addCard(action.planId, cardToAddPayload(action.card), source, base, sessionId, currentActorId, currentActorAvatarSeed);
           if (!arePositionsEqual(currentPositions, mergedPositions)) {
-            await api.savePositions(action.planId, mergedPositions);
+            await api.savePositions(action.planId, mergedPositions, base, sessionId);
           }
         }
         return;
 
       case "card_delete":
         if (direction === "undo") {
-          await api.addCard(action.planId, cardToAddPayload(action.card), source);
+          await api.addCard(action.planId, cardToAddPayload(action.card), source, base, sessionId, currentActorId, currentActorAvatarSeed);
           for (const dependencyRestore of action.restoredDependencies) {
             await api.updateCard(
               action.planId,
               dependencyRestore.cardId,
               { dependencies: dependencyRestore.dependencies },
               source,
+              base,
+              sessionId,
+              currentActorId,
+              currentActorAvatarSeed,
             );
           }
           if (!arePositionsEqual(currentPositions, mergedPositions)) {
-            await api.savePositions(action.planId, mergedPositions);
+            await api.savePositions(action.planId, mergedPositions, base, sessionId);
           }
         } else {
-          await api.deleteCard(action.planId, action.card.id, source);
+          await api.deleteCard(action.planId, action.card.id, source, base, sessionId, currentActorId, currentActorAvatarSeed);
         }
         return;
 
@@ -598,10 +1662,14 @@ export default function App() {
             dependencies: direction === "undo" ? action.beforeDependencies : action.afterDependencies,
           },
           source,
+          base,
+          sessionId,
+          currentActorId,
+          currentActorAvatarSeed,
         );
         return;
     }
-  }, []);
+  }, [apiBaseForPlan, currentActorAvatarSeed, currentActorId, sessionIdForPlan]);
 
   const applyUndoableSnapshot = useCallback(
     (action: UiUndoAction, direction: "undo" | "redo") => {
@@ -609,7 +1677,7 @@ export default function App() {
       const currentPositions = cloneValue(positionsRef.current[action.planId] ?? EMPTY_PLAN_POSITIONS);
       const nextPositions = mergeUndoPositions(action, direction, currentPositions);
       const nextSelectedCardId = direction === "undo" ? action.beforeSelectedCardId : action.afterSelectedCardId;
-      applyLocalPlanSnapshot(action.planId, nextPlan, nextPositions, nextSelectedCardId);
+      applyLocalPlanSnapshot(action.planId, nextPlan, nextPositions, nextSelectedCardId, "preserve");
     },
     [applyLocalPlanSnapshot],
   );
@@ -713,18 +1781,26 @@ export default function App() {
       afterSelectedCardId: selectedCardIdRef.current === cardId ? null : selectedCardIdRef.current,
     };
 
-    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(afterPositions), action.afterSelectedCardId);
+    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(afterPositions), action.afterSelectedCardId, "preserve");
     setFeedbacks((prev) => prev.filter((feedback) => feedback.cardId !== cardId));
     pushUndoAction(action);
     try {
-      await api.deleteCard(currentAId, cardId);
+      await api.deleteCard(
+        currentAId,
+        cardId,
+        "rest",
+        apiBaseForPlan(currentAId),
+        sessionIdForPlan(currentAId),
+        currentActorId,
+        currentActorAvatarSeed,
+      );
     } catch {
-      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId);
+      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId, "preserve");
       setFeedbacks((prev) => [...prev, ...removedFeedbacks]);
       setUndoStack((prev) => prev.slice(0, -1));
       showToast("Delete failed", removedCard.title, true);
     }
-  }, [applyLocalPlanSnapshot, pushUndoAction, showToast]);
+  }, [apiBaseForPlan, applyLocalPlanSnapshot, currentActorAvatarSeed, currentActorId, pushUndoAction, sessionIdForPlan, showToast]);
 
   const handleConnectCards = useCallback(async (sourceId: string, targetId: string) => {
     const currentAId = activePlanIdRef.current;
@@ -758,16 +1834,25 @@ export default function App() {
       afterSelectedCardId: selectedCardIdRef.current,
     };
 
-    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId);
+    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId, "preserve");
     pushUndoAction(action);
     try {
-      await api.updateCard(currentAId, targetId, { dependencies: afterDependencies });
+      await api.updateCard(
+        currentAId,
+        targetId,
+        { dependencies: afterDependencies },
+        "rest",
+        apiBaseForPlan(currentAId),
+        sessionIdForPlan(currentAId),
+        currentActorId,
+        currentActorAvatarSeed,
+      );
     } catch {
-      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId);
+      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId, "preserve");
       setUndoStack((prev) => prev.slice(0, -1));
       showToast("Dependency add failed", targetCard.title, true);
     }
-  }, [applyLocalPlanSnapshot, pushUndoAction, showToast]);
+  }, [apiBaseForPlan, applyLocalPlanSnapshot, currentActorAvatarSeed, currentActorId, pushUndoAction, sessionIdForPlan, showToast]);
 
   const handleDisconnectCards = useCallback(async (sourceId: string, targetId: string) => {
     const currentAId = activePlanIdRef.current;
@@ -801,16 +1886,25 @@ export default function App() {
       afterSelectedCardId: selectedCardIdRef.current,
     };
 
-    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId);
+    applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId, "preserve");
     pushUndoAction(action);
     try {
-      await api.updateCard(currentAId, targetId, { dependencies: afterDependencies });
+      await api.updateCard(
+        currentAId,
+        targetId,
+        { dependencies: afterDependencies },
+        "rest",
+        apiBaseForPlan(currentAId),
+        sessionIdForPlan(currentAId),
+        currentActorId,
+        currentActorAvatarSeed,
+      );
     } catch {
-      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId);
+      applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId, "preserve");
       setUndoStack((prev) => prev.slice(0, -1));
       showToast("Dependency remove failed", targetCard.title, true);
     }
-  }, [applyLocalPlanSnapshot, pushUndoAction, showToast]);
+  }, [apiBaseForPlan, applyLocalPlanSnapshot, currentActorAvatarSeed, currentActorId, pushUndoAction, sessionIdForPlan, showToast]);
 
   const canvasCards = historySnapshot?.cards ?? steps;
   const canvasFeedbackCounts = historySnapshot ? EMPTY_FEEDBACK_COUNTS : feedbackCountMap;
@@ -827,6 +1921,16 @@ export default function App() {
     activeHistoryEntry ? `History before · r${activeHistoryEntry.revision}` : "History before";
   const canToolbarUndo = !canvasReadOnly && !undoRedoBusy && undoStack.length > 0;
   const canToolbarRedo = !canvasReadOnly && !undoRedoBusy && redoStack.length > 0;
+  const presenceRightOffset = histOpen
+    ? "calc(var(--spacing-fp-history) + var(--spacing-fp-gap) * 2)"
+    : selectedCard
+      ? "calc(var(--spacing-fp-drawer) + var(--spacing-fp-gap) * 2)"
+      : "var(--spacing-fp-gap)";
+  const presenceStatusLabel = collabSessionForPlan
+    ? collabSessionForPlan.status === "hosting"
+      ? "Hosting"
+      : "Joined"
+    : "Local";
 
   return (
     <div className="w-full h-screen bg-fp-bg font-sans text-fp-text overflow-hidden relative">
@@ -839,6 +1943,7 @@ export default function App() {
           </div>
         ) : (
           <div className="absolute inset-0">
+            <div className="absolute inset-0">
             <FlowCanvas
               cards={canvasCards}
               onSelectCard={canvasReadOnly ? selectHistoryCard : selectCard}
@@ -858,10 +1963,15 @@ export default function App() {
               onExportSvgReady={handleExportSvgReady}
               readOnly={canvasReadOnly}
               readOnlyLabel={canvasReadOnlyLabel}
+              onFrameChange={setCanvasFrame}
+              onViewportChange={setCanvasViewport}
             />
+            </div>
           </div>
         )}
       </div>
+
+      <CollabCursorLayer cursors={activeCollabCursors} frame={canvasFrame} viewport={canvasViewport} />
 
       <div
         className="fixed z-10"
@@ -875,7 +1985,14 @@ export default function App() {
           onTogglePin={handleTogglePin}
           onImport={importPlan}
           onNewPlan={handleNewPlan}
+          onOpenSettings={handleOpenSettings}
           connected={connected}
+          onConnectPlan={handleOpenConnectModal}
+          onDisconnectPlan={collabSessionForPlan ? () => void handleDisconnectSession(collabSessionForPlan.roomId) : undefined}
+          collabSession={collabSessionForPlan}
+          collabTransportState={collabTransportForPlan}
+          collabSessionCount={collabSessionList.length}
+          collabStatusByPlan={collabStatusByPlan}
         />
       </div>
 
@@ -898,6 +2015,40 @@ export default function App() {
             planTitle={plan.title}
             planId={plan.id}
           />
+        </div>
+      )}
+
+      {plan && (
+        <div
+          className="fixed z-10"
+          style={{ top: "var(--spacing-fp-gap)", right: presenceRightOffset }}
+        >
+          <div className="h-[var(--spacing-fp-toolbar)] border border-white/8 bg-[rgba(32,33,36,0.58)] backdrop-blur-[28px] supports-[backdrop-filter]:backdrop-saturate-150 rounded-full inline-flex items-center gap-3 px-3.5 shrink-0 animate-toolbar-in">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.03] px-2.5 py-1">
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  collabSessionForPlan
+                    ? collabSessionForPlan.status === "hosting"
+                      ? "bg-fp-accent"
+                      : "bg-fp-info"
+                    : "bg-white/28"
+                }`}
+              />
+              <span className="text-[11px] font-medium text-white/62">{presenceStatusLabel}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <div className="text-[11px] font-medium text-white/74">
+                  {activeUsers.length} active
+                </div>
+                <div className="text-[10px] text-white/28">
+                  {collabSessionForPlan ? collabSessionForPlan.roomId : "Current plan"}
+                </div>
+              </div>
+              <AvatarGroup users={activeUsers} />
+            </div>
+          </div>
         </div>
       )}
 
@@ -964,6 +2115,7 @@ export default function App() {
             entries={history}
             pageLimit={HISTORY_PAGE_LIMIT}
             selectedEntryId={selectedHistoryEntryId}
+            profile={profile}
             onSelect={handleHistorySelect}
             onCardClick={(change) => {
               setSelectedCardId(null);
@@ -978,7 +2130,11 @@ export default function App() {
             }}
             onClear={async () => {
               if (activePlanId) {
-                await api.clearHistory(activePlanId);
+                await api.clearHistory(
+                  activePlanId,
+                  apiBaseForPlan(activePlanId),
+                  sessionIdForPlan(activePlanId),
+                );
                 setHistory([]);
                 setSelectedHistoryEntryId(null);
                 setOldCard(null);
@@ -995,17 +2151,65 @@ export default function App() {
           style={{ top: "var(--spacing-fp-gap)", bottom: "var(--spacing-fp-gap)", right: "var(--spacing-fp-gap)" }}
         >
           <DetailDrawer
+            key={[
+              selectedCard.id,
+              selectedCard.title,
+              selectedCard.description,
+              selectedCard.type,
+              selectedCard.repo,
+              selectedCard.files.join("|"),
+              selectedCard.dependencies.join("|"),
+            ].join("::")}
             card={selectedCard}
             feedbacks={feedbacks.filter((f) => f.cardId === selectedCard.id)}
             onClose={() => setSelectedCardId(null)}
             onAddFeedback={async (c, t, x) => {
               try {
-                await api.addFeedback(c, t as any, x);
+                const result = await api.addFeedback(
+                  c,
+                  t as any,
+                  x,
+                  profile.userId,
+                  profile.username,
+                  profile.avatarSeed,
+                );
+                const nextFeedback: Feedback = {
+                  id: result.id,
+                  cardId: c,
+                  type: t as Feedback["type"],
+                  text: x,
+                  answer: null,
+                  timestamp: Date.now(),
+                  read: false,
+                  ownerUserId: profile.userId,
+                  ownerUsername: profile.username,
+                  ownerAvatarSeed: profile.avatarSeed,
+                };
+                const nextFeedbacks = [...feedbacksRef.current, nextFeedback];
+                setFeedbacks(nextFeedbacks);
+                if (plan) {
+                  syncLocalSnapshotToCollab(
+                    plan.id,
+                    plan,
+                    positionsRef.current[plan.id] ?? EMPTY_PLAN_POSITIONS,
+                    feedbacksForPlan(plan, nextFeedbacks),
+                  );
+                }
               } catch {}
             }}
             onDeleteFeedback={async (id) => {
               try {
                 await api.deleteFeedback(id);
+                const nextFeedbacks = feedbacksRef.current.filter((feedback) => feedback.id !== id);
+                setFeedbacks(nextFeedbacks);
+                if (plan) {
+                  syncLocalSnapshotToCollab(
+                    plan.id,
+                    plan,
+                    positionsRef.current[plan.id] ?? EMPTY_PLAN_POSITIONS,
+                    feedbacksForPlan(plan, nextFeedbacks),
+                  );
+                }
               } catch {}
             }}
             planTitle={plan?.title || ""}
@@ -1016,9 +2220,41 @@ export default function App() {
               setSelectedCardId(id);
             }}
             onEditCard={async (pid, cid, updates) => {
+              const currentPlan = plansRef.current.find((candidate) => candidate.id === pid);
+              if (!currentPlan) return;
+              const currentCard = currentPlan.steps.find((candidate) => candidate.id === cid);
+              if (!currentCard) return;
+
+              const beforePlan = cloneValue(currentPlan);
+              const currentPositions = cloneValue(positionsRef.current[pid] ?? EMPTY_PLAN_POSITIONS);
+              const nextCard: Card = {
+                ...cloneValue(currentCard),
+                ...(updates.title !== undefined ? { title: updates.title } : {}),
+                ...(updates.description !== undefined ? { description: updates.description } : {}),
+                ...(updates.type !== undefined ? { type: updates.type } : {}),
+                ...(updates.repo !== undefined ? { repo: updates.repo } : {}),
+                ...(updates.files !== undefined ? { files: cloneValue(updates.files) } : {}),
+                ...(updates.dependencies !== undefined ? { dependencies: cloneValue(updates.dependencies) } : {}),
+              };
+              const optimisticPlan: Plan = {
+                ...cloneValue(beforePlan),
+                steps: beforePlan.steps.map((candidate) => (candidate.id === cid ? nextCard : cloneValue(candidate))),
+              };
+              applyLocalPlanSnapshot(pid, optimisticPlan, currentPositions, cid, "invalidate");
               try {
-                await api.updateCard(pid, cid, updates);
-              } catch {}
+                await api.updateCard(
+                  pid,
+                  cid,
+                  updates,
+                  "rest",
+                  apiBaseForPlan(pid),
+                  sessionIdForPlan(pid),
+                  currentActorId,
+                  currentActorAvatarSeed,
+                );
+              } catch {
+                applyLocalPlanSnapshot(pid, beforePlan, currentPositions, cid, "ignore");
+              }
             }}
           />
         </div>
@@ -1031,16 +2267,39 @@ export default function App() {
           onClose={() => setCodeViewer(null)}
           onSave={async (filePath, newContent) => {
             if (!activePlanId || !codeViewer.cardId) throw new Error("Missing active plan");
+            const currentPlan = plansRef.current.find((candidate) => candidate.id === activePlanId);
+            if (!currentPlan) throw new Error("Plan not found");
             const card = steps.find((s) => s.id === codeViewer.cardId);
             if (!card) throw new Error("Card not found");
             const updatedFileChanges = {
               ...card.fileChanges,
               [filePath]: { ...codeViewer.change, content: newContent },
             };
+            const beforePlan = cloneValue(currentPlan);
+            const currentPositions = cloneValue(positionsRef.current[activePlanId] ?? EMPTY_PLAN_POSITIONS);
+            const optimisticPlan: Plan = {
+              ...cloneValue(beforePlan),
+              steps: beforePlan.steps.map((step) =>
+                step.id === codeViewer.cardId
+                  ? { ...cloneValue(step), fileChanges: updatedFileChanges }
+                  : cloneValue(step),
+              ),
+            };
+            applyLocalPlanSnapshot(activePlanId, optimisticPlan, currentPositions, codeViewer.cardId, "invalidate");
             try {
-              await api.updateCard(activePlanId, codeViewer.cardId, { fileChanges: updatedFileChanges });
+              await api.updateCard(
+                activePlanId,
+                codeViewer.cardId,
+                { fileChanges: updatedFileChanges },
+                "rest",
+                apiBaseForPlan(activePlanId),
+                sessionIdForPlan(activePlanId),
+                currentActorId,
+                currentActorAvatarSeed,
+              );
               showToast("Saved", filePath);
             } catch (error) {
+              applyLocalPlanSnapshot(activePlanId, beforePlan, currentPositions, codeViewer.cardId, "ignore");
               showToast("Save failed", filePath, true);
               throw error;
             }
@@ -1050,11 +2309,15 @@ export default function App() {
 
       {newPlanModal && (
         <NewPlanModal
+          actorId={currentActorId}
+          actorAvatarSeed={currentActorAvatarSeed}
           onClose={() => setNewPlanModal(false)}
-          onCreated={(id) => {
-            if (!activePlanIdRef.current) setActivePlanId(id);
+          onCreated={(newPlan) => {
+            setPlans((prev) => [newPlan, ...prev]);
+            setPositions((prev) => ({ ...prev, [newPlan.id]: EMPTY_PLAN_POSITIONS }));
+            setActivePlanId(newPlan.id);
             setNewPlanModal(false);
-            showToast("Plan created", "");
+            showToast("Plan created", newPlan.title);
           }}
         />
       )}
@@ -1063,6 +2326,10 @@ export default function App() {
         <NewCardModal
           planId={plan.id}
           existingCards={steps}
+          apiBase={apiBaseForPlan(plan.id)}
+          sessionId={sessionIdForPlan(plan.id)}
+          actorId={currentActorId}
+          actorAvatarSeed={currentActorAvatarSeed}
           onClose={() => setNewCardModal(false)}
           onCreated={(card) => {
             const currentPlan = plansRef.current.find((candidate) => candidate.id === plan.id);
@@ -1084,7 +2351,7 @@ export default function App() {
                 beforeSelectedCardId: selectedCardIdRef.current,
                 afterSelectedCardId: card.id,
               };
-              applyLocalPlanSnapshot(plan.id, cloneValue(afterPlan), cloneValue(beforePositions), card.id);
+              applyLocalPlanSnapshot(plan.id, cloneValue(afterPlan), cloneValue(beforePositions), card.id, "preserve");
               pushUndoAction(action);
             } else {
               setSelectedCardId(card.id);
@@ -1093,6 +2360,71 @@ export default function App() {
             showToast("Card added", "");
           }}
         />
+      )}
+
+      {settingsOpen && (
+        <SettingsModal
+          profile={profile}
+          onClose={() => setSettingsOpen(false)}
+          onSave={handleSaveProfile}
+        />
+      )}
+
+      {connectModalOpen && (
+        <ConnectPlanModal
+          plan={plan}
+          session={connectModalSession}
+          onClose={() => setConnectModalOpen(false)}
+          onConnect={handleStartCollabSession}
+          busy={collabBusy}
+        />
+      )}
+
+      {rejoinPrompt && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[1200] flex items-center justify-center animate-modal-overlay"
+          onClick={() => setRejoinPrompt(null)}
+        >
+          <div
+            className="relative w-[420px] flex flex-col animate-modal-in rounded-xl overflow-hidden border border-white/[0.08] bg-[rgba(32,33,36,0.95)] p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h1 className="text-[16px] font-semibold text-fp-text mb-3">Host Has The Latest Shared Version</h1>
+            <p className="text-[13px] text-white/50 leading-relaxed whitespace-pre-line mb-5">
+              You edited this plan after the host session ended. Rejoining will use the host&apos;s current shared state.
+              {"\n\n"}
+              Choose what to do with your local changes first.
+            </p>
+            <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.025] px-4 py-3.5 mb-5">
+              <div className="text-[11px] uppercase tracking-[0.12em] text-white/28 font-mono">Room</div>
+              <div className="mt-1 text-[13px] font-medium text-white/78">{rejoinPrompt.fork.roomId}</div>
+              <div className="mt-2 text-[11px] text-white/34">Shared plan: {rejoinPrompt.fork.planTitle}</div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="accent"
+                size="md"
+                onClick={() => void handleResolveForkAndJoin("discard")}
+                disabled={collabBusy}
+                className="w-full"
+              >
+                Sync To Host
+              </Button>
+              <Button
+                variant="glassy"
+                size="md"
+                onClick={() => void handleResolveForkAndJoin("duplicate")}
+                disabled={collabBusy}
+                className="w-full"
+              >
+                Duplicate Local Copy, Then Sync
+              </Button>
+              <Button variant="ghost" size="md" onClick={() => setRejoinPrompt(null)} disabled={collabBusy} className="w-full">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {dialog && (
