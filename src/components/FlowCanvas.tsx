@@ -400,7 +400,6 @@ function FlowCanvasInner({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const prevCardIdsRef = useRef<string>("");
 
-  // Sync nodes when inputs change - preserve dragged positions
   useEffect(() => {
     const newCardIds = cards
       .map((c) => c.id)
@@ -410,10 +409,8 @@ function FlowCanvasInner({
     prevCardIdsRef.current = newCardIds;
 
     if (cardsChanged) {
-      // Cards added/removed - full reset with positions
       setNodes(initialNodes);
     } else {
-      // Keep local node instances, but still apply remote position updates.
       const nodeMap = new Map(initialNodes.map((n) => [n.id, n]));
       setNodes((prev) => {
         let changed = false;
@@ -440,7 +437,6 @@ function FlowCanvasInner({
     setEdges(initialEdges);
   }, [initialEdges, setEdges]);
 
-  // fitView on first render
   useEffect(() => {
     if (!hasFitView.current && cards.length > 0) {
       hasFitView.current = true;
@@ -625,7 +621,6 @@ function FlowCanvasInner({
 
   const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
 
-  // Close context menu on any click
   useEffect(() => {
     if (!ctxMenu) return;
     const close = () => setCtxMenu(null);

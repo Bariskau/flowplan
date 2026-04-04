@@ -1,6 +1,5 @@
 import hljs from "highlight.js/lib/core";
 
-// Register only the languages we need
 import rust from "highlight.js/lib/languages/rust";
 import typescript from "highlight.js/lib/languages/typescript";
 import javascript from "highlight.js/lib/languages/javascript";

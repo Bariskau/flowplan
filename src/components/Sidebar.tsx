@@ -139,7 +139,6 @@ function Sidebar({
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     const list = q ? plans.filter((p) => p.title.toLowerCase().includes(q)) : plans;
-    // Pinned first, then by createdAt desc
     return [...list].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
@@ -150,7 +149,6 @@ function Sidebar({
   const grouped = useMemo(() => {
     const groups: { label: string; plans: Plan[] }[] = [];
     const map = new Map<string, Plan[]>();
-    // Pinned separate
     const pinned = filtered.filter((p) => p.pinned);
     const rest = filtered.filter((p) => !p.pinned);
     if (pinned.length) groups.push({ label: "Pinned", plans: pinned });

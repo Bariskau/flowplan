@@ -14,7 +14,6 @@ export default function DropdownMenu({ trigger, children, align = "left" }: Drop
 
   useEffect(() => {
     if (!open) return;
-    // Determine if menu should open above or below
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
