@@ -104,8 +104,8 @@ interface UseUndoRedoArgs {
     stackBehavior?: UndoStackBehavior,
   ) => void;
   syncLocalSnapshotToCollab: (planId: string, nextPlan: Plan, nextPositions: PlanPositions, nextFeedbacks?: Feedback[]) => void;
-  markPendingPlanMutation: (planId: string, nextPlan: Plan, nextPositions: PlanPositions) => void;
-  clearPendingPlanMutation: (planId: string, expectedSignature?: string | null) => void;
+  markPendingPlanMutationRef: { current: (planId: string, nextPlan: Plan, nextPositions: PlanPositions) => void };
+  clearPendingPlanMutationRef: { current: (planId: string, expectedSignature?: string | null) => void };
 }
 
 export function useUndoRedo(args: UseUndoRedoArgs) {
@@ -121,8 +121,8 @@ export function useUndoRedo(args: UseUndoRedoArgs) {
     showToast,
     historySnapshot,
     applyLocalPlanSnapshot,
-    markPendingPlanMutation,
-    clearPendingPlanMutation,
+    markPendingPlanMutationRef,
+    clearPendingPlanMutationRef,
   } = args;
 
   const [undoStack, setUndoStack] = useState<UiUndoAction[]>([]);
@@ -239,9 +239,9 @@ export function useUndoRedo(args: UseUndoRedoArgs) {
     const currentPositions = cloneValue(positionsRef.current[action.planId] ?? EMPTY_PLAN_POSITIONS);
     const nextPositions = mergeUndoPositions(action, direction, currentPositions);
     const nextSelectedCardId = direction === "undo" ? action.beforeSelectedCardId : action.afterSelectedCardId;
-    markPendingPlanMutation(action.planId, nextPlan, nextPositions);
+    markPendingPlanMutationRef.current(action.planId, nextPlan, nextPositions);
     applyLocalPlanSnapshot(action.planId, nextPlan, nextPositions, nextSelectedCardId, "preserve");
-  }, [applyLocalPlanSnapshot, markPendingPlanMutation, positionsRef]);
+  }, [applyLocalPlanSnapshot, markPendingPlanMutationRef, positionsRef]);
 
   const handleUndo = useCallback(async () => {
     if (historySnapshot || undoRedoBusy) return;
@@ -258,9 +258,9 @@ export function useUndoRedo(args: UseUndoRedoArgs) {
     setRedoStack((prev) => keepLastUndoActions(prev, action));
     try {
       await persistUndoableAction(action, "undo");
-      clearPendingPlanMutation(action.planId);
+      clearPendingPlanMutationRef.current(action.planId);
     } catch {
-      clearPendingPlanMutation(action.planId);
+      clearPendingPlanMutationRef.current(action.planId);
       applyUndoableSnapshot(action, "redo");
       setRedoStack((prev) => prev.slice(0, -1));
       setUndoStack((prev) => keepLastUndoActions(prev, action));
@@ -268,7 +268,7 @@ export function useUndoRedo(args: UseUndoRedoArgs) {
     } finally {
       setUndoRedoBusy(false);
     }
-  }, [applyUndoableSnapshot, clearPendingPlanMutation, historySnapshot, invalidateUndoRedoStacks, isUndoActionSafe, persistUndoableAction, showToast, undoRedoBusy]);
+  }, [applyUndoableSnapshot, clearPendingPlanMutationRef, historySnapshot, invalidateUndoRedoStacks, isUndoActionSafe, persistUndoableAction, showToast, undoRedoBusy]);
 
   const handleRedo = useCallback(async () => {
     if (historySnapshot || undoRedoBusy) return;
@@ -285,9 +285,9 @@ export function useUndoRedo(args: UseUndoRedoArgs) {
     setUndoStack((prev) => keepLastUndoActions(prev, action));
     try {
       await persistUndoableAction(action, "redo");
-      clearPendingPlanMutation(action.planId);
+      clearPendingPlanMutationRef.current(action.planId);
     } catch {
-      clearPendingPlanMutation(action.planId);
+      clearPendingPlanMutationRef.current(action.planId);
       applyUndoableSnapshot(action, "undo");
       setUndoStack((prev) => prev.slice(0, -1));
       setRedoStack((prev) => keepLastUndoActions(prev, action));
@@ -295,7 +295,7 @@ export function useUndoRedo(args: UseUndoRedoArgs) {
     } finally {
       setUndoRedoBusy(false);
     }
-  }, [applyUndoableSnapshot, clearPendingPlanMutation, historySnapshot, invalidateUndoRedoStacks, isUndoActionSafe, persistUndoableAction, showToast, undoRedoBusy]);
+  }, [applyUndoableSnapshot, clearPendingPlanMutationRef, historySnapshot, invalidateUndoRedoStacks, isUndoActionSafe, persistUndoableAction, showToast, undoRedoBusy]);
 
   const resetStacks = useCallback(() => {
     setUndoStack([]);

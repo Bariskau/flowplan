@@ -74,11 +74,15 @@ export default function App() {
   const apiBaseForPlan = useCallback((_planId: string | null | undefined) => api.LOCAL_API_BASE, []);
   const sessionIdForPlan = useCallback((_planId: string | null | undefined) => undefined, []);
 
+  const invalidateUndoRedoRef = useRef<(planId: string | null | undefined, plan: Plan | null, positions: PlanPositions) => void>(() => {});
+  const markPendingRef = useRef<(planId: string, nextPlan: Plan, nextPositions: PlanPositions) => void>(() => {});
+  const clearPendingRef = useRef<(planId: string, expectedSignature?: string | null) => void>(() => {});
+
   const collab = useCollaboration({
     activePlanIdRef, plansRef, feedbacksRef, positionsRef,
     setPlans, setFeedbacks, setPositions, setActivePlanId,
     showToast, showCollabDialog,
-    invalidateUndoRedoIfExternalPlanChange: () => {},
+    invalidateUndoRedoIfExternalPlanChangeRef: invalidateUndoRedoRef,
     collabRevisionsRef,
   });
 
@@ -115,8 +119,11 @@ export default function App() {
     currentActorId: collab.currentActorId, currentActorAvatarSeed: collab.currentActorAvatarSeed,
     showToast, historySnapshot: historyHook.historySnapshot, applyLocalPlanSnapshot,
     syncLocalSnapshotToCollab: collab.syncLocalSnapshotToCollab,
-    markPendingPlanMutation: () => {}, clearPendingPlanMutation: () => {},
+    markPendingPlanMutationRef: markPendingRef,
+    clearPendingPlanMutationRef: clearPendingRef,
   });
+
+  invalidateUndoRedoRef.current = undoRedoHook.invalidateUndoRedoIfExternalPlanChange;
 
   const markPendingPlanMutation = useCallback((planId: string, nextPlan: Plan, nextPositions: PlanPositions) => {
     const signature = buildPlanSignature(nextPlan, nextPositions);
@@ -129,6 +136,9 @@ export default function App() {
     if (expectedSignature && sig !== expectedSignature) return;
     delete undoRedoHook.pendingPlanMutationSignaturesRef.current[planId];
   }, [undoRedoHook.pendingPlanMutationSignaturesRef]);
+
+  markPendingRef.current = markPendingPlanMutation;
+  clearPendingRef.current = clearPendingPlanMutation;
 
   const mutations = usePlanMutations({
     activePlanIdRef, selectedCardIdRef, plansRef, feedbacksRef, positionsRef,

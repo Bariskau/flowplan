@@ -58,7 +58,7 @@ interface UseCollaborationArgs {
   setActivePlanId: React.Dispatch<React.SetStateAction<string | null>>;
   showToast: (text: string, file: string, error?: boolean) => void;
   showCollabDialog: (title: string, message: string) => void;
-  invalidateUndoRedoIfExternalPlanChange: (planId: string | null | undefined, plan: Plan | null, positions: PlanPositions) => void;
+  invalidateUndoRedoIfExternalPlanChangeRef: { current: (planId: string | null | undefined, plan: Plan | null, positions: PlanPositions) => void };
   collabRevisionsRef: { current: Record<string, number> };
 }
 
@@ -74,7 +74,7 @@ export function useCollaboration(args: UseCollaborationArgs) {
     setActivePlanId,
     showToast,
     showCollabDialog,
-    invalidateUndoRedoIfExternalPlanChange,
+    invalidateUndoRedoIfExternalPlanChangeRef,
     collabRevisionsRef,
   } = args;
 
@@ -226,7 +226,7 @@ export function useCollaboration(args: UseCollaborationArgs) {
   ) => {
     const roomSession = collabSessionsRef.current[roomId];
     if (!roomSession) return;
-    invalidateUndoRedoIfExternalPlanChange(snapshot.plan.id, snapshot.plan, snapshot.positions);
+    invalidateUndoRedoIfExternalPlanChangeRef.current(snapshot.plan.id, snapshot.plan, snapshot.positions);
     const previousPlan = plansRef.current.find((c) => c.id === snapshot.plan.id) ?? roomSession.snapshot?.plan ?? null;
     const signature = buildSharedSnapshotSignature(snapshot);
     collabRevisionsRef.current[roomId] = revision;
@@ -257,7 +257,7 @@ export function useCollaboration(args: UseCollaborationArgs) {
     );
     setActivePlanId(snapshot.plan.id);
     window.setTimeout(() => { delete applyingPeerSnapshotRoomsRef.current[roomId]; }, 0);
-  }, [invalidateUndoRedoIfExternalPlanChange, plansRef, collabRevisionsRef, setPlans, setPositions, setFeedbacks, setActivePlanId]);
+  }, [invalidateUndoRedoIfExternalPlanChangeRef, plansRef, collabRevisionsRef, setPlans, setPositions, setFeedbacks, setActivePlanId]);
 
   const syncLocalSnapshotToCollab = useCallback((
     planId: string,
