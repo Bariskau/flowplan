@@ -54,6 +54,16 @@ function CodeViewer({ path, change, onClose, onSave }: CodeViewerProps) {
     setContent(change.content);
     setSaved(false);
     setSaving(false);
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = 0;
+        scrollRef.current.scrollLeft = 0;
+      }
+      if (textareaRef.current) {
+        textareaRef.current.scrollTop = 0;
+        textareaRef.current.scrollLeft = 0;
+      }
+    });
   }, [path, change.content]);
 
   useEffect(() => {
@@ -72,7 +82,8 @@ function CodeViewer({ path, change, onClose, onSave }: CodeViewerProps) {
   const handleScroll = useCallback(() => {
     if (scrollRef.current && textareaRef.current) {
       scrollRef.current.scrollTop = textareaRef.current.scrollTop;
-      scrollRef.current.scrollLeft = textareaRef.current.scrollLeft;
+      scrollRef.current.scrollLeft = 0;
+      textareaRef.current.scrollLeft = 0;
     }
   }, []);
 
@@ -126,7 +137,7 @@ function CodeViewer({ path, change, onClose, onSave }: CodeViewerProps) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative border border-white/[0.08] rounded-xl max-w-[860px] w-[85%] max-h-[85vh] animate-modal-in flex flex-col overflow-hidden bg-[rgba(32,33,36,0.95)]"
+        className="relative border border-white/[0.08] rounded-xl max-w-[860px] w-[85%] min-h-[360px] h-[72vh] max-h-[820px] animate-modal-in flex flex-col overflow-hidden bg-[rgba(32,33,36,0.95)]"
       >
         {/* ---- Header ---- */}
         <div className="px-3 py-2.5 flex items-center justify-between border-b border-white/[0.06] shrink-0">
@@ -181,10 +192,10 @@ function CodeViewer({ path, change, onClose, onSave }: CodeViewerProps) {
             {/* Highlighted layer — visible, not interactive */}
             <div
               ref={scrollRef}
-              className="absolute inset-0 overflow-auto pointer-events-none"
+              className="absolute inset-0 overflow-y-auto overflow-x-hidden pointer-events-none"
               aria-hidden
             >
-              <pre className="py-4 px-4 m-0 font-mono text-[13px] leading-[24px] text-fp-text whitespace-pre min-w-fit">
+              <pre className="w-full py-4 px-4 m-0 font-mono text-[13px] leading-[24px] text-fp-text whitespace-pre-wrap break-words">
                 <code dangerouslySetInnerHTML={{ __html: highlightedHtml + "\n" }} />
               </pre>
             </div>
@@ -195,10 +206,11 @@ function CodeViewer({ path, change, onClose, onSave }: CodeViewerProps) {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onScroll={handleScroll}
-              className="absolute inset-0 w-full h-full py-4 px-4 font-mono text-[13px] leading-[24px] bg-transparent text-transparent caret-fp-text resize-none outline-none border-none whitespace-pre overflow-auto"
+              className="absolute inset-0 w-full h-full py-4 px-4 font-mono text-[13px] leading-[24px] bg-transparent text-transparent caret-fp-text resize-none outline-none border-none whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
               style={{ caretColor: "var(--color-fp-text)" }}
               spellCheck={false}
               readOnly={!onSave}
+              wrap="soft"
             />
           </div>
         </div>

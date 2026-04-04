@@ -429,7 +429,7 @@ function DetailDrawer({
             {/* Description */}
             <div className="p-3 border-b border-fp-border">
               <div className="text-[10px] font-mono uppercase tracking-wider text-fp-dim mb-1.5">Description</div>
-              <div className="text-[13px]">
+              <div className="text-[13px] select-text cursor-text">
                 <Md
                   text={card.description || "*No description*"}
                   fontSize={13}

@@ -46,6 +46,7 @@ const EMPTY_FEEDBACK_TYPES: Record<string, string[]> = {};
 const HISTORY_PAGE_LIMIT = 100;
 const CURSOR_SEND_INTERVAL_MS = 120;
 const CURSOR_STALE_TIMEOUT_MS = 30_000;
+const UI_UNDO_STACK_LIMIT = 10;
 
 type PlanPositions = Record<string, { x: number; y: number }>;
 type CollabSessionMap = Record<string, CollabSession>;
@@ -71,6 +72,8 @@ type BaseUiUndoAction = {
   afterPositions: PlanPositions;
   beforeSelectedCardId: string | null;
   afterSelectedCardId: string | null;
+  collabRoomId?: string | null;
+  collabRevision?: number | null;
 };
 
 type UiUndoAction =
@@ -293,6 +296,10 @@ function mergeUndoPositions(
   }
 }
 
+function keepLastUndoActions(actions: UiUndoAction[], nextAction: UiUndoAction) {
+  return [...actions.slice(-(UI_UNDO_STACK_LIMIT - 1)), nextAction];
+}
+
 export default function App() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -396,6 +403,7 @@ export default function App() {
   const applyingPeerSnapshotRoomsRef = useRef<Record<string, boolean>>({});
   const lastPeerSnapshotSignaturesRef = useRef<Record<string, string | null>>({});
   const lastLocalCollabSyncSignaturesRef = useRef<Record<string, string | null>>({});
+  const pendingPlanMutationSignaturesRef = useRef<Record<string, string>>({});
 
   const invalidateUndoRedoStacks = useCallback(() => {
     lastUndoPreservingSignatureRef.current = null;
@@ -404,12 +412,73 @@ export default function App() {
     setRedoStack([]);
   }, []);
 
+  const invalidateUndoRedoIfExternalPlanChange = useCallback((
+    nextPlanId: string | null | undefined,
+    nextPlan: Plan | null,
+    nextPositions: PlanPositions,
+  ) => {
+    if (!nextPlanId) return;
+    const currentPlan = plansRef.current.find((candidate) => candidate.id === nextPlanId) ?? null;
+    const currentPositions = positionsRef.current[nextPlanId] ?? EMPTY_PLAN_POSITIONS;
+    const currentSignature = buildPlanSignature(currentPlan, currentPositions);
+    const nextSignature = buildPlanSignature(nextPlan, nextPositions);
+    if (!currentSignature || !nextSignature || currentSignature === nextSignature) return;
+    const pendingSignature = pendingPlanMutationSignaturesRef.current[nextPlanId];
+    if (pendingSignature) {
+      if (nextSignature === pendingSignature) {
+        delete pendingPlanMutationSignaturesRef.current[nextPlanId];
+      }
+      return;
+    }
+    if (nextSignature === lastUndoPreservingSignatureRef.current) return;
+    invalidateUndoRedoStacks();
+  }, [invalidateUndoRedoStacks]);
+
   const apiBaseForPlan = useCallback((_planId: string | null | undefined) => {
     return api.LOCAL_API_BASE;
   }, []);
 
   const sessionIdForPlan = useCallback((_planId: string | null | undefined) => {
     return undefined;
+  }, []);
+
+  const buildUndoGuardContext = useCallback((planId: string) => {
+    const session = Object.values(collabSessionsRef.current).find((candidate) => candidate.planId === planId) ?? null;
+    if (!session) {
+      return {
+        collabRoomId: null,
+        collabRevision: null,
+      };
+    }
+
+    return {
+      collabRoomId: session.roomId,
+      collabRevision: collabRevisionsRef.current[session.roomId] ?? 0,
+    };
+  }, []);
+
+  const isUndoActionSafe = useCallback((action?: UiUndoAction | null) => {
+    if (!action) return false;
+    if (!action.collabRoomId) return true;
+    const session = collabSessionsRef.current[action.collabRoomId];
+    if (!session) return true;
+    if (session.planId && session.planId !== action.planId) return false;
+    const currentRevision = collabRevisionsRef.current[action.collabRoomId] ?? 0;
+    const actionRevision = action.collabRevision ?? 0;
+    return currentRevision === actionRevision;
+  }, []);
+
+  const markPendingPlanMutation = useCallback((planId: string, nextPlan: Plan, nextPositions: PlanPositions) => {
+    const signature = buildPlanSignature(nextPlan, nextPositions);
+    if (!signature) return;
+    pendingPlanMutationSignaturesRef.current[planId] = signature;
+  }, []);
+
+  const clearPendingPlanMutation = useCallback((planId: string, expectedSignature?: string | null) => {
+    const currentSignature = pendingPlanMutationSignaturesRef.current[planId];
+    if (!currentSignature) return;
+    if (expectedSignature && currentSignature !== expectedSignature) return;
+    delete pendingPlanMutationSignaturesRef.current[planId];
   }, []);
 
   const buildPeerSnapshot = useCallback((planId?: string | null): SharedPlanSnapshot | null => {
@@ -560,6 +629,7 @@ export default function App() {
   ) => {
     const roomSession = collabSessionsRef.current[roomId];
     if (!roomSession) return;
+    invalidateUndoRedoIfExternalPlanChange(snapshot.plan.id, snapshot.plan, snapshot.positions);
     const previousPlan = plansRef.current.find((candidate) => candidate.id === snapshot.plan.id) ?? roomSession.snapshot?.plan ?? null;
     const signature = buildSharedSnapshotSignature(snapshot);
     collabRevisionsRef.current[roomId] = revision;
@@ -603,7 +673,7 @@ export default function App() {
     window.setTimeout(() => {
       delete applyingPeerSnapshotRoomsRef.current[roomId];
     }, 0);
-  }, []);
+  }, [invalidateUndoRedoIfExternalPlanChange]);
 
   const syncLocalSnapshotToCollab = useCallback((
     planId: string,
@@ -668,10 +738,30 @@ export default function App() {
           ...s.feedbacks.filter((feedback) => !collabCardIds.has(feedback.cardId)),
           ...remoteSnapshots.flatMap((snapshot) => snapshot.feedbacks ?? []),
         ];
+        const adjustedPositions = { ...nextPositions };
+        const adjustedPlans = nextPlans.map((nextPlan) => {
+          const pendingSignature = pendingPlanMutationSignaturesRef.current[nextPlan.id];
+          if (!pendingSignature) return nextPlan;
+          const fetchedPositions = adjustedPositions[nextPlan.id] ?? EMPTY_PLAN_POSITIONS;
+          const fetchedSignature = buildPlanSignature(nextPlan, fetchedPositions);
+          if (fetchedSignature === pendingSignature) {
+            delete pendingPlanMutationSignaturesRef.current[nextPlan.id];
+            return nextPlan;
+          }
+          adjustedPositions[nextPlan.id] = positionsRef.current[nextPlan.id] ?? EMPTY_PLAN_POSITIONS;
+          return plansRef.current.find((candidate) => candidate.id === nextPlan.id) ?? nextPlan;
+        });
+
+        const currentActivePlanId = activePlanIdRef.current;
+        if (currentActivePlanId && !getCollabSessionForPlanId(currentActivePlanId)) {
+          const nextActivePlan = adjustedPlans.find((candidate) => candidate.id === currentActivePlanId) ?? null;
+          const nextActivePositions = adjustedPositions[currentActivePlanId] ?? EMPTY_PLAN_POSITIONS;
+          invalidateUndoRedoIfExternalPlanChange(currentActivePlanId, nextActivePlan, nextActivePositions);
+        }
 
         setPlans((prev) => {
           const prevMap = new Map(prev.map((p) => [p.id, p]));
-          const merged = nextPlans.map((nextPlan) => {
+          const merged = adjustedPlans.map((nextPlan) => {
             const prevPlan = prevMap.get(nextPlan.id);
             return prevPlan && JSON.stringify(prevPlan) === JSON.stringify(nextPlan) ? prevPlan : nextPlan;
           });
@@ -680,12 +770,12 @@ export default function App() {
         });
 
         setFeedbacks((prev) => (JSON.stringify(prev) === JSON.stringify(nextFeedbacks) ? prev : nextFeedbacks));
-        setPositions((prev) => mergePositions(prev, nextPositions));
+        setPositions((prev) => mergePositions(prev, adjustedPositions));
 
         setConnected(true);
         const currentId = activePlanIdRef.current;
-        if (nextPlans.length) {
-          if (!currentId || !nextPlans.some((p) => p.id === currentId)) setActivePlanId(nextPlans[0].id);
+        if (adjustedPlans.length) {
+          if (!currentId || !adjustedPlans.some((p) => p.id === currentId)) setActivePlanId(adjustedPlans[0].id);
         } else {
           setActivePlanId(null);
         }
@@ -699,7 +789,7 @@ export default function App() {
       alive = false;
       clearInterval(iv);
     };
-  }, []);
+  }, [getCollabSessionForPlanId, invalidateUndoRedoIfExternalPlanChange]);
 
   // Reset on plan change
   useEffect(() => {
@@ -1083,21 +1173,11 @@ export default function App() {
       return;
     }
 
-    if (
-      lastPlanSignatureRef.current &&
-      signature !== lastPlanSignatureRef.current &&
-      signature !== lastUndoPreservingSignatureRef.current &&
-      (undoStack.length > 0 || redoStack.length > 0)
-    ) {
-      setUndoStack([]);
-      setRedoStack([]);
-    }
-
     lastPlanSignatureRef.current = signature;
     if (signature === lastUndoPreservingSignatureRef.current) {
       lastUndoPreservingSignatureRef.current = null;
     }
-  }, [plan, redoStack.length, savedPositions, undoStack.length]);
+  }, [plan, savedPositions]);
 
   useEffect(() => {
     if (!collabSessionForPlan || !plan || !collabPlanSignature) return;
@@ -1287,7 +1367,7 @@ export default function App() {
   );
 
   const pushUndoAction = useCallback((action: UiUndoAction) => {
-    setUndoStack((prev) => [...prev.slice(-9), action]);
+    setUndoStack((prev) => keepLastUndoActions(prev, action));
     setRedoStack([]);
   }, []);
 
@@ -1324,6 +1404,7 @@ export default function App() {
       const currentPlan = plansRef.current.find((candidate) => candidate.id === currentPlanId) ?? null;
       if (currentPlan) {
         invalidateUndoRedoStacks();
+        markPendingPlanMutation(currentPlanId, currentPlan, positions);
         syncLocalSnapshotToCollab(currentPlanId, currentPlan, positions);
       }
       setPositions((prev) => {
@@ -1333,9 +1414,14 @@ export default function App() {
       });
       api
         .savePositions(currentPlanId, positions, apiBaseForPlan(currentPlanId), sessionIdForPlan(currentPlanId))
-        .catch(() => {});
+        .then(() => {
+          clearPendingPlanMutation(currentPlanId);
+        })
+        .catch(() => {
+          clearPendingPlanMutation(currentPlanId);
+        });
     },
-    [apiBaseForPlan, invalidateUndoRedoStacks, sessionIdForPlan, syncLocalSnapshotToCollab],
+    [apiBaseForPlan, clearPendingPlanMutation, invalidateUndoRedoStacks, markPendingPlanMutation, sessionIdForPlan, syncLocalSnapshotToCollab],
   );
 
   const importPlan = useCallback(() => {
@@ -1677,50 +1763,65 @@ export default function App() {
       const currentPositions = cloneValue(positionsRef.current[action.planId] ?? EMPTY_PLAN_POSITIONS);
       const nextPositions = mergeUndoPositions(action, direction, currentPositions);
       const nextSelectedCardId = direction === "undo" ? action.beforeSelectedCardId : action.afterSelectedCardId;
+      markPendingPlanMutation(action.planId, nextPlan, nextPositions);
       applyLocalPlanSnapshot(action.planId, nextPlan, nextPositions, nextSelectedCardId, "preserve");
     },
-    [applyLocalPlanSnapshot],
+    [applyLocalPlanSnapshot, markPendingPlanMutation],
   );
 
   const handleUndo = useCallback(async () => {
     if (historySnapshot || undoRedoBusy) return;
     const action = undoStackRef.current[undoStackRef.current.length - 1];
     if (!action) return;
+    if (!isUndoActionSafe(action)) {
+      invalidateUndoRedoStacks();
+      showToast("Undo unavailable", "Remote collaboration changed this plan", true);
+      return;
+    }
     setUndoRedoBusy(true);
     applyUndoableSnapshot(action, "undo");
     setUndoStack((prev) => prev.slice(0, -1));
-    setRedoStack((prev) => [...prev.slice(-9), action]);
+    setRedoStack((prev) => keepLastUndoActions(prev, action));
     try {
       await persistUndoableAction(action, "undo");
+      clearPendingPlanMutation(action.planId);
     } catch {
+      clearPendingPlanMutation(action.planId);
       applyUndoableSnapshot(action, "redo");
       setRedoStack((prev) => prev.slice(0, -1));
-      setUndoStack((prev) => [...prev.slice(-9), action]);
+      setUndoStack((prev) => keepLastUndoActions(prev, action));
       showToast("Undo failed", action.kind.replace("_", " "), true);
     } finally {
       setUndoRedoBusy(false);
     }
-  }, [applyUndoableSnapshot, historySnapshot, persistUndoableAction, showToast, undoRedoBusy]);
+  }, [applyUndoableSnapshot, clearPendingPlanMutation, historySnapshot, invalidateUndoRedoStacks, isUndoActionSafe, persistUndoableAction, showToast, undoRedoBusy]);
 
   const handleRedo = useCallback(async () => {
     if (historySnapshot || undoRedoBusy) return;
     const action = redoStackRef.current[redoStackRef.current.length - 1];
     if (!action) return;
+    if (!isUndoActionSafe(action)) {
+      invalidateUndoRedoStacks();
+      showToast("Redo unavailable", "Remote collaboration changed this plan", true);
+      return;
+    }
     setUndoRedoBusy(true);
     applyUndoableSnapshot(action, "redo");
     setRedoStack((prev) => prev.slice(0, -1));
-    setUndoStack((prev) => [...prev.slice(-9), action]);
+    setUndoStack((prev) => keepLastUndoActions(prev, action));
     try {
       await persistUndoableAction(action, "redo");
+      clearPendingPlanMutation(action.planId);
     } catch {
+      clearPendingPlanMutation(action.planId);
       applyUndoableSnapshot(action, "undo");
       setUndoStack((prev) => prev.slice(0, -1));
-      setRedoStack((prev) => [...prev.slice(-9), action]);
+      setRedoStack((prev) => keepLastUndoActions(prev, action));
       showToast("Redo failed", action.kind.replace("_", " "), true);
     } finally {
       setUndoRedoBusy(false);
     }
-  }, [applyUndoableSnapshot, historySnapshot, persistUndoableAction, showToast, undoRedoBusy]);
+  }, [applyUndoableSnapshot, clearPendingPlanMutation, historySnapshot, invalidateUndoRedoStacks, isUndoActionSafe, persistUndoableAction, showToast, undoRedoBusy]);
 
   const handleToggleHistory = useCallback(() => {
     setHistOpen((h) => !h);
@@ -1779,8 +1880,10 @@ export default function App() {
       afterPositions,
       beforeSelectedCardId: selectedCardIdRef.current,
       afterSelectedCardId: selectedCardIdRef.current === cardId ? null : selectedCardIdRef.current,
+      ...buildUndoGuardContext(currentAId),
     };
 
+    markPendingPlanMutation(currentAId, afterPlan, afterPositions);
     applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(afterPositions), action.afterSelectedCardId, "preserve");
     setFeedbacks((prev) => prev.filter((feedback) => feedback.cardId !== cardId));
     pushUndoAction(action);
@@ -1794,13 +1897,15 @@ export default function App() {
         currentActorId,
         currentActorAvatarSeed,
       );
+      clearPendingPlanMutation(currentAId);
     } catch {
+      clearPendingPlanMutation(currentAId);
       applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId, "preserve");
       setFeedbacks((prev) => [...prev, ...removedFeedbacks]);
       setUndoStack((prev) => prev.slice(0, -1));
       showToast("Delete failed", removedCard.title, true);
     }
-  }, [apiBaseForPlan, applyLocalPlanSnapshot, currentActorAvatarSeed, currentActorId, pushUndoAction, sessionIdForPlan, showToast]);
+  }, [apiBaseForPlan, applyLocalPlanSnapshot, buildUndoGuardContext, clearPendingPlanMutation, currentActorAvatarSeed, currentActorId, markPendingPlanMutation, pushUndoAction, sessionIdForPlan, showToast]);
 
   const handleConnectCards = useCallback(async (sourceId: string, targetId: string) => {
     const currentAId = activePlanIdRef.current;
@@ -1832,8 +1937,10 @@ export default function App() {
       afterPositions: beforePositions,
       beforeSelectedCardId: selectedCardIdRef.current,
       afterSelectedCardId: selectedCardIdRef.current,
+      ...buildUndoGuardContext(currentAId),
     };
 
+    markPendingPlanMutation(currentAId, afterPlan, beforePositions);
     applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId, "preserve");
     pushUndoAction(action);
     try {
@@ -1847,12 +1954,14 @@ export default function App() {
         currentActorId,
         currentActorAvatarSeed,
       );
+      clearPendingPlanMutation(currentAId);
     } catch {
+      clearPendingPlanMutation(currentAId);
       applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId, "preserve");
       setUndoStack((prev) => prev.slice(0, -1));
       showToast("Dependency add failed", targetCard.title, true);
     }
-  }, [apiBaseForPlan, applyLocalPlanSnapshot, currentActorAvatarSeed, currentActorId, pushUndoAction, sessionIdForPlan, showToast]);
+  }, [apiBaseForPlan, applyLocalPlanSnapshot, buildUndoGuardContext, clearPendingPlanMutation, currentActorAvatarSeed, currentActorId, markPendingPlanMutation, pushUndoAction, sessionIdForPlan, showToast]);
 
   const handleDisconnectCards = useCallback(async (sourceId: string, targetId: string) => {
     const currentAId = activePlanIdRef.current;
@@ -1884,8 +1993,10 @@ export default function App() {
       afterPositions: beforePositions,
       beforeSelectedCardId: selectedCardIdRef.current,
       afterSelectedCardId: selectedCardIdRef.current,
+      ...buildUndoGuardContext(currentAId),
     };
 
+    markPendingPlanMutation(currentAId, afterPlan, beforePositions);
     applyLocalPlanSnapshot(currentAId, cloneValue(afterPlan), cloneValue(beforePositions), action.afterSelectedCardId, "preserve");
     pushUndoAction(action);
     try {
@@ -1899,12 +2010,14 @@ export default function App() {
         currentActorId,
         currentActorAvatarSeed,
       );
+      clearPendingPlanMutation(currentAId);
     } catch {
+      clearPendingPlanMutation(currentAId);
       applyLocalPlanSnapshot(currentAId, cloneValue(beforePlan), cloneValue(beforePositions), action.beforeSelectedCardId, "preserve");
       setUndoStack((prev) => prev.slice(0, -1));
       showToast("Dependency remove failed", targetCard.title, true);
     }
-  }, [apiBaseForPlan, applyLocalPlanSnapshot, currentActorAvatarSeed, currentActorId, pushUndoAction, sessionIdForPlan, showToast]);
+  }, [apiBaseForPlan, applyLocalPlanSnapshot, buildUndoGuardContext, clearPendingPlanMutation, currentActorAvatarSeed, currentActorId, markPendingPlanMutation, pushUndoAction, sessionIdForPlan, showToast]);
 
   const canvasCards = historySnapshot?.cards ?? steps;
   const canvasFeedbackCounts = historySnapshot ? EMPTY_FEEDBACK_COUNTS : feedbackCountMap;
@@ -1919,8 +2032,16 @@ export default function App() {
     activeHistoryEntry ? `History change · r${activeHistoryEntry.revision}` : "History change";
   const historyBeforeLabel =
     activeHistoryEntry ? `History before · r${activeHistoryEntry.revision}` : "History before";
-  const canToolbarUndo = !canvasReadOnly && !undoRedoBusy && undoStack.length > 0;
-  const canToolbarRedo = !canvasReadOnly && !undoRedoBusy && redoStack.length > 0;
+  const canToolbarUndo = !canvasReadOnly && !undoRedoBusy && isUndoActionSafe(undoStack[undoStack.length - 1]);
+  const canToolbarRedo = !canvasReadOnly && !undoRedoBusy && isUndoActionSafe(redoStack[redoStack.length - 1]);
+  const undoDisabledReason =
+    !canvasReadOnly && !undoRedoBusy && undoStack.length > 0 && !isUndoActionSafe(undoStack[undoStack.length - 1])
+      ? "Remote changes invalidated your undo stack"
+      : undefined;
+  const redoDisabledReason =
+    !canvasReadOnly && !undoRedoBusy && redoStack.length > 0 && !isUndoActionSafe(redoStack[redoStack.length - 1])
+      ? "Remote changes invalidated your undo stack"
+      : undefined;
   const presenceRightOffset = histOpen
     ? "calc(var(--spacing-fp-history) + var(--spacing-fp-gap) * 2)"
     : selectedCard
@@ -2012,6 +2133,8 @@ export default function App() {
             canRedo={canToolbarRedo}
             onUndo={handleUndo}
             onRedo={handleRedo}
+            undoDisabledReason={undoDisabledReason}
+            redoDisabledReason={redoDisabledReason}
             planTitle={plan.title}
             planId={plan.id}
           />
@@ -2240,6 +2363,7 @@ export default function App() {
                 ...cloneValue(beforePlan),
                 steps: beforePlan.steps.map((candidate) => (candidate.id === cid ? nextCard : cloneValue(candidate))),
               };
+              markPendingPlanMutation(pid, optimisticPlan, currentPositions);
               applyLocalPlanSnapshot(pid, optimisticPlan, currentPositions, cid, "invalidate");
               try {
                 await api.updateCard(
@@ -2252,7 +2376,9 @@ export default function App() {
                   currentActorId,
                   currentActorAvatarSeed,
                 );
+                clearPendingPlanMutation(pid);
               } catch {
+                clearPendingPlanMutation(pid);
                 applyLocalPlanSnapshot(pid, beforePlan, currentPositions, cid, "ignore");
               }
             }}
@@ -2262,6 +2388,7 @@ export default function App() {
 
       {codeViewer && (
         <CodeViewer
+          key={`${codeViewer.cardId}:${codeViewer.path}`}
           path={codeViewer.path}
           change={codeViewer.change}
           onClose={() => setCodeViewer(null)}
@@ -2285,6 +2412,7 @@ export default function App() {
                   : cloneValue(step),
               ),
             };
+            markPendingPlanMutation(activePlanId, optimisticPlan, currentPositions);
             applyLocalPlanSnapshot(activePlanId, optimisticPlan, currentPositions, codeViewer.cardId, "invalidate");
             try {
               await api.updateCard(
@@ -2297,8 +2425,10 @@ export default function App() {
                 currentActorId,
                 currentActorAvatarSeed,
               );
+              clearPendingPlanMutation(activePlanId);
               showToast("Saved", filePath);
             } catch (error) {
+              clearPendingPlanMutation(activePlanId);
               applyLocalPlanSnapshot(activePlanId, beforePlan, currentPositions, codeViewer.cardId, "ignore");
               showToast("Save failed", filePath, true);
               throw error;
@@ -2350,6 +2480,7 @@ export default function App() {
                 afterPositions: beforePositions,
                 beforeSelectedCardId: selectedCardIdRef.current,
                 afterSelectedCardId: card.id,
+                ...buildUndoGuardContext(plan.id),
               };
               applyLocalPlanSnapshot(plan.id, cloneValue(afterPlan), cloneValue(beforePositions), card.id, "preserve");
               pushUndoAction(action);

@@ -25,6 +25,8 @@ interface ToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  undoDisabledReason?: string;
+  redoDisabledReason?: string;
   planTitle: string;
   planId: string;
 }
@@ -64,6 +66,8 @@ function Toolbar({
   canRedo,
   onUndo,
   onRedo,
+  undoDisabledReason,
+  redoDisabledReason,
   planTitle,
   planId,
 }: ToolbarProps) {
@@ -95,24 +99,34 @@ function Toolbar({
       {/* ---- Right: History, Export ---- */}
       <div className="flex items-center gap-1 shrink-0 ml-2">
         <div className="inline-flex items-center gap-0.5 p-0.5 rounded-full border border-white/[0.06] bg-white/[0.025]">
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onClick={onUndo}
-            disabled={!canUndo}
-            label="Undo"
-            icon={<ArrowCounterClockwise size={12} weight="bold" />}
-            className={canUndo ? "" : "!text-white/15 hover:!bg-transparent"}
-          />
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onClick={onRedo}
-            disabled={!canRedo}
-            label="Redo"
-            icon={<ArrowClockwise size={12} weight="bold" />}
-            className={canRedo ? "" : "!text-white/15 hover:!bg-transparent"}
-          />
+          <span
+            title={!canUndo ? undoDisabledReason : undefined}
+            className={!canUndo && undoDisabledReason ? "inline-flex cursor-help" : "inline-flex"}
+          >
+            <IconButton
+              variant="ghost"
+              size="sm"
+              onClick={onUndo}
+              disabled={!canUndo}
+              label="Undo"
+              icon={<ArrowCounterClockwise size={12} weight="bold" />}
+              className={canUndo ? "" : "!text-white/15 hover:!bg-transparent"}
+            />
+          </span>
+          <span
+            title={!canRedo ? redoDisabledReason : undefined}
+            className={!canRedo && redoDisabledReason ? "inline-flex cursor-help" : "inline-flex"}
+          >
+            <IconButton
+              variant="ghost"
+              size="sm"
+              onClick={onRedo}
+              disabled={!canRedo}
+              label="Redo"
+              icon={<ArrowClockwise size={12} weight="bold" />}
+              className={canRedo ? "" : "!text-white/15 hover:!bg-transparent"}
+            />
+          </span>
         </div>
 
         <IconButton
