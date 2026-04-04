@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowsClockwise, Check, GearSix, X } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon as ArrowsClockwise, CheckIcon as Check, GearSixIcon as GearSix, XIcon as X } from "@phosphor-icons/react";
 import type { CollabProfile } from "../types";
 import {
   COLLAB_SERVER_URL_PLACEHOLDER,

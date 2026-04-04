@@ -1,19 +1,19 @@
 import React, { useState, useCallback, useMemo, useRef } from "react";
 import {
-  Folders,
-  File,
-  CaretUp,
-  CaretDown,
-  ArrowRight,
-  X,
-  PencilSimple,
-  Trash,
-  PaperPlaneTilt,
-  ChatCircleDots,
-  Lightning,
-  Warning,
-  CheckCircle,
-  Copy,
+  FoldersIcon as Folders,
+  FileIcon as File,
+  CaretUpIcon as CaretUp,
+  CaretDownIcon as CaretDown,
+  ArrowRightIcon as ArrowRight,
+  XIcon as X,
+  PencilSimpleIcon as PencilSimple,
+  TrashIcon as Trash,
+  PaperPlaneTiltIcon as PaperPlaneTilt,
+  ChatCircleDotsIcon as ChatCircleDots,
+  LightningIcon as Lightning,
+  WarningIcon as Warning,
+  CheckCircleIcon as CheckCircle,
+  CopyIcon as Copy,
 } from "@phosphor-icons/react";
 import { TC, FB } from "../lib/theme";
 import { Md } from "../lib/markdown";

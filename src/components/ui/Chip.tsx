@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { X } from "@phosphor-icons/react";
+import { XIcon as X } from "@phosphor-icons/react";
 
 type ChipVariant = "default" | "accent" | "success" | "info" | "warning" | "danger" | "purple" | "orange" | "teal";
 type ChipSize = "xs" | "sm" | "md";

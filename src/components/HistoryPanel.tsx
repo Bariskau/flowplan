@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import {
-  ClockCounterClockwise,
-  X,
-  ArrowsClockwise,
-  ArrowUpRight,
-  PlusCircle,
-  MinusCircle,
-  PencilSimple,
+  ClockCounterClockwiseIcon as ClockCounterClockwise,
+  XIcon as X,
+  ArrowsClockwiseIcon as ArrowsClockwise,
+  ArrowUpRightIcon as ArrowUpRight,
+  PlusCircleIcon as PlusCircle,
+  MinusCircleIcon as MinusCircle,
+  PencilSimpleIcon as PencilSimple,
 } from "@phosphor-icons/react";
 import type { CollabProfile, HistoryChange, HistoryEntry } from "../types";
 import IconButton from "./ui/IconButton";

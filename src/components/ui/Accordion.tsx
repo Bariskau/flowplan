@@ -1,4 +1,4 @@
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDownIcon as CaretDown } from "@phosphor-icons/react";
 import { useId, useState, type ReactNode } from "react";
 
 interface AccordionProps {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { X, Plus, ChatCircleDots, Folders, Lightning, PencilSimple, CheckCircle } from "@phosphor-icons/react";
+import { XIcon as X, PlusIcon as Plus, ChatCircleDotsIcon as ChatCircleDots, FoldersIcon as Folders, LightningIcon as Lightning, PencilSimpleIcon as PencilSimple, CheckCircleIcon as CheckCircle } from "@phosphor-icons/react";
 import { TC } from "../lib/theme";
 import * as api from "../lib/api";
 import type { Card } from "../types";

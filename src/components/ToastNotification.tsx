@@ -1,4 +1,4 @@
-import { X } from "@phosphor-icons/react";
+import { XIcon as X } from "@phosphor-icons/react";
 
 interface ToastNotificationProps {
   text: string;

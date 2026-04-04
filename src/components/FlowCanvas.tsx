@@ -15,13 +15,13 @@ import {
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import {
-  Plus,
-  Minus,
-  ArrowsOutCardinal,
-  PencilSimple,
-  Trash,
-  Copy,
-  X,
+  PlusIcon as Plus,
+  MinusIcon as Minus,
+  ArrowsOutCardinalIcon as ArrowsOutCardinal,
+  PencilSimpleIcon as PencilSimple,
+  TrashIcon as Trash,
+  CopyIcon as Copy,
+  XIcon as X,
 } from "@phosphor-icons/react";
 import { toPng } from "html-to-image";
 import type { Card, FileChange } from "../types";

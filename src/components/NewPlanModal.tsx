@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus } from "@phosphor-icons/react";
+import { XIcon as X, PlusIcon as Plus } from "@phosphor-icons/react";
 import * as api from "../lib/api";
 import type { Plan } from "../types";
 import useEscapeClose from "../hooks/useEscapeClose";

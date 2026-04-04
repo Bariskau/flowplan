@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useMemo, useRef } from "react";
-import { X, Copy, Check, FileCode, FloppyDisk } from "@phosphor-icons/react";
+import { XIcon as X, CopyIcon as Copy, CheckIcon as Check, FileCodeIcon as FileCode, FloppyDiskIcon as FloppyDisk } from "@phosphor-icons/react";
 import type { FileChange } from "../types";
 import { highlight } from "../lib/highlight";
 import Button from "./ui/Button";

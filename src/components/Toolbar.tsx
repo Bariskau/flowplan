@@ -1,14 +1,14 @@
 import React, { useState, useCallback } from "react";
 import {
-  ClockCounterClockwise,
-  Export,
-  Copy,
-  Check,
-  FileImage,
-  BracketsAngle,
-  Plus,
-  ArrowCounterClockwise,
-  ArrowClockwise,
+  ClockCounterClockwiseIcon as ClockCounterClockwise,
+  ExportIcon as Export,
+  CopyIcon as Copy,
+  CheckIcon as Check,
+  FileImageIcon as FileImage,
+  BracketsAngleIcon as BracketsAngle,
+  PlusIcon as Plus,
+  ArrowCounterClockwiseIcon as ArrowCounterClockwise,
+  ArrowClockwiseIcon as ArrowClockwise,
 } from "@phosphor-icons/react";
 import type { Plan } from "../types";
 import IconButton from "./ui/IconButton";

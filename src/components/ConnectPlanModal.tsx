@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, LinkSimple, PlugsConnected, Sparkle, X } from "@phosphor-icons/react";
+import { CheckIcon as Check, CopyIcon as Copy, LinkSimpleIcon as LinkSimple, PlugsConnectedIcon as PlugsConnected, SparkleIcon as Sparkle, XIcon as X } from "@phosphor-icons/react";
 import type { CollabSession, ConnectPlanDraft, Plan } from "../types";
 import {
   loadConnectionDefaults,

@@ -4,7 +4,7 @@ import { TC } from "../lib/theme";
 import { Md } from "../lib/markdown";
 import { formatCardRef } from "../lib/refs";
 import type { Card, FileChange } from "../types";
-import { Folders, File, Copy, MagnifyingGlass, Compass, Plus, PencilSimple, Flask } from "@phosphor-icons/react";
+import { FoldersIcon as Folders, FileIcon as File, CopyIcon as Copy, MagnifyingGlassIcon as MagnifyingGlass, CompassIcon as Compass, PlusIcon as Plus, PencilSimpleIcon as PencilSimple, FlaskIcon as Flask } from "@phosphor-icons/react";
 import CardTag from "./ui/CardTag";
 import FileTag from "./ui/FileTag";
 import { TYPE_TAG_VARIANT, TYPE_BG } from "../lib/cardTypes";
