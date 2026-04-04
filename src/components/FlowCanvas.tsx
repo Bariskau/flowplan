@@ -57,117 +57,77 @@ function ZoomBtn({
   );
 }
 
-/* ---- Bright dots overlay: matches ReactFlow Background pattern exactly ---- */
+/* ---- Bright dots overlay: second Background layer, same viewport math as base ---- */
 const BG_GAP = 18;
 const BG_SIZE = 0.8;
+const BG_BRIGHT_SIZE = 1.05;
 
-function BrightDotsOverlay() {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const patRef = useRef<SVGPatternElement>(null);
-  const maskCircleRef = useRef<SVGCircleElement>(null);
-
-  // Match ReactFlow Background pattern:
-  // scaledGap = gap * zoom
-  // pattern x = transform.x % scaledGap
-  // pattern y = transform.y % scaledGap
-  // patternTransform = translate(-(scaledGap/2), -(scaledGap/2))
-  // dot: cx=radius, cy=radius, r=radius  (radius = size * zoom / 2)
-  useOnViewportChange({
-    onChange: useCallback((vp: { zoom: number; x: number; y: number }) => {
-      if (!patRef.current) return;
-      const scaledGap = BG_GAP * vp.zoom;
-      const radius = (BG_SIZE * vp.zoom) / 2;
-      const px = vp.x % scaledGap;
-      const py = vp.y % scaledGap;
-      const offsetX = 1 + scaledGap / 2;
-      const offsetY = 1 + scaledGap / 2;
-
-      patRef.current.setAttribute("width", String(scaledGap));
-      patRef.current.setAttribute("height", String(scaledGap));
-      patRef.current.setAttribute("x", String(px));
-      patRef.current.setAttribute("y", String(py));
-      patRef.current.setAttribute("patternTransform", `translate(-${offsetX},-${offsetY})`);
-      const dot = patRef.current.querySelector("circle");
-      if (dot) {
-        dot.setAttribute("cx", String(radius));
-        dot.setAttribute("cy", String(radius));
-        dot.setAttribute("r", String(Math.max(0.2, radius)));
-      }
-    }, []),
+function BrightDotsOverlay({ containerRef }: { containerRef: React.RefObject<HTMLDivElement> }) {
+  const [mask, setMask] = useState<{ x: number; y: number; visible: boolean }>({
+    x: -500,
+    y: -500,
+    visible: false,
   });
 
   useEffect(() => {
-    const svg = svgRef.current;
+    const container = containerRef.current;
+    if (!container) return;
+
     let fadeTimer: ReturnType<typeof setTimeout> | null = null;
     let rafId: number | null = null;
 
-    const onMove = (e: MouseEvent) => {
+    const showAt = (x: number, y: number) => {
+      setMask({ x, y, visible: true });
+      if (fadeTimer) clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(() => {
+        setMask((prev) => ({ ...prev, visible: false }));
+      }, 1500);
+    };
+
+    const onMove = (event: MouseEvent) => {
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
-        if (!maskCircleRef.current || !svg) return;
-        const rect = svg.getBoundingClientRect();
-        maskCircleRef.current.setAttribute("cx", String(e.clientX - rect.left));
-        maskCircleRef.current.setAttribute("cy", String(e.clientY - rect.top));
-        // Show
-        svg.style.opacity = "1";
-        // Reset fade timer
-        if (fadeTimer) clearTimeout(fadeTimer);
-        fadeTimer = setTimeout(() => {
-          if (svg) svg.style.opacity = "0";
-        }, 1500);
+        const rect = container.getBoundingClientRect();
+        showAt(event.clientX - rect.left, event.clientY - rect.top);
       });
     };
-    const onLeave = () => {
-      if (maskCircleRef.current) {
-        maskCircleRef.current.setAttribute("cx", "-500");
-        maskCircleRef.current.setAttribute("cy", "-500");
-      }
-      if (svg) svg.style.opacity = "0";
-      if (fadeTimer) clearTimeout(fadeTimer);
-    };
-    window.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseleave", onLeave);
-      if (fadeTimer) clearTimeout(fadeTimer);
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, []);
 
-  const initRadius = (BG_SIZE * 1) / 2;
+    const onLeave = () => {
+      if (fadeTimer) clearTimeout(fadeTimer);
+      setMask((prev) => ({ ...prev, visible: false }));
+    };
+
+    container.addEventListener("mousemove", onMove);
+    container.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      container.removeEventListener("mousemove", onMove);
+      container.removeEventListener("mouseleave", onLeave);
+      if (fadeTimer) clearTimeout(fadeTimer);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [containerRef]);
+
+  const maskImage = `radial-gradient(circle 120px at ${mask.x}px ${mask.y}px, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)`;
 
   return (
-    <svg
-      ref={svgRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 1, opacity: 0, transition: "opacity 0.6s ease" }}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <pattern
-          ref={patRef}
-          id="fp-bright-dots"
-          x="0"
-          y="0"
-          width={BG_GAP}
-          height={BG_GAP}
-          patternUnits="userSpaceOnUse"
-          patternTransform={`translate(-${1 + BG_GAP / 2},-${1 + BG_GAP / 2})`}
-        >
-          <circle cx={initRadius} cy={initRadius} r={initRadius} fill="#ffffff" />
-        </pattern>
-        <radialGradient id="fp-mask-grad">
-          <stop offset="0%" stopColor="white" />
-          <stop offset="100%" stopColor="black" />
-        </radialGradient>
-        <mask id="fp-cursor-mask">
-          <circle ref={maskCircleRef} cx="-500" cy="-500" r="120" fill="url(#fp-mask-grad)" />
-        </mask>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#fp-bright-dots)" mask="url(#fp-cursor-mask)" />
-    </svg>
+    <Background
+      id="fp-bright-dots"
+      variant={BackgroundVariant.Dots}
+      gap={BG_GAP}
+      size={BG_BRIGHT_SIZE}
+      color="#ffffff"
+      bgColor="transparent"
+      className="pointer-events-none"
+      style={{
+        opacity: mask.visible ? 1 : 0,
+        transition: "opacity 0.6s ease",
+        filter: "drop-shadow(0 0 8px rgba(255,255,255,0.4))",
+        maskImage,
+        WebkitMaskImage: maskImage,
+      }}
+    />
   );
 }
 
@@ -704,7 +664,7 @@ function FlowCanvasInner({
         style={{ background: "transparent" }}
       >
         <Background variant={BackgroundVariant.Dots} gap={18} size={0.8} color="#5a5a5a" bgColor="#202124" />
-        <BrightDotsOverlay />
+        <BrightDotsOverlay containerRef={flowRef} />
       </ReactFlow>
 
       {/* Context menu */}

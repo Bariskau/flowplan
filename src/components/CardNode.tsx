@@ -10,7 +10,7 @@ import FileTag from "./ui/FileTag";
 import { TYPE_TAG_VARIANT, TYPE_BG } from "../lib/cardTypes";
 
 export const CW = 240;
-export const CH = 120;
+export const CH = 150;
 
 const TYPE_ICON: Record<string, React.ElementType> = {
   research: MagnifyingGlass,
@@ -82,8 +82,8 @@ function CardNode({ data, selected, isConnectable }: NodeProps & { data: CardNod
     highlight === "added" ? "var(--color-fp-success)" : highlight === "modified" ? "var(--color-fp-orange)" : null;
 
   const descTruncated =
-    card.description && card.description.length > 300
-      ? card.description.slice(0, 300) + "\u2026"
+    card.description && card.description.length > 900
+      ? card.description.slice(0, 900) + "\u2026"
       : card.description || "";
 
   const visibleFiles = card.files.slice(0, 3);
@@ -127,9 +127,9 @@ function CardNode({ data, selected, isConnectable }: NodeProps & { data: CardNod
           {card.title}
         </div>
 
-        {/* ---- Description (markdown, compact, max 2 lines) ---- */}
+        {/* ---- Description (markdown, expanded, max 6 lines) ---- */}
         {descTruncated && (
-          <div className="text-[11px] text-fp-muted leading-normal overflow-hidden text-ellipsis [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [display:-webkit-box]">
+          <div className="text-[11px] text-fp-muted leading-[1.45] overflow-hidden text-ellipsis [-webkit-line-clamp:6] [-webkit-box-orient:vertical] [display:-webkit-box] min-h-[94px]">
             <Md text={descTruncated} fontSize={11} color="#a1a1aa" compact />
           </div>
         )}

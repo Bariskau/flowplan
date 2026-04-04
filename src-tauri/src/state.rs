@@ -643,6 +643,10 @@ pub fn append_history_entry(
         return;
     }
 
+    if matches!(source, HistorySource::Undo | HistorySource::Redo) {
+        return;
+    }
+
     let mut history = load_history(&plan.id);
     let last_revision = history
         .entries
