@@ -1,3 +1,5 @@
+
+
 # FlowPlan
 
 A visual plan board for AI coding agents. FlowPlan connects to Claude Code, Codex, Cursor, Gemini CLI, and other MCP-compatible agents via MCP (Model Context Protocol), turning their execution plans into interactive flow diagrams with dependency connections, file change previews, a two-way feedback system, and live collaboration for shared review sessions.
@@ -43,7 +45,7 @@ The MCP server starts automatically at `http://localhost:3100/mcp` (Streamable H
 
 ### Optional Collaboration
 
-FlowPlan also supports live collaboration sessions. Add your signaling server URL in `Settings -> Collaboration network`, then host or join a room from the sidebar to review plans together in real time.
+FlowPlan also supports live collaboration sessions. Add your signaling server URL in `Settings -> Collaboration network`, then host or join a room from the sidebar to review plans together in real time. For local development, run `npm run collab:server` and use `http://127.0.0.1:3320`.
 
 ### MCP Setup
 
